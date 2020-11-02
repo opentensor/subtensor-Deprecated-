@@ -1,11 +1,10 @@
 [package]
-authors = ['Substrate DevHub <https://github.com/substrate-developer-hub>']
-description = 'FRAME pallet template for defining custom runtime logic.'
+authors = ['Const, Parallax, ShibShib']
+description = 'Subtensor FRAME pallet'
 edition = '2018'
-homepage = 'https://substrate.dev'
-license = 'Unlicense'
-name = 'pallet-template'
-repository = 'https://github.com/substrate-developer-hub/substrate-node-template/'
+homepage = 'https://www.bittensor.com'
+license = 'MIT'
+name = 'pallet-subtensor'
 version = '2.0.0'
 
 [package.metadata.docs.rs]

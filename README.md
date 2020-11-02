@@ -1,4 +1,4 @@
-# Substrate Node Template
+# Substrate Subtensor Node
 
 A new FRAME-based Substrate node, ready for hacking :rocket:
 
@@ -13,7 +13,7 @@ Setup instructions can be found at the
 
 ### Build
 
-Once the development environment is set up, build the node template. This command will build the
+Once the development environment is set up, build the subtensor node. This command will build the
 [Wasm](https://substrate.dev/docs/en/knowledgebase/advanced/executor#wasm-execution) and
 [native](https://substrate.dev/docs/en/knowledgebase/advanced/executor#native-execution) code:
 
@@ -28,19 +28,19 @@ WASM_BUILD_TOOLCHAIN=nightly-2020-10-05 cargo build --release
 Purge any existing dev chain state:
 
 ```bash
-./target/release/node-template purge-chain --dev
+./target/release/node-subtensor purge-chain --dev
 ```
 
 Start a dev chain:
 
 ```bash
-./target/release/node-template --dev
+./target/release/node-subtensor --dev
 ```
 
 Or, start a dev chain with detailed logging:
 
 ```bash
-RUST_LOG=debug RUST_BACKTRACE=1 ./target/release/node-template -lruntime=debug --dev
+RUST_LOG=debug RUST_BACKTRACE=1 ./target/release/node-subtensor -lruntime=debug --dev
 ```
 
 ### Multi-Node Local Testnet
@@ -48,7 +48,7 @@ RUST_LOG=debug RUST_BACKTRACE=1 ./target/release/node-template -lruntime=debug -
 If you want to see the multi-node consensus algorithm in action, refer to
 [our Start a Private Network tutorial](https://substrate.dev/docs/en/tutorials/start-a-private-network/).
 
-## Template Structure
+## Subtensor Structure
 
 A Substrate project such as this consists of a number of components that are spread across a few
 directories.
@@ -91,7 +91,7 @@ After the node has been [built](#build), refer to the embedded documentation to 
 capabilities and configuration parameters that it exposes:
 
 ```shell
-./target/release/node-template --help
+./target/release/node-subtensor --help
 ```
 
 ### Runtime
@@ -108,7 +108,7 @@ called "pallets". At the heart of FRAME is a helpful
 create pallets and flexibly compose them to create blockchains that can address
 [a variety of needs](https://www.substrate.io/substrate-users/).
 
-Review the [FRAME runtime implementation](./runtime/src/lib.rs) included in this template and note
+Review the [FRAME runtime implementation](./runtime/src/lib.rs) included in this subtensor and note
 the following:
 
 -   This file configures several pallets to include in the runtime. Each pallet configuration is
@@ -123,7 +123,7 @@ the following:
 
 The runtime in this project is constructed using many FRAME pallets that ship with the
 [core Substrate repository](https://github.com/paritytech/substrate/tree/master/frame) and a
-template pallet that is [defined in the `pallets`](./pallets/template/src/lib.rs) directory.
+subtensor pallet that is [defined in the `pallets`](./pallets/subtensor/src/lib.rs) directory.
 
 A FRAME pallet is compromised of a number of blockchain primitives:
 
@@ -151,15 +151,15 @@ Then run the following command to start a single node development chain.
 ```
 
 This command will firstly compile your code, and then start a local development network. You can
-also replace the default command (`cargo build --release && ./target/release/node-template --dev --ws-external`)
+also replace the default command (`cargo build --release && ./target/release/node-subtensor --dev --ws-external`)
 by appending your own. A few useful ones are as follow.
 
 ```bash
 # Run Substrate node without re-compiling
-./scripts/docker_run.sh ./target/release/node-template --dev --ws-external
+./scripts/docker_run.sh ./target/release/node-subtensor --dev --ws-external
 
 # Purge the local dev chain
-./scripts/docker_run.sh ./target/release/node-template purge-chain --dev
+./scripts/docker_run.sh ./target/release/node-subtensor purge-chain --dev
 
 # Check whether the code is compilable
 ./scripts/docker_run.sh cargo check

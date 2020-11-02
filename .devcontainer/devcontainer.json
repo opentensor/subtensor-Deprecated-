@@ -1,5 +1,5 @@
 {
-  "name": "Substrate Node template",
+  "name": "Substrate Node Subtensor",
   "context": "..",
   "settings": {
     "terminal.integrated.shell.linux": "/bin/bash",
@@ -15,7 +15,7 @@
     9944
   ],
   "preCreateCommand": "cargo build --release && cargo check",
-  "postStartCommand": "./target/release/node-template --dev --ws-external",
+  "postStartCommand": "./target/release/node-subtensor --dev --ws-external",
   "menuActions": [
     {"id": "polkadotjs",
      "label": "Open PolkadotJS Apps",
