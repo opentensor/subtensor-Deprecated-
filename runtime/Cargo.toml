@@ -1,7 +1,7 @@
 [package]
-authors = ['Substrate DevHub <https://github.com/substrate-developer-hub>']
+authors = ['Parallax', 'Unconst']
 edition = '2018'
-homepage = 'https://substrate.dev'
+homepage = 'https://bittensor.com'
 license = 'Unlicense'
 name = 'node-subtensor-runtime'
 repository = 'https://github.com/opentensor/subtensor/'
@@ -42,6 +42,7 @@ pallet-sudo = { default-features = false, version = '2.0.0' }
 pallet-timestamp = { default-features = false, version = '2.0.0' }
 pallet-transaction-payment = { default-features = false, version = '2.0.0' }
 pallet-transaction-payment-rpc-runtime-api = { default-features = false, version = '2.0.0' }
+pallet-scheduler = { default-features = false, version = '2.0.0' }
 sp-api = { default-features = false, version = '2.0.0' }
 sp-block-builder = { default-features = false, version = '2.0.0' }
 sp-consensus-aura = { default-features = false, version = '0.8.0' }
@@ -83,6 +84,7 @@ std = [
     'pallet-timestamp/std',
     'pallet-transaction-payment/std',
     'pallet-transaction-payment-rpc-runtime-api/std',
+    'pallet-scheduler/std',
     'sp-api/std',
     'sp-block-builder/std',
     'sp-consensus-aura/std',

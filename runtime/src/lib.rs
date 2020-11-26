@@ -91,6 +91,18 @@ pub mod opaque {
 	}
 }
 
+/**
+    This badboy needs to be changed in order to do a runtime upgrade
+
+    spec_name: The name of the runtime/chain, e.g. Ethereum.
+    impl_name: The name of the client, e.g. OpenEthereum.
+    authoring_version: The authorship version for block authors.
+    spec_version: The version of the runtime/chain.
+    impl_version: The version of the client.  <-- This guy
+    apis: The list of supported APIs.
+    transaction_version: The version of the dispatchable function interface.
+
+*/
 pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("node-subtensor"),
 	impl_name: create_runtime_str!("node-subtensor"),
@@ -118,6 +130,31 @@ pub fn native_version() -> NativeVersion {
 		can_author_with: Default::default(),
 	}
 }
+
+
+/***************************************************************************************************
+									SCHEDULER PALLET
+***************************************************************************************************/
+
+
+// Define the types required by the Scheduler pallet.
+parameter_types! {
+    pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) * MaximumBlockWeight::get();
+    pub const MaxScheduledPerBlock: u32 = 50;
+}
+
+// Configure the runtime's implementation of the Scheduler pallet.
+impl pallet_scheduler::Trait for Runtime {
+    type Event = Event;
+    type Origin = Origin;
+    type PalletsOrigin = OriginCaller;
+    type Call = Call;
+    type MaximumWeight = MaximumSchedulerWeight;
+    type ScheduleOrigin = frame_system::EnsureRoot<AccountId>;
+    type MaxScheduledPerBlock = MaxScheduledPerBlock;
+    type WeightInfo = ();
+}
+
 
 parameter_types! {
 	pub const BlockHashCount: BlockNumber = 2400;
@@ -283,6 +320,7 @@ construct_runtime!(
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
 		// Include the custom logic from the subtensor pallet in the runtime.
 		SubtensorModule: pallet_subtensor::{Module, Call, Storage, Event<T>},
+		Scheduler: pallet_scheduler::{Module, Call, Storage, Event<T>},
 	}
 );
 
