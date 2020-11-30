@@ -9,5 +9,7 @@ jobs:
       - image: cimg/rust:1.48.0
     steps:
       - rust/checkout_with_submodules
+      - rust/update_toolchain:
+          toolchain: nightly-2020-10-06
       - rust/build:
           release: true
