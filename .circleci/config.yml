@@ -10,4 +10,4 @@ jobs:
     steps:
       - checkout_with_submodules
       - build:
-          - release: true
+          release: true
