@@ -11,5 +11,8 @@ jobs:
       - rust/checkout_with_submodules
       - rust/update_toolchain:
           toolchain: nightly-2020-10-06
+      - run:
+          name: Set WASM target
+          command: rustup target add wasm32-unknown-unknown --toolchain nightly-2020-10-06
       - rust/build:
           release: true
