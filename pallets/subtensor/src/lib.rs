@@ -1,26 +1,15 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-/// Edit this file to define custom logic or remove it if it is not needed.
-/// Learn more about FRAME and the core library of Substrate FRAME pallets:
-/// https://substrate.dev/docs/en/knowledgebase/runtime/frame
-
+// Frame imports.
 use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, ensure, debug};
 use frame_support::weights::{DispatchClass, Pays};
 use codec::{Decode, Encode};
 use frame_system::{self as system, ensure_signed};
 use substrate_fixed::types::U32F32;
-use sp_arithmetic::Permill;
 use sp_std::convert::TryInto;
-
 use sp_std::{
 	prelude::*
 };
-
-#[cfg(test)]
-mod mock;
-
-#[cfg(test)]
-mod tests;
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Trait: frame_system::Trait {
@@ -29,71 +18,74 @@ pub trait Trait: frame_system::Trait {
 }
 
 #[derive(Encode, Decode, Default)]
-pub struct PeerMetadata {
+pub struct NeuronMetadata {
 	ip: u128,
 	port: u16,
 	ip_type: u8,
 }
 
 // The pallet's runtime storage items.
-// https://substrate.dev/docs/en/knowledgebase/runtime/storage
 decl_storage! {
-	// A unique name is used to ensure that the pallet's storage items are isolated.
-	// This name may be updated, but each pallet in the runtime must use a unique name.
-	// ---------------------------------vvvvvvvvvvvvvv
 	trait Store for Module<T: Trait> as SubtensorModule {
 	
-		// Weight values.
-		pub Weight_keys: map hasher(blake2_128_concat) T::AccountId => Vec<T::AccountId>;
-		pub Weight_vals: map hasher(blake2_128_concat) T::AccountId => Vec<u32>;
+		// Weight values: Map from account to vector of weights.
+		pub WeightKeys: map hasher(blake2_128_concat) T::AccountId => Vec<T::AccountId>;
+		pub WeightVals: map hasher(blake2_128_concat) T::AccountId => Vec<u32>;
 
-		// Stake Values
+		// Stake Values: Map from account to u32 stake ammount.
 		pub Stake get(fn stake): map hasher(blake2_128_concat) T::AccountId => u32;
 
-		// Last Emit Block
+		// Last Emit Block: Last emission block.
 		pub LastEmit get(fn block): map hasher(blake2_128_concat) T::AccountId => T::BlockNumber;
 		
-		// Active Peer set.
-		pub Peers get(fn peer): map hasher(blake2_128_concat) T::AccountId => PeerMetadata;
+		// Active Neuron set: Active neurons in graph.
+		pub Neurons get(fn neuron): map hasher(blake2_128_concat) T::AccountId => NeuronMetadata;
 
-		// Active peer count.
-		PeerCount: u32;
+		// Active Neuron count.
+		NeuronCount: u32;
 		
 		// Total ammount staked.
         TotalStake: u32;
 	}
 }
 
-// Pallets use events to inform users when important changes are made.
-// https://substrate.dev/docs/en/knowledgebase/runtime/events
+// Subtensor events.
 decl_event!(
 	pub enum Event<T> where AccountId = <T as frame_system::Trait>::AccountId {
-		// Set Weight: [who A]
+		// Sent when a Neuron updates their weights on chain.
 		WeightsSet(AccountId),
 
-		PeerAdded(AccountId),
+		// Sent when a Neuron is added to the active set.
+		NeuronAdded(AccountId),
 
-		PeerRemoved(AccountId),
+		// Sent when a Neuron is removed from the active set.
+		NeuronRemoved(AccountId),
 
+		// Sent when a Neuron updates their stake.
 		StakeAdded(AccountId, u32),
+
+		// Sent when there is emission from a Neuron.
+		Emission(AccountId, u32),
 	}
 );
 
-// Errors inform users that something went wrong.
+// Subtensor Errors.
 decl_error! {
 	pub enum Error for Module<T: Trait> {
 		/// Cannot join as a member because you are already a member
-		AlreadyPeer,
-		/// Cannot give up membership because you are not currently a member
-		NotPeer,
-		// Peer calling emit has no emission.
+		AlreadyActive,
+		/// Cannot perform staking or emission unless the Neuron is already subscribed.
+		NotActive,
+		// Neuron calling emit has no emission.
 		NothingToEmit,
+		// Neuron updating weights caused overflow.
+		WeightVecNotEqualSize,
+		// Neuron setting weights are too large. Cause u32 overlfow.
+		WeightSumToLarge,
 	}
 }
 
-// Dispatchable functions allows users to interact with the pallet and invoke state changes.
-// These functions materialize as "extrinsics", which are often compared to transactions.
-// Dispatchable functions must be annotated with a weight and must return a DispatchResult.
+// Subtensor Dispatchable functions.
 decl_module! {
 	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
 		// Errors must be initialized if they are used by the pallet.
@@ -102,217 +94,250 @@ decl_module! {
 		// Events must be initialized if they are used by the pallet.
 		fn deposit_event() = default;
 
-		/// An example dispatchable that takes a singles value as a parameter, writes the value to
-		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
+		/// Emission. Called by an active Neuron with stake in-order to distribute 
+		/// tokens to weighted neurons and to himself. The amount emitted is dependent on
+		/// the ammount of stake held at this Neuron and the time since last emission.
+		/// neurons are encouraged to calle this function often as to maximize
+		/// their inflation in the graph.
 		#[weight = (0, DispatchClass::Operational, Pays::No)]
 		pub fn emit(origin) -> dispatch::DispatchResult {
 			// Check that the extrinsic was signed and get the signer.
 			// This function will return an error if the extrinsic is not signed.
 			// https://substrate.dev/docs/en/knowledgebase/runtime/origin
-			let calling_peer = ensure_signed(origin)?;
-			debug::info!("Emit sent by: {:?}", calling_peer);
+			let calling_neuron = ensure_signed(origin)?;
+			debug::info!("Emit sent by: {:?}", calling_neuron);
 
-			// Check that the peer exists in the peer set
-			// Check that the peer has stake to emit.
-			// Check that the peer has weights set.
-			ensure!(Peers::<T>::contains_key(&calling_peer), Error::<T>::NotPeer);
-			ensure!(Stake::<T>::contains_key(&calling_peer), Error::<T>::NotPeer);
-			ensure!(LastEmit::<T>::contains_key(&calling_peer), Error::<T>::NotPeer);
-			ensure!(Weight_keys::<T>::contains_key(&calling_peer), Error::<T>::NotPeer);
-			ensure!(Weight_vals::<T>::contains_key(&calling_peer), Error::<T>::NotPeer);
+			// Check that the Neuron exists in the Neuron set.
+			// Check that the Neuron has stake to emit.
+			// Check that the Neuron has weights set. etc.
+			ensure!(Neurons::<T>::contains_key(&calling_neuron), Error::<T>::NotActive);
+			ensure!(Stake::<T>::contains_key(&calling_neuron), Error::<T>::NotActive);
+			ensure!(LastEmit::<T>::contains_key(&calling_neuron), Error::<T>::NotActive);
+			ensure!(WeightKeys::<T>::contains_key(&calling_neuron), Error::<T>::NotActive);
+			ensure!(WeightVals::<T>::contains_key(&calling_neuron), Error::<T>::NotActive);
 
 			// Get the last emission block.
 			// Get the current block.
-			// Get the block reward from current block.
+			// Get the block reward at this current block.
 			// Set the current block as last emit.
-			let last_block: T::BlockNumber = LastEmit::<T>::get(&calling_peer);
+			let last_block: T::BlockNumber = LastEmit::<T>::get(&calling_neuron);
 			let current_block = system::Module::<T>::block_number();
 			let block_reward = Self::block_reward(&current_block);
-			LastEmit::<T>::insert(&calling_peer, current_block);
+			LastEmit::<T>::insert(&calling_neuron, current_block);
 			debug::info!("Last emit block: {:?}", last_block);
 			debug::info!("Current block: {:?}", current_block);
 			debug::info!("Block reward: {:?}", block_reward);
 
-			// Get number of elapsed blocks since last emit.
+			// Get the number of elapsed blocks since last emit.
 			// Convert to u32f32.
 			let elapsed_blocks = current_block - last_block;
 			let elapsed_blocks_u32: usize = TryInto::try_into(elapsed_blocks)
 			.ok()
 			.expect("blockchain will not exceed 2^32 blocks; qed");
-			let elapsed_blocks_U32F32 = U32F32::from_num(elapsed_blocks_u32);
+			let elapsed_blocks_u32_f32 = U32F32::from_num(elapsed_blocks_u32);
 			debug::info!("elapsed_blocks_u32: {:?}", elapsed_blocks_u32);
-			debug::info!("elapsed_blocks_u32f32: {:?}", elapsed_blocks_U32F32);
+			debug::info!("elapsed_blocks_u32_f32: {:?}", elapsed_blocks_u32_f32);
 
 			// Get local and total stake.
 			// Convert to u32f32.
 			// Calculate stake fraction.
 			let total_stake: u32  = TotalStake::get();
-			let total_stake_U32F32 = U32F32::from_num(total_stake);
-			let local_stake: u32 = Stake::<T>::get(&calling_peer);
-			let local_stake_U32F32 = U32F32::from_num(local_stake);
-			let stake_fraction_u32f32 = local_stake_U32F32 / total_stake_U32F32;
-			debug::info!("total_stake_U32F32 {:?}", total_stake_U32F32);
-			debug::info!("local_stake_U32F32 {:?}", local_stake_U32F32);
-			debug::info!("stake_fraction_u32f32 {:?}", stake_fraction_u32f32);
+			let total_stake_u32_f32 = U32F32::from_num(total_stake);
+			let local_stake: u32 = Stake::<T>::get(&calling_neuron);
+			let local_stake_u32_f32 = U32F32::from_num(local_stake);
+			let stake_fraction_u32_f32 = local_stake_u32_f32 / total_stake_u32_f32;
+			debug::info!("total_stake_u32_f32 {:?}", total_stake_u32_f32);
+			debug::info!("local_stake_u32_f32 {:?}", local_stake_u32_f32);
+			debug::info!("stake_fraction_u32_f32 {:?}", stake_fraction_u32_f32);
 
-			// Calculate total emission at this peer.
-			let total_emission_u32f32 = stake_fraction_u32f32 * block_reward * elapsed_blocks_U32F32;
-			//let total_emission_u32f32 = total_emission_u32f32.floor();
-			debug::info!("total_emission_u32f32 {:?} = {:?}*{:?}*{:?}", total_emission_u32f32, stake_fraction_u32f32, block_reward, elapsed_blocks_U32F32);
-			ensure!(total_emission_u32f32 > U32F32::from_num(0), Error::<T>::NothingToEmit);
+			// Calculate total emission at this Neuron based on times since last emit
+			// stake fraction and block reward.
+			let total_emission_u32_f32 = stake_fraction_u32_f32 * block_reward * elapsed_blocks_u32_f32;
+			let total_emission_u32 = total_emission_u32_f32.to_num::<u32>();
+			debug::info!("total_emission_u32_f32 {:?} = {:?}*{:?}*{:?}", total_emission_u32_f32, stake_fraction_u32_f32, block_reward, elapsed_blocks_u32_f32);
+			ensure!(total_emission_u32_f32 > U32F32::from_num(0), Error::<T>::NothingToEmit);
 
-			// Pull weights and vals from weight set.
-			let w_keys: Vec<T::AccountId> = Weight_keys::<T>::get(&calling_peer);
-			let w_vals: Vec<u32> = Weight_vals::<T>::get(&calling_peer);
-
+			// Get current weights and vals from storage.
 			// Get the weight sum for normalization.
+			let w_keys: Vec<T::AccountId> = WeightKeys::<T>::get(&calling_neuron);
+			let w_vals: Vec<u32> = WeightVals::<T>::get(&calling_neuron);
 			let mut w_sum = U32F32::from_num(0);
 			for x in w_vals.iter() {
-				// TODO(const) Could cause overflow.
-				let x_U32F32 = U32F32::from_num(*x);
-				w_sum = w_sum + x_U32F32;
+				// Overflow no possible since weight sum has been previously checked.
+				let x_u32_f32 = U32F32::from_num(*x);
+				w_sum = w_sum + x_u32_f32;
 			}
+			
+			// Iterate through weight matrix and distribute emission to 
+			// neurons on a weighted basis. 
 			for (i, dest_key) in w_keys.iter().enumerate() {
 
-				// Get emission to peer i.
-				let wij_U32F32 = U32F32::from_num(w_vals[i]);
-				let wij_norm_U32F32 = wij_U32F32 / w_sum;
-				let emission_U32F32 = total_emission_u32f32 * wij_norm_U32F32;
-
+				// Get emission to Neuron j from Neuron i.
+				let wij_u32_f32 = U32F32::from_num(w_vals[i]);
+				let wij_norm_u32_f32 = wij_u32_f32 / w_sum;
+				let emission_u32_f32 = total_emission_u32_f32 * wij_norm_u32_f32;
 				debug::info!("emit to {:?}", dest_key);
-				debug::info!("wij {:?}", wij_norm_U32F32);
-				debug::info!("emission_U32F32 {:?}", emission_U32F32);
+				debug::info!("wij {:?}", wij_norm_u32_f32);
+				debug::info!("emission_u32_f32 {:?}", emission_u32_f32);
 
-				// Get stake as a U32F32.
+				// Determine stake ammount for Neuron j.
 				let prev_stake: u32 = Stake::<T>::get(&dest_key);
-				let prev_stake_U32F32 = U32F32::from_num(prev_stake);
-				let new_stake_U32F32 = prev_stake_U32F32 + emission_U32F32;
-
-				debug::info!("prev_stake_U32F32 {:?}", prev_stake_U32F32);
-				debug::info!("new_stake_U32F32 {:?} = {:?} + {:?}", new_stake_U32F32, prev_stake_U32F32, emission_U32F32);
-
-				// Convert to u32.
-				let new_stake_u32: u32 = new_stake_U32F32.to_num::<u32>();
+				let prev_stake_u32_f32 = U32F32::from_num(prev_stake);
+				let new_stake_u32_f32 = prev_stake_u32_f32 + emission_u32_f32;
+				let new_stake_u32: u32 = new_stake_u32_f32.to_num::<u32>();
+				debug::info!("prev_stake_u32_f32 {:?}", prev_stake_u32_f32);
+				debug::info!("new_stake_u32_f32 {:?} = {:?} + {:?}", new_stake_u32_f32, prev_stake_u32_f32, emission_u32_f32);
 				debug::info!("new_stake_u32 {:?}", new_stake_u32);
 
+				// Update stake in storage.
+				// Update total stake in storage.
 				Stake::<T>::insert(&dest_key, new_stake_u32);
 				let total_stake: u32  = TotalStake::get();
 				TotalStake::put(total_stake + new_stake_u32); // TODO (const): check overflow.
 				debug::info!("sink new stake.");
 			}
 
+			Self::deposit_event(RawEvent::Emission(calling_neuron, total_emission_u32));
+
 			// Return.
 			Ok(())
 		}
 
+		// Staking: Adds stake to the stake account for calling Neuron.
 		#[weight = (0, DispatchClass::Operational, Pays::No)]
 		fn add_stake(origin, stake_amount: u32) -> dispatch::DispatchResult {
-			let peer = ensure_signed(origin)?;
-			debug::info!("add_stake sent by: {:?}", peer);
+			
+			// Check sig.
+			let neuron = ensure_signed(origin)?;
+			debug::info!("add_stake sent by: {:?}", neuron);
 			debug::info!("stake_amount {:?}", stake_amount);
 
+			// Check subscribed.
+			ensure!(Neurons::<T>::contains_key(&neuron), Error::<T>::NotActive);
+
+			// Update stake at Neuron.
+			// TODO (const): transfer from balance pallet.
+			Stake::<T>::insert(&neuron, stake_amount);
+
+			// Update total staked storage iterm.
 			let total_stake = TotalStake::get();
+			TotalStake::put(total_stake + stake_amount); // TODO (const): check overflow.
 			debug::info!("total_stake: {:?}", total_stake + stake_amount);
 
-			ensure!(Peers::<T>::contains_key(&peer), Error::<T>::NotPeer);
-
-			Stake::<T>::insert(&peer, stake_amount);
-			TotalStake::put(total_stake + stake_amount); // TODO (const): check overflow.
-
-			Self::deposit_event(RawEvent::StakeAdded(peer, stake_amount));
+			// Emit event and finish.
+			Self::deposit_event(RawEvent::StakeAdded(neuron, stake_amount));
 			Ok(())
 		}
 
+		// Subscribes the calling Neuron to the active set.
 		#[weight = (0, DispatchClass::Operational, Pays::No)]
 		fn subscribe(origin, ip: u128, port: u16, ip_type: u8) -> dispatch::DispatchResult {
-			let new_peer = ensure_signed(origin)?;
-			debug::info!("new_peer sent by: {:?}", new_peer);
+			
+			// Check sig.
+			let new_neuron = ensure_signed(origin)?;
+			debug::info!("new_neuron sent by: {:?}", new_neuron);
 
-			let peer_count = PeerCount::get();
-			debug::info!("peer_count: {:?}", peer_count);
-
-			// We don't want to add duplicate peer, so we check whether the potential new
-			// member is already present in the list. Because the peer is stored as a hash
-			// map this check is constant time O(1)
-			ensure!(!Peers::<T>::contains_key(&new_peer), Error::<T>::AlreadyPeer);
+			// Check Neuron does not already exist.
+			ensure!(!Neurons::<T>::contains_key(&new_neuron), Error::<T>::AlreadyActive);
 	
-			// Insert the new member and emit the event
-			Peers::<T>::insert(&new_peer, 
-				PeerMetadata {
+			// Insert the new Neuron into the active set.
+			Neurons::<T>::insert(&new_neuron, 
+				NeuronMetadata {
 					ip: ip,
 					port: port,
 					ip_type: ip_type,
 				}
 			);
-			PeerCount::put(peer_count + 1); // overflow check not necessary because of maximum
-			debug::info!("add to peer set");
 
-			// Add current block to last emit.
+			// Update Neuron count.
+			let neuron_count = NeuronCount::get();
+			NeuronCount::put(neuron_count + 1); // overflow check not necessary because of maximum
+			debug::info!("neuron_count: {:?}", neuron_count + 1);
+
+			// Add current block to last emit under Neuron account.
 			let current_block: T::BlockNumber = system::Module::<T>::block_number();
-			LastEmit::<T>::insert(&new_peer, current_block);
+			LastEmit::<T>::insert(&new_neuron, current_block);
 			debug::info!("add last emit.");
 
-			// Init stake.
-			Stake::<T>::insert(&new_peer, 0);
+			// Initizialize stake to zero.
+			Stake::<T>::insert(&new_neuron, 0);
 			debug::info!("set stake to zero.");
 
-			Self::deposit_event(RawEvent::PeerAdded(new_peer));
+			// Init empty weights.
+			WeightVals::<T>::insert(&new_neuron, &Vec::new());
+			WeightKeys::<T>::insert(&new_neuron, &Vec::new());
+
+			// Emit event.
+			Self::deposit_event(RawEvent::NeuronAdded(new_neuron));
 			Ok(())
 		}
 		
 
+		// Removes Neuron from active set.
 		#[weight = (0, DispatchClass::Operational, Pays::No)]
 		fn unsubscribe(origin) -> dispatch::DispatchResult {
-			let old_peer = ensure_signed(origin)?;
-			debug::info!("unsubscribe sent by: {:?}", old_peer);
 
-			// Check that the peer already exists.
-			ensure!(Peers::<T>::contains_key(&old_peer), Error::<T>::NotPeer);
+			// Check sig.
+			let old_neuron = ensure_signed(origin)?;
+			debug::info!("unsubscribe sent by: {:?}", old_neuron);
+
+			// Check that the Neuron already exists.
+			ensure!(Neurons::<T>::contains_key(&old_neuron), Error::<T>::NotActive);
 		
-			// Remove peer.
-			Peers::<T>::remove(&old_peer);
-			PeerCount::mutate(|v| *v -= 1);
-			debug::info!("remove from peer set and decrement count.");
+			// Remove Neuron.
+			Neurons::<T>::remove(&old_neuron);
+			NeuronCount::mutate(|v| *v -= 1);
+			debug::info!("remove from Neuron set and decrement count.");
 
 			// Remove Last Emit.
-			LastEmit::<T>::remove(&old_peer);
+			LastEmit::<T>::remove(&old_neuron);
 			debug::info!("remove from last emit set.");
 
 			// Remove Stake.
-			Stake::<T>::remove(&old_peer);
+			Stake::<T>::remove(&old_neuron);
 			debug::info!("remove stake");
 
 			// Remove Weights.
-			Weight_vals::<T>::remove(&old_peer);
-			Weight_keys::<T>::remove(&old_peer);
+			WeightVals::<T>::remove(&old_neuron);
+			WeightKeys::<T>::remove(&old_neuron);
 			debug::info!("remove weights.");
 
-			Self::deposit_event(RawEvent::PeerRemoved(old_peer));
+			// Emit event.
+			Self::deposit_event(RawEvent::NeuronRemoved(old_neuron));
 			Ok(())
 		}
 
-		/// An example dispatchable that takes a singles value as a parameter, writes the value to
-		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
+		/// Set Weights: Sets weight vec for Neuron on chain.
 		#[weight = (0, DispatchClass::Operational, Pays::No)]
 		pub fn set_weights(origin, 
 				dests: Vec<T::AccountId>, 
 				values: Vec<u32>) -> dispatch::DispatchResult {
-			// Check that the extrinsic was signed and get the signer.
-			// This function will return an error if the extrinsic is not signed.
-			// https://substrate.dev/docs/en/knowledgebase/runtime/origin
-			let peer = ensure_signed(origin)?;
-			debug::info!("set_weights sent by: {:?}", peer);
+			
+			// Check sig.
+			let neuron = ensure_signed(origin)?;
+			debug::info!("set_weights sent by: {:?}", neuron);
 			debug::info!("dests: {:?}", dests);
 			debug::info!("values: {:?}", values);
 
-			// TODO check the length of these two arrays and ensure they are the same size.
-			// The separation allows us to update the vals without updating the keys.
-			Weight_vals::<T>::insert(&peer, &values);
-			Weight_keys::<T>::insert(&peer, &dests);
+			// Ensure weights and vals haver equal size.
+			ensure!(values.len() == dests.len(), Error::<T>::WeightVecNotEqualSize);
 
-			Self::deposit_event(RawEvent::WeightsSet(peer));
+			// Check weights do not cause overflow.
+			let mut weights_sum: u64 = 0;
+			for wij in values.iter() {
+				let wij_u64 = *wij as u64;
+				weights_sum = weights_sum + wij_u64;
+			}
+			let u32_max = u32::MAX;
+			let u32_max_u64 = u32_max as u64;
+			ensure!(weights_sum <= u32_max_u64, Error::<T>::WeightSumToLarge);
 
-			// Return a successful DispatchResult
+			// Update weights.
+			WeightVals::<T>::insert(&neuron, &values);
+			WeightKeys::<T>::insert(&neuron, &dests);
+
+			// Emit and return
+			Self::deposit_event(RawEvent::WeightsSet(neuron));
 			Ok(())
 		}
 	}
@@ -325,24 +350,24 @@ impl<T: Trait> Module<T> {
 		// Convert block number into u32.
 		let elapsed_blocks_u32 = TryInto::try_into(*now)
 			.ok()
-			.expect("blockchain will not exceed 2^32 blocks; qed");
+			.expect("blockchain will not exceed 2^32 blocks; QED.");
 
 		// Convert block number into u32f32 float.
-		let elapsed_blocks_u32f32 = U32F32::from_num(elapsed_blocks_u32);
+		let elapsed_blocks_u32_f32 = U32F32::from_num(elapsed_blocks_u32);
 
 		// Bitcoin block halving rate was 210,000 blocks at block every 10 minutes.
 		// The average substrate block time is 6 seconds.
 		// The equivalent halving would be 10 min * 60 sec / 6 sec =  100 * 210,000.
 		// So our halving is every 21,000,000 blocks.
 		let block_halving = U32F32::from_num(21000000);
-		let fractional_halvings = elapsed_blocks_u32f32 / block_halving;
+		let fractional_halvings = elapsed_blocks_u32_f32 / block_halving;
 		let floored_halvings = fractional_halvings.floor().to_num::<u32>();
 		debug::info!("block_halving: {:?}", block_halving);
 		debug::info!("floored_halvings: {:?}", floored_halvings);
 
 		// Return the bitcoin block reward.
 		let block_reward = U32F32::from_num(50);
-		// TODO(const): catch underflow.
+		// NOTE: Underflow occurs in 21,000,000 * (16 + 4) blocks essentially never.
 		let block_reward_shift = block_reward.overflowing_shr(floored_halvings).0;
 		block_reward_shift
 	}

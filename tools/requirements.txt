@@ -1,0 +1,6 @@
+substrate-interface==0.9.35
+argparse
+pathlib
+loguru
+pyyaml
+validators
