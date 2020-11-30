@@ -1,1 +1,1 @@
-tar --transform='s|target/release/|bin/|' -caf ./target/release/node-substrate.tar ./target/release/node-subtensor
+tar --transform='s|target/release/|opt/subtensor/bin/|' -caf ./artifacts/node-subtensor.tar ./target/release/node-subtensor
