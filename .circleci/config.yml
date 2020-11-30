@@ -12,7 +12,10 @@ jobs:
       - rust/update_toolchain:
           toolchain: nightly-2020-10-06
       - run:
-          name: Set WASM target
+          name: "Set WASM target"
           command: rustup target add wasm32-unknown-unknown --toolchain nightly-2020-10-06
       - rust/build:
           release: true
+      - run:
+          name: "Tar binary"
+          command: ./tar_binary.sh
