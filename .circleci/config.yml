@@ -2,16 +2,10 @@ version: 2.1
 
 jobs:
   "Build Subtensor":
-    machine: # executor type
-      image: ubuntu-2004:202010-01 # # recommended linux image - includes Ubuntu 20.04, docker 19.03.13, docker-compose 1.27.4
+    docker: # executor type
+      - image: cimg/rust:1.48.0 # # recommended linux image - includes Ubuntu 20.04, docker 19.03.13, docker-compose 1.27.4
     steps:
       - checkout
-      - run: sudo apt update
-      - run: sudo apt install -y cmake pkg-config libssl-dev git build-essential clang libclang-dev curl
-      - run:
-          name: install rust
-          command: sudo curl https://sh.rustup.rs -sSf | sh
-      - run: source ~/.cargo/env
       - run: rustup target add wasm32-unknown-unknown --toolchain nightly-2020-10-06
       - run: cd subtensor && rustup target add wasm32-unknown-unknown --toolchain nightly-2020-10-06 
       - run: WASM_BUILD_TOOLCHAIN=nightly-2020-10-06 cargo build --release
