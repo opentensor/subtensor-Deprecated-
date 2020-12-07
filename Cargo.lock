@@ -3279,6 +3279,7 @@ dependencies = [
  "pallet-aura",
  "pallet-balances",
  "pallet-grandpa",
+ "pallet-neurons",
  "pallet-randomness-collective-flip",
  "pallet-scheduler",
  "pallet-subtensor",
@@ -3542,6 +3543,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-neurons"
+version = "2.0.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "sp-arithmetic",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "substrate-fixed",
+]
+
+[[package]]
 name = "pallet-randomness-collective-flip"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3598,6 +3614,7 @@ version = "2.0.0"
 dependencies = [
  "frame-support",
  "frame-system",
+ "pallet-neurons",
  "parity-scale-codec",
  "sp-arithmetic",
  "sp-core",

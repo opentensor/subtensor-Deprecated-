@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 // Frame imports.
-use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, ensure, debug, traits::Get};
+use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, ensure, debug};
 use frame_support::weights::{DispatchClass, Pays};
 use codec::{Decode, Encode};
 use frame_system::{self as system, ensure_signed};
@@ -15,7 +15,6 @@ use sp_std::{
 pub trait Trait: frame_system::Trait {
 	/// Because this pallet emits events, it depends on the runtime's definition of an event.
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
-	type NeuronCount: Get<u32>;
 }
 
 #[derive(Encode, Decode, Default)]
@@ -43,7 +42,7 @@ decl_storage! {
 		pub Neurons get(fn neuron): map hasher(blake2_128_concat) T::AccountId => NeuronMetadata;
 
 		// Active Neuron count.
-		//NeuronCount: u32;
+		NeuronCount: u32;
 		
 		// Total ammount staked.
         TotalStake: u32;
@@ -251,9 +250,9 @@ decl_module! {
 			);
 
 			// Update Neuron count.
-			//let neuron_count = T::NeuronCount::get();
-			//T::NeuronCount::put(neuron_count + 1); // overflow check not necessary because of maximum
-			//debug::info!("neuron_count: {:?}", neuron_count + 1);
+			let neuron_count = NeuronCount::get();
+			NeuronCount::put(neuron_count + 1); // overflow check not necessary because of maximum
+			debug::info!("neuron_count: {:?}", neuron_count + 1);
 
 			// Add current block to last emit under Neuron account.
 			let current_block: T::BlockNumber = system::Module::<T>::block_number();
@@ -286,9 +285,9 @@ decl_module! {
 			ensure!(Neurons::<T>::contains_key(&old_neuron), Error::<T>::NotActive);
 		
 			// Remove Neuron.
-			//Neurons::<T>::remove(&old_neuron);
-			//T::NeuronCount::mutate(|v| *v -= 1);
-			//debug::info!("remove from Neuron set and decrement count.");
+			Neurons::<T>::remove(&old_neuron);
+			NeuronCount::mutate(|v| *v -= 1);
+			debug::info!("remove from Neuron set and decrement count.");
 
 			// Remove Last Emit.
 			LastEmit::<T>::remove(&old_neuron);

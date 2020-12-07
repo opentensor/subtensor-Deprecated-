@@ -1,5 +1,5 @@
 [package]
-authors = ['Parallax', 'Unconst']
+authors = ['Parallax', 'Unconst', 'Shibshib']
 edition = '2018'
 homepage = 'https://bittensor.com'
 license = 'Unlicense'
@@ -26,7 +26,7 @@ serde = { features = ['derive'], optional = true, version = '1.0.101' }
 
 # local dependencies
 pallet-subtensor = { path = '../pallets/subtensor', default-features = false, version = '2.0.0' }
-
+pallet-neurons = { path = '../pallets/neurons', default-features = false, version= '2.0.0' }
 # Substrate dependencies
 frame-benchmarking = { default-features = false, optional = true, version = '2.0.0' }
 frame-executive = { default-features = false, version = '2.0.0' }

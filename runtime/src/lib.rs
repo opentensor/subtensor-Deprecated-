@@ -22,6 +22,7 @@ use pallet_grandpa::fg_primitives;
 use sp_version::RuntimeVersion;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
+use frame_support::traits::Get;
 
 // A few exports that help ease life for downstream crates.
 #[cfg(any(feature = "std", test))]
@@ -301,8 +302,15 @@ impl pallet_sudo::Trait for Runtime {
 /// Configure the subtensor pallet in pallets/subtensor.
 impl pallet_subtensor::Trait for Runtime {
 	type Event = Event;
+	type NeuronCount = NeuronToSubtensor;
 }
 
+pub struct NeuronToSubtensor;
+impl Get<u32> for NeuronToSubtensor {
+	fn get() -> u32 {
+		return NeuronModule::NeuronCount::get();
+   }
+}
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -320,6 +328,7 @@ construct_runtime!(
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
 		// Include the custom logic from the subtensor pallet in the runtime.
 		SubtensorModule: pallet_subtensor::{Module, Call, Storage, Event<T>},
+		NeuronModule: pallet_neurons::{Module, Call, Storage, Event<T>},
 		Scheduler: pallet_scheduler::{Module, Call, Storage, Event<T>},
 	}
 );
