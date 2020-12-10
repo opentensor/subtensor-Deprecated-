@@ -97,4 +97,5 @@ std = [
     'sp-arithmetic/std',
     'sp-transaction-pool/std',
     'sp-version/std',
+    'pallet-balances/std'
 ]
