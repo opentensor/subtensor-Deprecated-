@@ -103,9 +103,6 @@ decl_module! {
 		// Events must be initialized if they are used by the pallet.
 		fn deposit_event() = default;
 		
-		// Reservation Fee
-		//CurrentBalance: BalanceOf<T> = T::CurrentBalance::get();
-
 		/// Emission. Called by an active Neuron with stake in-order to distribute 
 		/// tokens to weighted neurons and to himself. The amount emitted is dependent on
 		/// the ammount of stake held at this Neuron and the time since last emission.
@@ -146,20 +143,26 @@ decl_module! {
 			let stake_currency = Self::u32_to_balance(stake_amount);
 
 			// Adding to stake amount, remove from currency account.
-			let _ = T::Currency::withdraw(&neuron, stake_currency, WithdrawReasons::except(WithdrawReason::Tip), ExistenceRequirement::KeepAlive);
+			let new_potential_balance = T::Currency::free_balance(&neuron) - stake_currency;
+			
+			let can_withdraw = T::Currency::ensure_can_withdraw(&neuron, stake_currency, WithdrawReasons::except(WithdrawReason::Tip), new_potential_balance).is_ok();
+			
+			if can_withdraw {
+				let _ = T::Currency::withdraw(&neuron, stake_currency, WithdrawReasons::except(WithdrawReason::Tip), ExistenceRequirement::AllowDeath);
 
-			debug::info!("New neuron balance is {:?}", T::Currency::total_balance(&neuron));
+				debug::info!("New neuron balance is {:?}", T::Currency::total_balance(&neuron));
 
-			// Update total staked storage iterm.
-			let total_stake: u32  = TotalStake::get();
-			TotalStake::put(total_stake + stake_amount); // TODO (const): check overflow.
-			debug::info!("sink new stake.");
+				// Update total staked storage iterm.
+				let total_stake: u32  = TotalStake::get();
+				TotalStake::put(total_stake + stake_amount); // TODO (const): check overflow.
+				debug::info!("sink new stake.");
 
 
-			// Remove stake amount from balance
+				// Remove stake amount from balance
 
-			// Emit event and finish.
-			Self::deposit_event(RawEvent::StakeAdded(neuron, stake_amount));
+				// Emit event and finish.
+				Self::deposit_event(RawEvent::StakeAdded(neuron, stake_amount));
+			}
 			Ok(())
 		}
 
@@ -213,8 +216,14 @@ decl_module! {
 			debug::info!("Balance is now {:?}, withdrawing {:?} to stake.", T::Currency::free_balance(&new_neuron), new_stake);
 
 			// Stake 100 of the total tokens it has
-			let _ = T::Currency::withdraw(&new_neuron, new_stake, WithdrawReasons::except(WithdrawReason::Tip), ExistenceRequirement::KeepAlive);
-			debug::info!("Balance left: {:?}", T::Currency::free_balance(&new_neuron));
+			let new_potential_balance = T::Currency::free_balance(&new_neuron) - new_stake;
+			let can_withdraw = T::Currency::ensure_can_withdraw(&new_neuron, new_stake, WithdrawReasons::except(WithdrawReason::Tip), new_potential_balance).is_ok();
+			
+			if can_withdraw {
+				let _ = T::Currency::withdraw(&new_neuron, new_stake, WithdrawReasons::except(WithdrawReason::Tip), ExistenceRequirement::KeepAlive);
+				debug::info!("Balance left: {:?}", T::Currency::free_balance(&new_neuron));
+			}
+
 			// Init empty weights.
 			WeightVals::<T>::insert(&new_neuron, &Vec::new());
 			WeightKeys::<T>::insert(&new_neuron, &Vec::new());
@@ -335,8 +344,6 @@ decl_module! {
 			let local_stake: u32 = Stake::<T>::get(&calling_neuron);
 			let local_stake_u32_f32 = U32F32::from_num(local_stake);
 
-			// POSSIBLE DIVISION BY ZERO HERE.
-			// User may not have stake yet. So we accidentally divide by 0 and break.
 			let mut stake_fraction_u32_f32 = U32F32::from_num(1);
 			if total_stake_u32_f32 > 0 {
 				stake_fraction_u32_f32 = local_stake_u32_f32 / total_stake_u32_f32;
