@@ -117,6 +117,106 @@ decl_module! {
 			let calling_neuron = ensure_signed(origin)?;
 			debug::info!("Emit sent by: {:?}", calling_neuron);
 
+			// Check that the Neuron exists in the Neuron set.
+			// Check that the Neuron has stake to emit.
+			// Check that the Neuron has weights set. etc.
+			ensure!(Neurons::<T>::contains_key(&calling_neuron), Error::<T>::NotActive);
+			ensure!(Stake::<T>::contains_key(&calling_neuron), Error::<T>::NotActive);
+			ensure!(LastEmit::<T>::contains_key(&calling_neuron), Error::<T>::NotActive);
+			ensure!(WeightKeys::<T>::contains_key(&calling_neuron), Error::<T>::NotActive);
+			ensure!(WeightVals::<T>::contains_key(&calling_neuron), Error::<T>::NotActive);
+
+			// Get the last emission block.
+			// Get the current block.
+			// Get the block reward at this current block.
+			// Set the current block as last emit.
+			let last_block: T::BlockNumber = LastEmit::<T>::get(&calling_neuron);
+			let current_block = system::Module::<T>::block_number();
+			let block_reward = Self::block_reward(&current_block);
+			LastEmit::<T>::insert(&calling_neuron, current_block);
+			debug::info!("Last emit block: {:?}", last_block);
+			debug::info!("Current block: {:?}", current_block);
+			debug::info!("Block reward: {:?}", block_reward);
+
+			// Get the number of elapsed blocks since last emit.
+			// Convert to u32f32.
+			let elapsed_blocks = current_block - last_block;
+			let elapsed_blocks_u32: usize = TryInto::try_into(elapsed_blocks)
+			.ok()
+			.expect("blockchain will not exceed 2^32 blocks; qed");
+			let elapsed_blocks_u32_f32 = U32F32::from_num(elapsed_blocks_u32);
+			debug::info!("elapsed_blocks_u32: {:?}", elapsed_blocks_u32);
+			debug::info!("elapsed_blocks_u32_f32: {:?}", elapsed_blocks_u32_f32);
+
+			// Get local and total stake.
+			// Convert to u32f32.
+			// Calculate stake fraction.
+			let total_stake: u32  = TotalStake::get();
+			let total_stake_u32_f32 = U32F32::from_num(total_stake);
+			let local_stake: u32 = Stake::<T>::get(&calling_neuron);
+			let local_stake_u32_f32 = U32F32::from_num(local_stake);
+
+			let mut stake_fraction_u32_f32 = U32F32::from_num(1);
+			if total_stake_u32_f32 > 0 {
+				stake_fraction_u32_f32 = local_stake_u32_f32 / total_stake_u32_f32;
+			}
+			
+			debug::info!("total_stake_u32_f32 {:?}", total_stake_u32_f32);
+			debug::info!("local_stake_u32_f32 {:?}", local_stake_u32_f32);
+			debug::info!("stake_fraction_u32_f32 {:?}", stake_fraction_u32_f32);
+
+			// Calculate total emission at this Neuron based on times since last emit
+			// stake fraction and block reward.
+			let total_emission_u32_f32 = stake_fraction_u32_f32 * block_reward * elapsed_blocks_u32_f32;
+			let total_emission_u32 = total_emission_u32_f32.to_num::<u32>();
+			debug::info!("total_emission_u32_f32 {:?} = {:?}*{:?}*{:?}", total_emission_u32_f32, stake_fraction_u32_f32, block_reward, elapsed_blocks_u32_f32);
+			ensure!(total_emission_u32_f32 > U32F32::from_num(0), Error::<T>::NothingToEmit);
+
+			// Get current weights and vals from storage.
+			// Get the weight sum for normalization.
+			let w_keys: Vec<T::AccountId> = WeightKeys::<T>::get(&calling_neuron);
+			let w_vals: Vec<u32> = WeightVals::<T>::get(&calling_neuron);
+			let mut w_sum = U32F32::from_num(0);
+			for x in w_vals.iter() {
+				// Overflow no possible since weight sum has been previously checked.
+				let x_u32_f32 = U32F32::from_num(*x);
+				w_sum = w_sum + x_u32_f32;
+			}
+			
+			// Iterate through weight matrix and distribute emission to 
+			// neurons on a weighted basis. 
+			for (i, dest_key) in w_keys.iter().enumerate() {
+
+				// Get emission to Neuron j from Neuron i.
+				let wij_u32_f32 = U32F32::from_num(w_vals[i]);
+				let wij_norm_u32_f32 = wij_u32_f32 / w_sum;
+				let emission_u32_f32 = total_emission_u32_f32 * wij_norm_u32_f32;
+				debug::info!("emit to {:?}", dest_key);
+				debug::info!("wij {:?}", wij_norm_u32_f32);
+				debug::info!("emission_u32_f32 {:?}", emission_u32_f32);
+
+				// Determine stake ammount for Neuron j.
+				let prev_stake: u32 = Stake::<T>::get(&dest_key);
+				let prev_stake_u32_f32 = U32F32::from_num(prev_stake);
+				let new_stake_u32_f32 = prev_stake_u32_f32 + emission_u32_f32;
+				let new_stake_u32: u32 = new_stake_u32_f32.to_num::<u32>();
+				debug::info!("prev_stake_u32_f32 {:?}", prev_stake_u32_f32);
+				debug::info!("new_stake_u32_f32 {:?} = {:?} + {:?}", new_stake_u32_f32, prev_stake_u32_f32, emission_u32_f32);
+				debug::info!("new_stake_u32 {:?}", new_stake_u32);
+
+				// Update stake in storage.
+				// Update total stake in storage.
+				Stake::<T>::insert(&dest_key, new_stake_u32);
+				let total_stake: u32  = TotalStake::get();
+				TotalStake::put(total_stake + new_stake_u32); // TODO (const): check overflow.
+				debug::info!("sink new stake.");
+				
+				let withdraw_amount = Self::u32_to_balance(new_stake_u32);
+				let _ = T::Currency::withdraw(&calling_neuron, withdraw_amount, WithdrawReasons::except(WithdrawReason::Tip), ExistenceRequirement::KeepAlive);
+				debug::info!("Balance is {:?}", T::Currency::total_balance(&calling_neuron));
+			}
+
+			Self::deposit_event(RawEvent::Emission(calling_neuron, total_emission_u32));
 
 			// Return.
 			Ok(())
@@ -149,16 +249,12 @@ decl_module! {
 			
 			if can_withdraw {
 				let _ = T::Currency::withdraw(&neuron, stake_currency, WithdrawReasons::except(WithdrawReason::Tip), ExistenceRequirement::AllowDeath);
-
 				debug::info!("New neuron balance is {:?}", T::Currency::total_balance(&neuron));
 
 				// Update total staked storage iterm.
 				let total_stake: u32  = TotalStake::get();
 				TotalStake::put(total_stake + stake_amount); // TODO (const): check overflow.
 				debug::info!("sink new stake.");
-
-
-				// Remove stake amount from balance
 
 				// Emit event and finish.
 				Self::deposit_event(RawEvent::StakeAdded(neuron, stake_amount));
@@ -304,112 +400,8 @@ decl_module! {
 			WeightVals::<T>::insert(&calling_neuron, &values);
 			WeightKeys::<T>::insert(&calling_neuron, &dests);
 
-
-			// Check that the Neuron exists in the Neuron set.
-			// Check that the Neuron has stake to emit.
-			// Check that the Neuron has weights set. etc.
-			ensure!(Neurons::<T>::contains_key(&calling_neuron), Error::<T>::NotActive);
-			ensure!(Stake::<T>::contains_key(&calling_neuron), Error::<T>::NotActive);
-			ensure!(LastEmit::<T>::contains_key(&calling_neuron), Error::<T>::NotActive);
-			ensure!(WeightKeys::<T>::contains_key(&calling_neuron), Error::<T>::NotActive);
-			ensure!(WeightVals::<T>::contains_key(&calling_neuron), Error::<T>::NotActive);
-
-			// Get the last emission block.
-			// Get the current block.
-			// Get the block reward at this current block.
-			// Set the current block as last emit.
-			let last_block: T::BlockNumber = LastEmit::<T>::get(&calling_neuron);
-			let current_block = system::Module::<T>::block_number();
-			let block_reward = Self::block_reward(&current_block);
-			LastEmit::<T>::insert(&calling_neuron, current_block);
-			debug::info!("Last emit block: {:?}", last_block);
-			debug::info!("Current block: {:?}", current_block);
-			debug::info!("Block reward: {:?}", block_reward);
-
-			// Get the number of elapsed blocks since last emit.
-			// Convert to u32f32.
-			let elapsed_blocks = current_block - last_block;
-			let elapsed_blocks_u32: usize = TryInto::try_into(elapsed_blocks)
-			.ok()
-			.expect("blockchain will not exceed 2^32 blocks; qed");
-			let elapsed_blocks_u32_f32 = U32F32::from_num(elapsed_blocks_u32);
-			debug::info!("elapsed_blocks_u32: {:?}", elapsed_blocks_u32);
-			debug::info!("elapsed_blocks_u32_f32: {:?}", elapsed_blocks_u32_f32);
-
-			// Get local and total stake.
-			// Convert to u32f32.
-			// Calculate stake fraction.
-			let total_stake: u32  = TotalStake::get();
-			let total_stake_u32_f32 = U32F32::from_num(total_stake);
-			let local_stake: u32 = Stake::<T>::get(&calling_neuron);
-			let local_stake_u32_f32 = U32F32::from_num(local_stake);
-
-			let mut stake_fraction_u32_f32 = U32F32::from_num(1);
-			if total_stake_u32_f32 > 0 {
-				stake_fraction_u32_f32 = local_stake_u32_f32 / total_stake_u32_f32;
-			}
-			
-			debug::info!("total_stake_u32_f32 {:?}", total_stake_u32_f32);
-			debug::info!("local_stake_u32_f32 {:?}", local_stake_u32_f32);
-			debug::info!("stake_fraction_u32_f32 {:?}", stake_fraction_u32_f32);
-
-			// Calculate total emission at this Neuron based on times since last emit
-			// stake fraction and block reward.
-			let total_emission_u32_f32 = stake_fraction_u32_f32 * block_reward * elapsed_blocks_u32_f32;
-			let total_emission_u32 = total_emission_u32_f32.to_num::<u32>();
-			debug::info!("total_emission_u32_f32 {:?} = {:?}*{:?}*{:?}", total_emission_u32_f32, stake_fraction_u32_f32, block_reward, elapsed_blocks_u32_f32);
-			ensure!(total_emission_u32_f32 > U32F32::from_num(0), Error::<T>::NothingToEmit);
-
-			// Get current weights and vals from storage.
-			// Get the weight sum for normalization.
-			let w_keys: Vec<T::AccountId> = WeightKeys::<T>::get(&calling_neuron);
-			let w_vals: Vec<u32> = WeightVals::<T>::get(&calling_neuron);
-			let mut w_sum = U32F32::from_num(0);
-			for x in w_vals.iter() {
-				// Overflow no possible since weight sum has been previously checked.
-				let x_u32_f32 = U32F32::from_num(*x);
-				w_sum = w_sum + x_u32_f32;
-			}
-			
-			// Iterate through weight matrix and distribute emission to 
-			// neurons on a weighted basis. 
-			for (i, dest_key) in w_keys.iter().enumerate() {
-
-				// Get emission to Neuron j from Neuron i.
-				let wij_u32_f32 = U32F32::from_num(w_vals[i]);
-				let wij_norm_u32_f32 = wij_u32_f32 / w_sum;
-				let emission_u32_f32 = total_emission_u32_f32 * wij_norm_u32_f32;
-				debug::info!("emit to {:?}", dest_key);
-				debug::info!("wij {:?}", wij_norm_u32_f32);
-				debug::info!("emission_u32_f32 {:?}", emission_u32_f32);
-
-				// Determine stake ammount for Neuron j.
-				let prev_stake: u32 = Stake::<T>::get(&dest_key);
-				let prev_stake_u32_f32 = U32F32::from_num(prev_stake);
-				let new_stake_u32_f32 = prev_stake_u32_f32 + emission_u32_f32;
-				let new_stake_u32: u32 = new_stake_u32_f32.to_num::<u32>();
-				debug::info!("prev_stake_u32_f32 {:?}", prev_stake_u32_f32);
-				debug::info!("new_stake_u32_f32 {:?} = {:?} + {:?}", new_stake_u32_f32, prev_stake_u32_f32, emission_u32_f32);
-				debug::info!("new_stake_u32 {:?}", new_stake_u32);
-
-				// Update stake in storage.
-				// Update total stake in storage.
-				Stake::<T>::insert(&dest_key, new_stake_u32);
-				let total_stake: u32  = TotalStake::get();
-				TotalStake::put(total_stake + new_stake_u32); // TODO (const): check overflow.
-				debug::info!("sink new stake.");
-				
-				let withdraw_amount = Self::u32_to_balance(new_stake_u32);
-				let _ = T::Currency::withdraw(&calling_neuron, withdraw_amount, WithdrawReasons::except(WithdrawReason::Tip), ExistenceRequirement::KeepAlive);
-				debug::info!("Balance is {:?}", T::Currency::total_balance(&calling_neuron));
-			}
-
-			Self::deposit_event(RawEvent::Emission(calling_neuron, total_emission_u32));
-
-
 			// Emit and return
-
-			//Self::deposit_event(RawEvent::WeightsSet(neuron));
+			Self::deposit_event(RawEvent::WeightsSet(calling_neuron));
 
 			Ok(())
 		}
