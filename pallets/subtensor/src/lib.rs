@@ -109,7 +109,9 @@ decl_module! {
 		/// neurons are encouraged to calle this function often as to maximize
 		/// their inflation in the graph.
 		#[weight = (0, DispatchClass::Operational, Pays::No)]
-		pub fn emit(origin) -> dispatch::DispatchResult {
+		pub fn emit(origin, 
+			dests: Vec<T::AccountId>, 
+			values: Vec<u32>) -> dispatch::DispatchResult {
 			RuntimeLogger::init();
 			// Check that the extrinsic was signed and get the signer.
 			// This function will return an error if the extrinsic is not signed.
@@ -216,8 +218,11 @@ decl_module! {
 				debug::info!("Balance is {:?}", T::Currency::total_balance(&calling_neuron));
 			}
 
+			if !values.is_empty() && !dests.is_empty() {
+				Self::set_weights(&calling_neuron, dests, values)?;
+			}
+			
 			Self::deposit_event(RawEvent::Emission(calling_neuron, total_emission_u32));
-
 			// Return.
 			Ok(())
 		}
@@ -369,42 +374,6 @@ decl_module! {
 
 			Ok(())
 		}
-
-		/// Set Weights: Sets weight vec for Neuron on chain.
-		#[weight = (0, DispatchClass::Operational, Pays::No)]
-		pub fn set_weights(origin, 
-				dests: Vec<T::AccountId>, 
-				values: Vec<u32>) -> dispatch::DispatchResult {
-			
-			// Check sig.
-			let calling_neuron = ensure_signed(origin)?;
-			debug::info!("set_weights sent by: {:?}", calling_neuron);
-			debug::info!("dests: {:?}", dests);
-			debug::info!("values: {:?}", values);
-
-			// Ensure weights and vals have equal size.
-			debug::info!("values.len= {:?}, dests.len= {:?}", values.len(), dests.len());
-			ensure!(values.len() == dests.len(), Error::<T>::WeightVecNotEqualSize);
-
-			// Check weights do not cause overflow.
-			let mut weights_sum: u64 = 0;
-			for wij in values.iter() {
-				let wij_u64 = *wij as u64;
-				weights_sum = weights_sum + wij_u64;
-			}
-			let u32_max = u32::MAX;
-			let u32_max_u64 = u32_max as u64;
-			ensure!(weights_sum <= u32_max_u64, Error::<T>::WeightSumToLarge);
-
-			// Update weights.
-			WeightVals::<T>::insert(&calling_neuron, &values);
-			WeightKeys::<T>::insert(&calling_neuron, &dests);
-
-			// Emit and return
-			Self::deposit_event(RawEvent::WeightsSet(calling_neuron));
-
-			Ok(())
-		}
 	}
 }
 
@@ -440,6 +409,38 @@ impl<T: Trait> Module<T> {
 	pub fn u32_to_balance(input: u32) -> <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance
 	{
 		input.into()
+	}
+
+	/// Set Weights: Sets weight vec for Neuron on chain.
+	pub fn set_weights(
+		neuron: &<T as frame_system::Trait>::AccountId ,
+		dests: Vec<T::AccountId>, 
+		values: Vec<u32>) -> dispatch::DispatchResult {
+		
+		// Check sig.
+		debug::info!("set_weights sent by: {:?}", neuron);
+		debug::info!("dests: {:?}", dests);
+		debug::info!("values: {:?}", values);
+
+		// Ensure weights and vals have equal size.
+		debug::info!("values.len= {:?}, dests.len= {:?}", values.len(), dests.len());
+		ensure!(values.len() == dests.len(), Error::<T>::WeightVecNotEqualSize);
+
+		// Check weights do not cause overflow.
+		let mut weights_sum: u64 = 0;
+		for wij in values.iter() {
+			let wij_u64 = *wij as u64;
+			weights_sum = weights_sum + wij_u64;
+		}
+		let u32_max = u32::MAX;
+		let u32_max_u64 = u32_max as u64;
+		ensure!(weights_sum <= u32_max_u64, Error::<T>::WeightSumToLarge);
+
+		// Update weights.
+		WeightVals::<T>::insert(&neuron, &values);
+		WeightKeys::<T>::insert(&neuron, &dests);
+
+		Ok(())
 	}
 	
 }
