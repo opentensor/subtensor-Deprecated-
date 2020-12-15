@@ -1,0 +1,26 @@
+version: 2.1
+
+jobs:
+  "Build Subtensor Chain":
+    docker: # executor type
+        - image: cimg/rust:1.48.0
+    steps:
+      - checkout
+      - run:
+          name: "Install necessary libraries"
+          command: sudo apt update && sudo apt install -y cmake pkg-config libssl-dev build-essential clang libclang-dev 
+      - run:
+          name: "Set up Rustup Default"
+          command: rustup default nightly-2020-10-06
+      - run:
+          name: "Set up Rustup target"
+          command: rustup target add wasm32-unknown-unknown --toolchain nightly-2020-10-06
+      - run: 
+          name: "Build Subtensor"
+          command: cargo build --release
+
+ 
+workflows:
+  main:
+    jobs:
+      - "Build Subtensor Chain"
