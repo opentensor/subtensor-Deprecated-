@@ -179,12 +179,15 @@ decl_module! {
 			let w_keys: Vec<T::AccountId> = WeightKeys::<T>::get(&calling_neuron);
 			let w_vals: Vec<u32> = WeightVals::<T>::get(&calling_neuron);
 			let mut w_sum = U32F32::from_num(0);
+			let u32_max = U32F32::from_num(u32::MAX);
 			for x in w_vals.iter() {
-				// Overflow no possible since weight sum has been previously checked.
+				// Overflow not possible since we check weight prior to adding to it
 				let x_u32_f32 = U32F32::from_num(*x);
-				w_sum = w_sum + x_u32_f32;
+				if u32_max - x_u32_f32 <= w_sum {
+					w_sum = w_sum + x_u32_f32;
+				}
 			}
-			
+		
 			// Iterate through weight matrix and distribute emission to 
 			// neurons on a weighted basis. 
 			for (i, dest_key) in w_keys.iter().enumerate() {
