@@ -140,7 +140,7 @@ pub fn native_version() -> NativeVersion {
 // Define the types required by the Scheduler pallet.
 parameter_types! {
     pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) * MaximumBlockWeight::get();
-    pub const MaxScheduledPerBlock: u32 = 50;
+	pub const MaxScheduledPerBlock: u32 = 50;
 }
 
 // Configure the runtime's implementation of the Scheduler pallet.
@@ -265,23 +265,6 @@ impl pallet_timestamp::Trait for Runtime {
 }
 
 parameter_types! {
-	pub const ExistentialDeposit: u128 = 500;
-	pub const MaxLocks: u32 = 50;
-}
-
-impl pallet_balances::Trait for Runtime {
-	type MaxLocks = MaxLocks;
-	/// The type for recording an account's balance.
-	type Balance = Balance;
-	/// The ubiquitous event type.
-	type Event = Event;
-	type DustRemoval = ();
-	type ExistentialDeposit = ExistentialDeposit;
-	type AccountStore = System;
-	type WeightInfo = ();
-}
-
-parameter_types! {
 	pub const TransactionByteFee: Balance = 1;
 }
 
@@ -300,7 +283,37 @@ impl pallet_sudo::Trait for Runtime {
 
 /// Configure the subtensor pallet in pallets/subtensor.
 impl pallet_subtensor::Trait for Runtime {
+	type Currency = pallet_balances::Module<Runtime>;
 	type Event = Event;
+}
+
+parameter_types! {
+    // The u128 constant value 500 is aliased to a type named ExistentialDeposit.
+	pub const ExistentialDeposit: u128 = 500;
+	pub const MaxLocks: u32 = 50;
+}
+
+impl pallet_balances::Trait for Runtime {
+    // The previously defined parameter_type is used as a configuration parameter.
+    type MaxLocks = MaxLocks;
+
+    // The "Balance" that appears after the equal sign is an alias for the u128 type.
+    type Balance = Balance;
+
+    // The empty value, (), is used to specify a no-op callback function.
+    type DustRemoval = ();
+
+    // The previously defined parameter_type is used as a configuration parameter.
+    type ExistentialDeposit = ExistentialDeposit;
+
+    // The FRAME runtime system is used to track the accounts that hold balances.
+    type AccountStore = System;
+
+    // No weight information is supplied to the Balances pallet by the Node Template's runtime.
+    type WeightInfo = ();
+
+    // The ubiquitous event type.
+    type Event = Event;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
