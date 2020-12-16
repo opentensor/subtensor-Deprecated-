@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 // Frame imports.
-use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, ensure, debug};
+use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, ensure, debug, Printable};
 use frame_support::weights::{DispatchClass, Pays};
 use codec::{Decode, Encode};
 use frame_system::{self as system, ensure_signed};
@@ -10,6 +10,7 @@ use sp_std::convert::TryInto;
 use sp_std::{
 	prelude::*
 };
+
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Trait: frame_system::Trait {
@@ -83,6 +84,19 @@ decl_error! {
 		// Neuron setting weights are too large. Cause u32 overlfow.
 		WeightSumToLarge,
 	}
+}
+
+impl<T: Trait> Printable for Error<T> {
+    fn print(&self) {
+        match self {
+            Error::AlreadyActive => "The node with the supplied public key is already active".print(),
+            Error::NotActive => "The node with the supplied piblic key is not active".print(),
+			Error::NothingToEmit => "There is nothing to emit".print(),
+			Error::WeightVecNotEqualSize => "The vec of keys and the vec of values are not of the same size".print(),
+			Error::WeightSumToLarge => "The sum of weights is too large".print(),
+            _ => "Invalid Error Case".print(),
+        }
+    }
 }
 
 // Subtensor Dispatchable functions.
@@ -330,6 +344,9 @@ decl_module! {
 			}
 			let u32_max = u32::MAX;
 			let u32_max_u64 = u32_max as u64;
+
+			debug::info!("Sum of weights: {}, Max: {}", weights_sum, u32_max);
+
 			ensure!(weights_sum <= u32_max_u64, Error::<T>::WeightSumToLarge);
 
 			// Update weights.
