@@ -1,5 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+// mod tests;
+
 // Frame imports.
 use frame_support::{
 	decl_module, decl_storage, decl_event, decl_error, dispatch, ensure, debug,
@@ -91,6 +93,8 @@ decl_error! {
 		WeightVecNotEqualSize,
 		// Neuron setting weights are too large. Cause u32 overlfow.
 		WeightSumToLarge,
+		// We won't be accepting weights larger than one
+		WeightLargerThanOnePresent,
 	}
 }
 
@@ -418,7 +422,10 @@ impl<T: Trait> Module<T> {
 	pub fn set_weights(
 		neuron: &<T as frame_system::Trait>::AccountId ,
 		dests: Vec<T::AccountId>, 
-		values: Vec<u32>) -> dispatch::DispatchResult {
+		values: Vec<f32>) -> dispatch::DispatchResult {
+
+
+		ensure!(validate_weights(values) == true, Error::<T>::WeightSumToLarge)
 		
 		// Check sig.
 		debug::info!("set_weights sent by: {:?}", neuron);
@@ -446,4 +453,40 @@ impl<T: Trait> Module<T> {
 		Ok(())
 	}
 	
+}
+
+
+fn sum(elements : Vec<f32>) {
+
+}
+
+fn validate_weights(weights : Vec<f32>) -> bool {
+	if weights.iter().any(|x:&f32| x > &1.0) {
+		return false
+	}
+
+	return true
+}
+
+#[cfg(test)]
+mod tests {
+	use crate::validate_weights;
+
+	#[test]
+	fn test_true() {
+		assert_eq!(1, 1)
+	}
+
+	#[test]
+	fn validate_weights_1() {
+		weights = vec![0.0001,1.0000];
+		assert_eq!(validate_weights(weights), true)
+	}
+
+	#[test]
+	fn validate_weights_2() {
+		weights = vec![0.0001,2.0000];
+		assert_eq!(validate_weights(weights), false)
+	}
+
 }
