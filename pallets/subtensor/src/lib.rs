@@ -3,13 +3,11 @@
 // mod tests;
 
 // Frame imports.
-use frame_support::{
-	decl_module, decl_storage, decl_event, decl_error, dispatch, ensure, debug,
-	traits::{Currency, WithdrawReasons, WithdrawReason, ExistenceRequirement},
-};
+use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, ensure, debug, traits::{Currency, WithdrawReasons, WithdrawReason, ExistenceRequirement}, Printable};
 use frame_support::weights::{DispatchClass, Pays};
 use codec::{Decode, Encode};
 use frame_system::{self as system, ensure_signed};
+use substrate_fixed::types::U1F31;
 use substrate_fixed::types::U32F32;
 use sp_std::convert::TryInto;
 use sp_std::{
@@ -40,7 +38,7 @@ decl_storage! {
 	
 		// Weight values: Map from account to vector of weights.
 		pub WeightKeys: map hasher(blake2_128_concat) T::AccountId => Vec<T::AccountId>;
-		pub WeightVals: map hasher(blake2_128_concat) T::AccountId => Vec<u32>;
+		pub WeightVals: map hasher(blake2_128_concat) T::AccountId => Vec<U1F31>;
 
 		// Stake Values: Map from account to u32 stake ammount.
 		pub Stake get(fn stake): map hasher(blake2_128_concat) T::AccountId => u32;
@@ -54,7 +52,7 @@ decl_storage! {
 		// Active Neuron count.
 		NeuronCount: u32;
 		
-		// Total amount staked.
+		// Total ammount staked.
         TotalStake: u32;
 	}
 }
@@ -76,7 +74,7 @@ decl_event!(
 
 		// Sent when there is emission from a Neuron.
 		Emission(AccountId, u32),
-		
+
 	}
 );
 
@@ -98,6 +96,19 @@ decl_error! {
 	}
 }
 
+impl<T: Trait> Printable for Error<T> {
+    fn print(&self) {
+        match self {
+            Error::AlreadyActive => "The node with the supplied public key is already active".print(),
+            Error::NotActive => "The node with the supplied piblic key is not active".print(),
+			Error::NothingToEmit => "There is nothing to emit".print(),
+			Error::WeightVecNotEqualSize => "The vec of keys and the vec of values are not of the same size".print(),
+			Error::WeightSumToLarge => "The sum of weights is too large".print(),
+            _ => "Invalid Error Case".print(),
+        }
+    }
+}
+
 // Subtensor Dispatchable functions.
 decl_module! {
 	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
@@ -106,16 +117,39 @@ decl_module! {
 
 		// Events must be initialized if they are used by the pallet.
 		fn deposit_event() = default;
-		
-		/// Emission. Called by an active Neuron with stake in-order to distribute 
+
+
+		#[weight = (0, DispatchClass::Operational, Pays::No)]
+		pub fn set_weights(origin,
+				dests: Vec<T::AccountId>,
+				values: Vec<U1F31>) -> dispatch::DispatchResult {
+
+		 	let neuron = ensure_signed(origin)?;
+
+			ensure!(validate_weights(&values) == true, Error::<T>::WeightSumToLarge);
+			ensure!(values.len() == dests.len(), Error::<T>::WeightVecNotEqualSize);
+
+			let normalized_values = normalize_weights(values);
+
+			WeightVals::<T>::insert(&neuron, &normalized_values);
+			WeightKeys::<T>::insert(&neuron, &dests);
+
+			// Emit and return
+			Self::deposit_event(RawEvent::WeightsSet(neuron));
+			Ok(())
+		}
+
+
+		/// Emission. Called by an active Neuron with stake in-order to distribute
 		/// tokens to weighted neurons and to himself. The amount emitted is dependent on
 		/// the ammount of stake held at this Neuron and the time since last emission.
 		/// neurons are encouraged to calle this function often as to maximize
 		/// their inflation in the graph.
 		#[weight = (0, DispatchClass::Operational, Pays::No)]
-		pub fn emit(origin, 
-			dests: Vec<T::AccountId>, 
+		pub fn emit(origin,
+			dests: Vec<T::AccountId>,
 			values: Vec<u32>) -> dispatch::DispatchResult {
+
 			RuntimeLogger::init();
 			// Check that the extrinsic was signed and get the signer.
 			// This function will return an error if the extrinsic is not signed.
@@ -130,7 +164,7 @@ decl_module! {
 			ensure!(Stake::<T>::contains_key(&calling_neuron), Error::<T>::NotActive);
 			ensure!(LastEmit::<T>::contains_key(&calling_neuron), Error::<T>::NotActive);
 			ensure!(WeightKeys::<T>::contains_key(&calling_neuron), Error::<T>::NotActive);
-			ensure!(WeightVals::<T>::contains_key(&calling_neuron), Error::<T>::NotActive);
+			// ensure!(WeightVals::<T>::contains_key(&calling_neuron), Error::<T>::NotActive);
 
 			// Get the last emission block.
 			// Get the current block.
@@ -166,7 +200,7 @@ decl_module! {
 			if total_stake_u32_f32 > 0 {
 				stake_fraction_u32_f32 = local_stake_u32_f32 / total_stake_u32_f32;
 			}
-			
+
 			debug::info!("total_stake_u32_f32 {:?}", total_stake_u32_f32);
 			debug::info!("local_stake_u32_f32 {:?}", local_stake_u32_f32);
 			debug::info!("stake_fraction_u32_f32 {:?}", stake_fraction_u32_f32);
@@ -181,54 +215,50 @@ decl_module! {
 			// Get current weights and vals from storage.
 			// Get the weight sum for normalization.
 			let w_keys: Vec<T::AccountId> = WeightKeys::<T>::get(&calling_neuron);
-			let w_vals: Vec<u32> = WeightVals::<T>::get(&calling_neuron);
+			// let w_vals: Vec<u32> = WeightVals::<T>::get(&calling_neuron);
 			let mut w_sum = U32F32::from_num(0);
 			let u32_max = U32F32::from_num(u32::MAX);
-			for x in w_vals.iter() {
-				// Overflow not possible since we check weight prior to adding to it
-				let x_u32_f32 = U32F32::from_num(*x);
-				if u32_max - x_u32_f32 <= w_sum {
-					w_sum = w_sum + x_u32_f32;
-				}
-			}
-		
-			// Iterate through weight matrix and distribute emission to 
-			// neurons on a weighted basis. 
-			for (i, dest_key) in w_keys.iter().enumerate() {
+			// for x in w_vals.iter() {
+			// 	Overflow not possible since we check weight prior to adding to it
+				// let x_u32_f32 = U32F32::from_num(*x);
+				// if u32_max - x_u32_f32 <= w_sum {
+				// 	w_sum = w_sum + x_u32_f32;
+				// }
+			// }
 
-				// Get emission to Neuron j from Neuron i.
-				let wij_u32_f32 = U32F32::from_num(w_vals[i]);
-				let wij_norm_u32_f32 = wij_u32_f32 / w_sum;
-				let emission_u32_f32 = total_emission_u32_f32 * wij_norm_u32_f32;
-				debug::info!("emit to {:?}", dest_key);
-				debug::info!("wij {:?}", wij_norm_u32_f32);
-				debug::info!("emission_u32_f32 {:?}", emission_u32_f32);
+			// // Iterate through weight matrix and distribute emission to
+			// // neurons on a weighted basis.
+			// for (i, dest_key) in w_keys.iter().enumerate() {
+			//
+			// 	// Get emission to Neuron j from Neuron i.
+			// 	let wij_u32_f32 = U32F32::from_num(w_vals[i]);
+			// 	let wij_norm_u32_f32 = wij_u32_f32 / w_sum;
+			// 	let emission_u32_f32 = total_emission_u32_f32 * wij_norm_u32_f32;
+			// 	debug::info!("emit to {:?}", dest_key);
+			// 	debug::info!("wij {:?}", wij_norm_u32_f32);
+			// 	debug::info!("emission_u32_f32 {:?}", emission_u32_f32);
+			//
+			// 	// Determine stake ammount for Neuron j.
+			// 	let prev_stake: u32 = Stake::<T>::get(&dest_key);
+			// 	let prev_stake_u32_f32 = U32F32::from_num(prev_stake);
+			// 	let new_stake_u32_f32 = prev_stake_u32_f32 + emission_u32_f32;
+			// 	let new_stake_u32: u32 = new_stake_u32_f32.to_num::<u32>();
+			// 	debug::info!("prev_stake_u32_f32 {:?}", prev_stake_u32_f32);
+			// 	debug::info!("new_stake_u32_f32 {:?} = {:?} + {:?}", new_stake_u32_f32, prev_stake_u32_f32, emission_u32_f32);
+			// 	debug::info!("new_stake_u32 {:?}", new_stake_u32);
+			//
+			// 	// Update stake in storage.
+			// 	// Update total stake in storage.
+			// 	Stake::<T>::insert(&dest_key, new_stake_u32);
+			// 	let total_stake: u32  = TotalStake::get();
+			// 	TotalStake::put(total_stake + new_stake_u32); // TODO (const): check overflow.
+			// 	debug::info!("sink new stake.");
+			//
+			// 	let withdraw_amount = Self::u32_to_balance(new_stake_u32);
+			// 	let _ = T::Currency::withdraw(&calling_neuron, withdraw_amount, WithdrawReasons::except(WithdrawReason::Tip), ExistenceRequirement::KeepAlive);
+			// 	debug::info!("Balance is {:?}", T::Currency::total_balance(&calling_neuron));
+			// }
 
-				// Determine stake ammount for Neuron j.
-				let prev_stake: u32 = Stake::<T>::get(&dest_key);
-				let prev_stake_u32_f32 = U32F32::from_num(prev_stake);
-				let new_stake_u32_f32 = prev_stake_u32_f32 + emission_u32_f32;
-				let new_stake_u32: u32 = new_stake_u32_f32.to_num::<u32>();
-				debug::info!("prev_stake_u32_f32 {:?}", prev_stake_u32_f32);
-				debug::info!("new_stake_u32_f32 {:?} = {:?} + {:?}", new_stake_u32_f32, prev_stake_u32_f32, emission_u32_f32);
-				debug::info!("new_stake_u32 {:?}", new_stake_u32);
-
-				// Update stake in storage.
-				// Update total stake in storage.
-				Stake::<T>::insert(&dest_key, new_stake_u32);
-				let total_stake: u32  = TotalStake::get();
-				TotalStake::put(total_stake + new_stake_u32); // TODO (const): check overflow.
-				debug::info!("sink new stake.");
-				
-				let withdraw_amount = Self::u32_to_balance(new_stake_u32);
-				let _ = T::Currency::withdraw(&calling_neuron, withdraw_amount, WithdrawReasons::except(WithdrawReason::Tip), ExistenceRequirement::KeepAlive);
-				debug::info!("Balance is {:?}", T::Currency::total_balance(&calling_neuron));
-			}
-
-			if !values.is_empty() && !dests.is_empty() {
-				Self::set_weights(&calling_neuron, dests, values)?;
-			}
-			
 			Self::deposit_event(RawEvent::Emission(calling_neuron, total_emission_u32));
 			// Return.
 			Ok(())
@@ -237,7 +267,7 @@ decl_module! {
 		// Staking: Adds stake to the stake account for calling Neuron.
 		#[weight = (0, DispatchClass::Operational, Pays::No)]
 		fn add_stake(origin, stake_amount: u32) -> dispatch::DispatchResult {
-			
+
 			// Check sig.
 			let neuron = ensure_signed(origin)?;
 
@@ -256,9 +286,9 @@ decl_module! {
 
 			// Adding to stake amount, remove from currency account.
 			let new_potential_balance = T::Currency::free_balance(&neuron) - stake_currency;
-			
+
 			let can_withdraw = T::Currency::ensure_can_withdraw(&neuron, stake_currency, WithdrawReasons::except(WithdrawReason::Tip), new_potential_balance).is_ok();
-			
+
 			if can_withdraw {
 				let _ = T::Currency::withdraw(&neuron, stake_currency, WithdrawReasons::except(WithdrawReason::Tip), ExistenceRequirement::AllowDeath);
 				debug::info!("New neuron balance is {:?}", T::Currency::total_balance(&neuron));
@@ -277,16 +307,16 @@ decl_module! {
 		// Subscribes the calling Neuron to the active set.
 		#[weight = (0, DispatchClass::Operational, Pays::No)]
 		fn subscribe(origin, ip: u128, port: u16, ip_type: u8) -> dispatch::DispatchResult {
-			
+
 			// Check sig.
 			let new_neuron = ensure_signed(origin)?;
 			debug::info!("new_neuron sent by: {:?}", new_neuron);
 
 			// Check Neuron does not already exist.
 			ensure!(!Neurons::<T>::contains_key(&new_neuron), Error::<T>::AlreadyActive);
-	
+
 			// Insert the new Neuron into the active set.
-			Neurons::<T>::insert(&new_neuron, 
+			Neurons::<T>::insert(&new_neuron,
 				NeuronMetadata {
 					ip: ip,
 					port: port,
@@ -307,8 +337,8 @@ decl_module! {
 			// Initizialize stake to some arbitrary number for testing purposes.
 			// TODO (shibshib): Fix this so we're not just arbitrarily setting numbers.
 			debug::info!("Minimum balance for an account is {:?}", T::Currency::minimum_balance());
-			
-			// Should withdraw from this account to stake the amount. 
+
+			// Should withdraw from this account to stake the amount.
 
 			// Let's add the minimum balance required to test this out
 			// THIS IS FOR TESTING, NEEDS TO BE REMOVED FROM PRODUCTION
@@ -318,31 +348,31 @@ decl_module! {
 			let new_stake = Self::u32_to_balance(Stake::<T>::get(&new_neuron));
 			TotalStake::put(Stake::<T>::get(&new_neuron));
 			debug::info!("set stake to {:?}.", new_stake);
-			
-			// Gift the new neuron the 1000 tokens, just as starting point. 
+
+			// Gift the new neuron the 1000 tokens, just as starting point.
 			let _ = T::Currency::deposit_into_existing(&new_neuron, Self::u32_to_balance(subscription_gift));
 			debug::info!("Balance is now {:?}, withdrawing {:?} to stake.", T::Currency::free_balance(&new_neuron), new_stake);
 
 			// Stake 100 of the total tokens it has
 			let new_potential_balance = T::Currency::free_balance(&new_neuron) - new_stake;
 			let can_withdraw = T::Currency::ensure_can_withdraw(&new_neuron, new_stake, WithdrawReasons::except(WithdrawReason::Tip), new_potential_balance).is_ok();
-			
+
 			if can_withdraw {
 				let _ = T::Currency::withdraw(&new_neuron, new_stake, WithdrawReasons::except(WithdrawReason::Tip), ExistenceRequirement::KeepAlive);
 				debug::info!("Balance left: {:?}", T::Currency::free_balance(&new_neuron));
 			}
 
 			// Init empty weights.
-			WeightVals::<T>::insert(&new_neuron, &Vec::new());
+			// WeightVals::<T>::insert(&new_neuron, &Vec::new());
 			WeightKeys::<T>::insert(&new_neuron, &Vec::new());
 
 			// Emit event.
 			Self::deposit_event(RawEvent::NeuronAdded(new_neuron));
 			Ok(())
 		}
-		
 
-		// Removes Neuron from active set. 
+
+		// Removes Neuron from active set.
 		#[weight = (0, DispatchClass::Operational, Pays::No)]
 		fn unsubscribe(origin) -> dispatch::DispatchResult {
 
@@ -352,7 +382,7 @@ decl_module! {
 
 			// Check that the Neuron already exists.
 			ensure!(Neurons::<T>::contains_key(&old_neuron), Error::<T>::NotActive);
-		
+
 			// Remove Neuron.
 			Neurons::<T>::remove(&old_neuron);
 			NeuronCount::mutate(|v| *v -= 1);
@@ -372,7 +402,7 @@ decl_module! {
 			debug::info!("Balance is {:?}", T::Currency::total_balance(&old_neuron));
 
 			// Remove Weights.
-			WeightVals::<T>::remove(&old_neuron);
+			// WeightVals::<T>::remove(&old_neuron);
 			WeightKeys::<T>::remove(&old_neuron);
 			debug::info!("remove weights.");
 
@@ -417,76 +447,81 @@ impl<T: Trait> Module<T> {
 	{
 		input.into()
 	}
+}
 
-	/// Set Weights: Sets weight vec for Neuron on chain.
-	pub fn set_weights(
-		neuron: &<T as frame_system::Trait>::AccountId ,
-		dests: Vec<T::AccountId>, 
-		values: Vec<f32>) -> dispatch::DispatchResult {
+// fn convert_weights(mut weights: Vec<u32>) -> Vec<U1F32> {
+//
+//
+// }
 
 
-		ensure!(validate_weights(values) == true, Error::<T>::WeightSumToLarge)
-		
-		// Check sig.
-		debug::info!("set_weights sent by: {:?}", neuron);
-		debug::info!("dests: {:?}", dests);
-		debug::info!("values: {:?}", values);
+fn normalize_weights(mut weights: Vec<U1F31>) -> Vec<U1F31> {
+	let sum : U1F31 = weights.iter().sum();
 
-		// Ensure weights and vals have equal size.
-		debug::info!("values.len= {:?}, dests.len= {:?}", values.len(), dests.len());
-		ensure!(values.len() == dests.len(), Error::<T>::WeightVecNotEqualSize);
-
-		// Check weights do not cause overflow.
-		let mut weights_sum: u64 = 0;
-		for wij in values.iter() {
-			let wij_u64 = *wij as u64;
-			weights_sum = weights_sum + wij_u64;
-		}
-		let u32_max = u32::MAX;
-		let u32_max_u64 = u32_max as u64;
-		ensure!(weights_sum <= u32_max_u64, Error::<T>::WeightSumToLarge);
-
-		// Update weights.
-		WeightVals::<T>::insert(&neuron, &values);
-		WeightKeys::<T>::insert(&neuron, &dests);
-
-		Ok(())
+	if sum == 0 {
+		return weights;
 	}
-	
+
+	weights.iter_mut().for_each(|x| *x /= sum);
+
+	return weights;
 }
 
-
-fn sum(elements : Vec<f32>) {
-
-}
-
-fn validate_weights(weights : Vec<f32>) -> bool {
-	if weights.iter().any(|x:&f32| x > &1.0) {
-		return false
+fn validate_weights(weights : &Vec<U1F31>) -> bool {
+	if weights.iter().any(|x:&U1F31| x > &1.0) {
+		return false;
 	}
 
 	return true
 }
 
+
 #[cfg(test)]
 mod tests {
-	use crate::validate_weights;
+	use crate::{validate_weights, normalize_weights};
+	use substrate_fixed::types::U1F31;
 
-	#[test]
-	fn test_true() {
-		assert_eq!(1, 1)
+	/**
+	Helper function to convert a floating point vec to a fixed point vec
+	*/
+	fn fp_vec(v : Vec<f64>) -> Vec<U1F31> {
+		let mut ret : Vec<U1F31> = vec![];
+
+		v.iter().for_each(|x:&f64| {
+			ret.push(U1F31::from_num(*x))
+		});
+
+		return ret;
 	}
 
 	#[test]
-	fn validate_weights_1() {
-		weights = vec![0.0001,1.0000];
-		assert_eq!(validate_weights(weights), true)
+	fn validate_weights_valid() {
+		// let weights: Vec<U1F31> = vec![U1F31::from_num(0.000),U1F31::from_num(1.0000)];
+		let weights = fp_vec(vec![0.0000, 1.0000]);
+		assert_eq!(validate_weights(&weights), true)
 	}
 
 	#[test]
-	fn validate_weights_2() {
-		weights = vec![0.0001,2.0000];
-		assert_eq!(validate_weights(weights), false)
+	fn validate_weights_invalid() {
+		let weights: Vec<U1F31> = fp_vec(vec![0.001, 1.9999]);
+		assert_eq!(validate_weights(&weights), false);
 	}
 
+	#[test]
+	fn normalize_sum_smaller_than_one() {
+		let weights: Vec<U1F31> = fp_vec(vec![0.1, 0.1]);
+		assert_eq!(normalize_weights(weights),  fp_vec(vec![0.5,0.5]));
+	}
+
+	#[test]
+	fn normalize_sum_greater_than_one() {
+		let weights: Vec<U1F31> = fp_vec(vec![0.88764, 0.7722567]);
+		assert_eq!(normalize_weights(weights), fp_vec(vec![0.5347561687,0.465243831]));
+	}
+
+	#[test]
+	fn normalize_sum_zero() {
+		let weights: Vec<U1F31> = fp_vec(vec![0.0, 0.0]);
+		assert_eq!(normalize_weights(weights), fp_vec(vec![0.0,0.0]));
+	}
 }
