@@ -73,7 +73,7 @@ decl_storage! {
 		pub Stake get(fn stake): map hasher(blake2_128_concat) T::AccountId => u32;
 
 		/// ---- Stores the amount of currently staked token.
-        TotalStake: u32;
+		TotalStake: u32;
 
 		/// ---- Stores the number of active neurons.
 		NeuronCount: u32;
