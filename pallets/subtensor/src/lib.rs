@@ -5,7 +5,6 @@ use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch,
 use frame_support::weights::{DispatchClass, Pays};
 use codec::{Decode, Encode};
 use frame_system::{self as system, ensure_signed};
-use substrate_fixed::types::U1F31;
 use substrate_fixed::types::U32F32;
 use sp_std::convert::TryInto;
 use sp_std::{
@@ -13,8 +12,6 @@ use sp_std::{
 };
 
 use frame_support::debug::RuntimeLogger;
-
-const U1F31_EQ_1POINT0: u32 = 2147483648;
 
 
 /// --- Configure the pallet by specifying the parameters and types on which it depends.
@@ -122,14 +119,6 @@ decl_error! {
 		/// and values but these vectors have different size.
 		WeightVecNotEqualSize,
 
-		/// ---- Thrown when the caller attempts to set weights on the chain
-		/// but the sum of those weights exceeds the maximum value.
-		WeightSumToLarge,
-		
-		/// ---- Thrown when the caller attempts to set weights that are larger than one.
-		/// Technically, the list of supplied u32 values contains one value that exceeds the limit
-		WeightOutOfBound,
-
 		/// ---- Thrown when the caller triggers an emit but the computed amount
 		/// to emit is zero.
 		NothingToEmit,
@@ -160,7 +149,7 @@ impl<T: Trait> Printable for Error<T> {
             Error::NotActive => "The node with the supplied piblic key is not active".print(),
 			Error::NothingToEmit => "There is nothing to emit".print(),
 			Error::WeightVecNotEqualSize => "The vec of keys and the vec of values are not of the same size".print(),
-			Error::WeightSumToLarge => "The sum of weights is too large".print(),
+			Error::NonAssociatedColdKey => "The used cold key is not associated with the hot key acccount".print(),
             _ => "Invalid Error Case".print(),
         }
     }
@@ -183,15 +172,11 @@ decl_module! {
 
 		 	let neuron = ensure_signed(origin)?;
 
-			ensure!(is_within_bounds(&values), Error::<T>::WeightOutOfBound);
 		 	ensure!(values.len() == dests.len(), Error::<T>::WeightVecNotEqualSize);
 
+			let normalized_values = normalize(values);
 
-		 	let values_u1f31 = vec_u32_to_vec_u1f31(values);
-			let normalized_values = normalize_weights(values_u1f31);
-			let values_u32 = vec_u1f31_to_vec_u32(normalized_values);
-
-			WeightVals::<T>::insert(&neuron, &values_u32);
+			WeightVals::<T>::(&neuron, &normalized_values);
 			WeightKeys::<T>::insert(&neuron, &dests);
 
 			// Emit and return
@@ -672,100 +657,45 @@ impl<T: Trait> Module<T> {
 	}
 }
 
-fn normalize_weights(mut weights: Vec<U1F31>) -> Vec<U1F31> {
-	let sum : U1F31 = weights.iter().sum();
+fn normalize(mut weights: Vec<u32>) -> Vec<u32> {
+	let sum : u64  = weights.iter().map(|x| *x as u64).sum();
 
 	if sum == 0 {
 		return weights;
 	}
 
-	weights.iter_mut().for_each(|x| *x /= sum);
+	weights.iter_mut().for_each(|x| {
+		*x = (*x as u64 * u32::max_value() as u64 / sum) as u32;
+	});
 
 	return weights;
 }
 
-fn is_within_bounds(values: &Vec<u32>) -> bool {
-	if values.iter().any(|x:&u32| x > &U1F31_EQ_1POINT0) {
-		return false;
-	}
-
-	return true
-}
-
-fn vec_u32_to_vec_u1f31(items: Vec<u32>) -> Vec<U1F31> {
-	let mut ret : Vec<U1F31> = vec![];
-	items.iter().for_each(|x:&u32| ret.push(U1F31::from_bits(*x)));
-	return ret;
-}
-
-fn vec_u1f31_to_vec_u32(items: Vec<U1F31>) -> Vec<u32> {
-	let mut ret : Vec<u32> = vec![];
-	items.iter().for_each(|x: &U1F31| ret.push(U1F31::to_bits(*x)));
-	return ret;
-}
-
-
-
 #[cfg(test)]
 mod tests {
-	use crate::{normalize_weights, vec_u32_to_vec_u1f31, vec_u1f31_to_vec_u32, is_within_bounds, U1F31_EQ_1POINT0};
-	use substrate_fixed::types::U1F31;
-
-	/**
-	Helper function to convert a floating point vec to a fixed point vec
-	*/
-	fn fp_vec(v : Vec<f64>) -> Vec<U1F31> {
-		let mut ret : Vec<U1F31> = vec![];
-
-		v.iter().for_each(|x:&f64| {
-			ret.push(U1F31::from_num(*x))
-		});
-
-		return ret;
-	}
-
-	#[test]
-	fn validate_weights_valid() {
-		let values = vec![U1F31_EQ_1POINT0, U1F31_EQ_1POINT0 - 36];
-		assert_eq!(is_within_bounds(&values), true)
-	}
-
-
-	#[test]
-	fn validate_weights_invalid() {
-		let values = vec![U1F31_EQ_1POINT0, U1F31_EQ_1POINT0 + 36];
-		assert_eq!(is_within_bounds(&values), false);
-	}
+	use crate::{normalize};
 
 	#[test]
 	fn normalize_sum_smaller_than_one() {
-		let weights: Vec<U1F31> = fp_vec(vec![0.1, 0.1]);
-		assert_eq!(normalize_weights(weights),  fp_vec(vec![0.5,0.5]));
+		let values : Vec<u32> = vec![u32::max_value() / 10, u32::max_value() / 10];
+		assert_eq!(normalize(values), vec![u32::max_value() / 2, u32::max_value() / 2]);
 	}
 
 	#[test]
 	fn normalize_sum_greater_than_one() {
-		let weights: Vec<U1F31> = fp_vec(vec![0.88764, 0.7722567]);
-		assert_eq!(normalize_weights(weights), fp_vec(vec![0.5347561687,0.465243831]));
+		let values : Vec<u32> = vec![u32::max_value() / 7, u32::max_value() / 7];
+		assert_eq!(normalize(values), vec![u32::max_value() / 2, u32::max_value() / 2]);
 	}
 
 	#[test]
 	fn normalize_sum_zero() {
-		let weights: Vec<U1F31> = fp_vec(vec![0.0, 0.0]);
-		assert_eq!(normalize_weights(weights), fp_vec(vec![0.0,0.0]));
+		let weights: Vec<u32> = vec![0,0];
+		assert_eq!(normalize(weights), vec![0,0]);
 	}
 
 	#[test]
-	fn vec_u32_to_vec_u1f31_normal_operation() {
-		let test: Vec<u32> = vec![U1F31_EQ_1POINT0];
-		let target: Vec<U1F31> = fp_vec(vec![1.0]);
-		assert_eq!(vec_u32_to_vec_u1f31(test), target);
-	}
-
-	#[test]
-	fn vec_u1f31_to_vec_u32_normal_operation() {
-		let target: Vec<u32> = vec![U1F31_EQ_1POINT0];
-		let test: Vec<U1F31> = fp_vec(vec![1.0]);
-		assert_eq!(vec_u1f31_to_vec_u32(test), target);
+	fn normalize_values_maxed() {
+		let weights: Vec<u32> = vec![u32::max_value(),u32::max_value()];
+		assert_eq!(normalize(weights), vec![u32::max_value() / 2,u32::max_value() / 2]);
 	}
 }
