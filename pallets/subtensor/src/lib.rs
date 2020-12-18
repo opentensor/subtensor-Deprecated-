@@ -1,8 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-// mod tests;
-
-// Frame imports.
+// --- Frame imports.
 use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, ensure, debug, traits::{Currency, WithdrawReasons, WithdrawReason, ExistenceRequirement}, Printable};
 use frame_support::weights::{DispatchClass, Pays};
 use codec::{Decode, Encode};
@@ -16,63 +14,102 @@ use sp_std::{
 
 use frame_support::debug::RuntimeLogger;
 
-/// Configure the pallet by specifying the parameters and types on which it depends.
+const U1F31_EQ_1POINT0: u32 = 2147483648;
+
+
+/// --- Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Trait: frame_system::Trait {
-	/// Because this pallet emits events, it depends on the runtime's definition of an event.
+	/// --- Because this pallet emits events, it depends on the runtime's definition of an event.
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 
-	// Currency type that will be used to place deposits on neurons
+	// --- Currency type that will be used to place deposits on neurons
 	type Currency: Currency<Self::AccountId>;
 }
 
+// ---- Create account types for the NeuronMetadata struct.
+// Account is of type system::Trait::AccoountId.
+type AccountIdOf<T> = <T as system::Trait>::AccountId;
+type NeuronMetadataOf<T> = NeuronMetadata<AccountIdOf<T>>;
+
 #[derive(Encode, Decode, Default)]
-pub struct NeuronMetadata {
+pub struct NeuronMetadata <AccountId> {
+	/// ---- The endpoint's u128 encoded ip address of type v6 or v4.
 	ip: u128,
+
+	/// ---- The endpoint's u16 encoded port.
 	port: u16,
+
+	/// ---- The endpoint's ip type, 4 for ipv4 and 6 for ipv6.
 	ip_type: u8,
+
+	/// ---- The associated coldkey account.
+	/// Staking and unstaking transactions must be made by this account.
+	/// The hotkey account (in the Neurons map) has permission to call emit
+	/// subscribe and unsubscribe.
+	coldkey: AccountId,
 }
 
 // The pallet's runtime storage items.
 decl_storage! {
 	trait Store for Module<T: Trait> as SubtensorModule {
 	
-		// Weight values: Map from account to vector of weights.
+		/// ---- Maps between a neuron's hotkey account address and that neurons
+		/// weights, a.k.a is row_weights in the square matrix W. The vector of keys
+		/// and the vector of weights must be the same length and if they exist
+		/// their values must be positive and sum to the largest u32 value.
 		pub WeightKeys: map hasher(blake2_128_concat) T::AccountId => Vec<T::AccountId>;
-		pub WeightVals: map hasher(blake2_128_concat) T::AccountId => Vec<U1F31>;
+		pub WeightVals: map hasher(blake2_128_concat) T::AccountId => Vec<u32>;
 
-		// Stake Values: Map from account to u32 stake ammount.
-		pub Stake get(fn stake): map hasher(blake2_128_concat) T::AccountId => u32;
-
-		// Last Emit Block: Last emission block.
+		/// ---- Maps between a neuron's hotkey account address and the block number
+		/// when that peer last called an emission. The last emit time is used to determin
+		/// the proportion of inflation remaining to emit during the next emit call.
 		pub LastEmit get(fn block): map hasher(blake2_128_concat) T::AccountId => T::BlockNumber;
 		
-		// Active Neuron set: Active neurons in graph.
-		pub Neurons get(fn neuron): map hasher(blake2_128_concat) T::AccountId => NeuronMetadata;
+		/// ----  Maps between a neuron's hotkey account address and additional
+		/// metadata associated with that neuron. Specifically, the ip,port, and coldkey address.
+		pub Neurons get(fn neuron): map hasher(blake2_128_concat) T::AccountId => NeuronMetadataOf<T>;
 
-		// Active Neuron count.
+		/// ----  Maps between a neuron's hotkey account address and the number of
+		/// staked tokens under that key.
+		pub Stake get(fn stake): map hasher(blake2_128_concat) T::AccountId => u32;
+
+		/// ---- Stores the amount of currently staked token.
+		TotalStake: u32;
+
+		/// ---- Stores the number of active neurons.
 		NeuronCount: u32;
-		
-		// Total ammount staked.
-        TotalStake: u32;
 	}
 }
 
 // Subtensor events.
 decl_event!(
 	pub enum Event<T> where AccountId = <T as frame_system::Trait>::AccountId {
-		// Sent when a Neuron updates their weights on chain.
+		/// ---- Event created when a caller successfully set's their weights
+		/// on the chain.
 		WeightsSet(AccountId),
 
-		// Sent when a Neuron is added to the active set.
+		/// --- Event created when a new neuron account has been added to the
+		/// active set.
 		NeuronAdded(AccountId),
 
-		// Sent when a Neuron is removed from the active set.
+		/// --- Event created when the neuron information associated with a hotkey
+		/// is changed, for instance, when the ip/port changes.
+		NeuronUpdated(AccountId),
+
+		/// --- Event created when a new neuron account has been removed from the
+		/// active set.
 		NeuronRemoved(AccountId),
 
-		// Sent when a Neuron updates their stake.
+		/// --- Event created during when stake has been transfered from
+		/// the coldkey onto the hotkey staking account.
 		StakeAdded(AccountId, u32),
 
-		// Sent when there is emission from a Neuron.
+		/// -- Event created when stake has been removed from
+		/// the staking account into the coldkey account.
+		StakeRemoved(AccountId, u32),
+
+		/// ---- Event created when a transaction triggers and incentive
+		/// mechanism emission.
 		Emission(AccountId, u32),
 
 	}
@@ -81,18 +118,38 @@ decl_event!(
 // Subtensor Errors.
 decl_error! {
 	pub enum Error for Module<T: Trait> {
-		/// Cannot join as a member because you are already a member
-		AlreadyActive,
-		/// Cannot perform staking or emission unless the Neuron is already subscribed.
-		NotActive,
-		// Neuron calling emit has no emission.
-		NothingToEmit,
-		// Neuron updating weights caused overflow.
+		/// ---- Thrown when the caller attempts to set the weight keys
+		/// and values but these vectors have different size.
 		WeightVecNotEqualSize,
-		// Neuron setting weights are too large. Cause u32 overlfow.
+
+		/// ---- Thrown when the caller attempts to set weights on the chain
+		/// but the sum of those weights exceeds the maximum value.
 		WeightSumToLarge,
-		// We won't be accepting weights larger than one
-		WeightLargerThanOnePresent,
+		
+		/// ---- Thrown when the caller attempts to set weights that are larger than one.
+		/// Technically, the list of supplied u32 values contains one value that exceeds the limit
+		WeightOutOfBound,
+
+		/// ---- Thrown when the caller triggers an emit but the computed amount
+		/// to emit is zero.
+		NothingToEmit,
+
+		/// ---- Thrown when the caller requests setting or removing data from
+		/// a neuron which does not exist in the active set.
+		NotActive,
+
+		/// ---- Thrown when the caller requests subscribing a neuron which
+		/// already exists in the active set.
+		AlreadyActive,
+
+		/// ---- Thrown when a stake or unstake request is made by a coldkey
+		/// which is not associated with the hotkey account.
+		/// See: fn add_stake and fn remove_stake
+		NonAssociatedColdKey,
+
+		/// ---- Thrown when the caller requests removing more stake then there exists
+		/// in the staking account. See: fn remove_stake.
+		NotEnoughStaketoWithdraw,
 	}
 }
 
@@ -122,16 +179,19 @@ decl_module! {
 		#[weight = (0, DispatchClass::Operational, Pays::No)]
 		pub fn set_weights(origin,
 				dests: Vec<T::AccountId>,
-				values: Vec<U1F31>) -> dispatch::DispatchResult {
+				values: Vec<u32>) -> dispatch::DispatchResult {
 
 		 	let neuron = ensure_signed(origin)?;
 
-			ensure!(validate_weights(&values) == true, Error::<T>::WeightSumToLarge);
-			ensure!(values.len() == dests.len(), Error::<T>::WeightVecNotEqualSize);
+			ensure!(is_within_bounds(&values), Error::<T>::WeightOutOfBound);
+		 	ensure!(values.len() == dests.len(), Error::<T>::WeightVecNotEqualSize);
 
-			let normalized_values = normalize_weights(values);
 
-			WeightVals::<T>::insert(&neuron, &normalized_values);
+		 	let values_u1f31 = vec_u32_to_vec_u1f31(values);
+			let normalized_values = normalize_weights(values_u1f31);
+			let values_u32 = vec_u1f31_to_vec_u32(normalized_values);
+
+			WeightVals::<T>::insert(&neuron, &values_u32);
 			WeightKeys::<T>::insert(&neuron, &dests);
 
 			// Emit and return
@@ -140,16 +200,15 @@ decl_module! {
 		}
 
 
-		/// Emission. Called by an active Neuron with stake in-order to distribute
-		/// tokens to weighted neurons and to himself. The amount emitted is dependent on
-		/// the ammount of stake held at this Neuron and the time since last emission.
-		/// neurons are encouraged to calle this function often as to maximize
-		/// their inflation in the graph.
-		#[weight = (0, DispatchClass::Operational, Pays::No)]
-		pub fn emit(origin,
-			dests: Vec<T::AccountId>,
-			values: Vec<u32>) -> dispatch::DispatchResult {
 
+		/// Emission. Called by an active Neuron. Distributes inflation neighbors and to themselves.
+		/// The amount emitted = (blocks_since_last_emit) * (inflation_per_block) * (this_neurons_stake) / (total_stake)
+		/// Neurons are incentivized to call this function often as to maximize inflation in the graph.
+		/// Along with emission, the neuron is given the opportunity to set their weights with this function call.
+		#[weight = (0, DispatchClass::Operational, Pays::No)]
+		pub fn emit(origin, 
+			dests: Vec<T::AccountId>, 
+			values: Vec<u32>) -> dispatch::DispatchResult {
 			RuntimeLogger::init();
 			// Check that the extrinsic was signed and get the signer.
 			// This function will return an error if the extrinsic is not signed.
@@ -164,7 +223,7 @@ decl_module! {
 			ensure!(Stake::<T>::contains_key(&calling_neuron), Error::<T>::NotActive);
 			ensure!(LastEmit::<T>::contains_key(&calling_neuron), Error::<T>::NotActive);
 			ensure!(WeightKeys::<T>::contains_key(&calling_neuron), Error::<T>::NotActive);
-			// ensure!(WeightVals::<T>::contains_key(&calling_neuron), Error::<T>::NotActive);
+			ensure!(WeightVals::<T>::contains_key(&calling_neuron), Error::<T>::NotActive);
 
 			// Get the last emission block.
 			// Get the current block.
@@ -215,199 +274,361 @@ decl_module! {
 			// Get current weights and vals from storage.
 			// Get the weight sum for normalization.
 			let w_keys: Vec<T::AccountId> = WeightKeys::<T>::get(&calling_neuron);
-			// let w_vals: Vec<u32> = WeightVals::<T>::get(&calling_neuron);
+			let w_vals: Vec<u32> = WeightVals::<T>::get(&calling_neuron);
 			let mut w_sum = U32F32::from_num(0);
 			let u32_max = U32F32::from_num(u32::MAX);
-			// for x in w_vals.iter() {
-			// 	Overflow not possible since we check weight prior to adding to it
-				// let x_u32_f32 = U32F32::from_num(*x);
-				// if u32_max - x_u32_f32 <= w_sum {
-				// 	w_sum = w_sum + x_u32_f32;
-				// }
-			// }
+			for x in w_vals.iter() {
+				// Overflow not possible since we check weight prior to adding to it
+				let x_u32_f32 = U32F32::from_num(*x);
+				if u32_max - x_u32_f32 <= w_sum {
+					w_sum = w_sum + x_u32_f32;
+				}
+			}
+		
+			// Iterate through weight matrix and distribute emission to 
+			// neurons on a weighted basis. 
+			for (i, dest_key) in w_keys.iter().enumerate() {
 
-			// // Iterate through weight matrix and distribute emission to
-			// // neurons on a weighted basis.
-			// for (i, dest_key) in w_keys.iter().enumerate() {
-			//
-			// 	// Get emission to Neuron j from Neuron i.
-			// 	let wij_u32_f32 = U32F32::from_num(w_vals[i]);
-			// 	let wij_norm_u32_f32 = wij_u32_f32 / w_sum;
-			// 	let emission_u32_f32 = total_emission_u32_f32 * wij_norm_u32_f32;
-			// 	debug::info!("emit to {:?}", dest_key);
-			// 	debug::info!("wij {:?}", wij_norm_u32_f32);
-			// 	debug::info!("emission_u32_f32 {:?}", emission_u32_f32);
-			//
-			// 	// Determine stake ammount for Neuron j.
-			// 	let prev_stake: u32 = Stake::<T>::get(&dest_key);
-			// 	let prev_stake_u32_f32 = U32F32::from_num(prev_stake);
-			// 	let new_stake_u32_f32 = prev_stake_u32_f32 + emission_u32_f32;
-			// 	let new_stake_u32: u32 = new_stake_u32_f32.to_num::<u32>();
-			// 	debug::info!("prev_stake_u32_f32 {:?}", prev_stake_u32_f32);
-			// 	debug::info!("new_stake_u32_f32 {:?} = {:?} + {:?}", new_stake_u32_f32, prev_stake_u32_f32, emission_u32_f32);
-			// 	debug::info!("new_stake_u32 {:?}", new_stake_u32);
-			//
-			// 	// Update stake in storage.
-			// 	// Update total stake in storage.
-			// 	Stake::<T>::insert(&dest_key, new_stake_u32);
-			// 	let total_stake: u32  = TotalStake::get();
-			// 	TotalStake::put(total_stake + new_stake_u32); // TODO (const): check overflow.
-			// 	debug::info!("sink new stake.");
-			//
-			// 	let withdraw_amount = Self::u32_to_balance(new_stake_u32);
-			// 	let _ = T::Currency::withdraw(&calling_neuron, withdraw_amount, WithdrawReasons::except(WithdrawReason::Tip), ExistenceRequirement::KeepAlive);
-			// 	debug::info!("Balance is {:?}", T::Currency::total_balance(&calling_neuron));
-			// }
+				// Get emission to Neuron j from Neuron i.
+				let wij_u32_f32 = U32F32::from_num(w_vals[i]);
+				let wij_norm_u32_f32 = wij_u32_f32 / w_sum;
+				let emission_u32_f32 = total_emission_u32_f32 * wij_norm_u32_f32;
+				debug::info!("emit to {:?}", dest_key);
+				debug::info!("wij {:?}", wij_norm_u32_f32);
+				debug::info!("emission_u32_f32 {:?}", emission_u32_f32);
 
+				// Determine stake ammount for Neuron j.
+				let prev_stake: u32 = Stake::<T>::get(&dest_key);
+				let prev_stake_u32_f32 = U32F32::from_num(prev_stake);
+				let new_stake_u32_f32 = prev_stake_u32_f32 + emission_u32_f32;
+				let new_stake_u32: u32 = new_stake_u32_f32.to_num::<u32>();
+				debug::info!("prev_stake_u32_f32 {:?}", prev_stake_u32_f32);
+				debug::info!("new_stake_u32_f32 {:?} = {:?} + {:?}", new_stake_u32_f32, prev_stake_u32_f32, emission_u32_f32);
+				debug::info!("new_stake_u32 {:?}", new_stake_u32);
+
+				// Update stake in storage.
+				// Update total stake in storage.
+				Stake::<T>::insert(&dest_key, new_stake_u32);
+				let total_stake: u32  = TotalStake::get();
+				TotalStake::put(total_stake + new_stake_u32); // TODO (const): check overflow.
+				debug::info!("sink new stake.");
+				
+				let withdraw_amount = Self::u32_to_balance(new_stake_u32);
+				let _ = T::Currency::withdraw(&calling_neuron, withdraw_amount, WithdrawReasons::except(WithdrawReason::Tip), ExistenceRequirement::KeepAlive);
+				debug::info!("Balance is {:?}", T::Currency::total_balance(&calling_neuron));
+			}
+
+			// if !values.is_empty() && !dests.is_empty() {
+			// 	Self::set_weights(&calling_neuron, dests, values)?;
+			// }
+			
 			Self::deposit_event(RawEvent::Emission(calling_neuron, total_emission_u32));
 			// Return.
 			Ok(())
 		}
 
-		// Staking: Adds stake to the stake account for calling Neuron.
-		#[weight = (0, DispatchClass::Operational, Pays::No)]
-		fn add_stake(origin, stake_amount: u32) -> dispatch::DispatchResult {
+		// --- Adds stake to a neuron account. The call is made from the
+		// coldkey account linked in the neurons's NeuronMetadata.
+		// Only the associated coldkey is allowed to make staking and
+		// unstaking requests. This protects the neuron against
+		// attacks on its hotkey running in production code.
+		/// Args:
+		/// 	origin: (<T as frame_system::Trait>Origin):
+		/// 		The caller, a coldkey signature associated with the hotkey account.
+		///
+		/// 	hotkey (T::AccountId):
+		/// 		The hotkey account to add stake to.
+		///
+		/// 	ammount_staked (u32):
+		/// 		The ammount to transfer from the balances account of the cold key
+		/// 		into the staking account of the hotkey.
+		///
+		/// Emits:
+		/// 	StakeAdded:
+		/// 		On the successful staking of funds.
+		///
+		/// Raises
+		/// 	NotActive:
+		/// 		If the hotkey account is not active (has not subscribed)
+		///
+		/// 	NonAssociatedColdKey:
+		/// 		When the calling coldkey is not associated with the hotkey account.
+		///
+		/// 	InsufficientBalance:
+		/// 		When the amount to stake exceeds the amount of balance in the
+		/// 		associated colkey account.
+		///
+		#[weight = (0, DispatchClass::Operational, Pays::No)] // TODO(const): should be a normal transaction fee.
+		fn add_stake(origin, hotkey: T::AccountId, ammount_staked: u32) -> dispatch::DispatchResult {
 
-			// Check sig.
-			let neuron = ensure_signed(origin)?;
+			// ---- We check the transaction is signed by the caller
+			// and retrieve the T::AccountId pubkey information.
+			let caller = ensure_signed(origin)?;
+			debug::info!("--- Called add_stake with caller {:?}, hotkey {:?} and ammount_staked {:?}", caller, hotkey, ammount_staked);
 
-			debug::info!("add_stake sent by: {:?}", neuron);
-			debug::info!("stake_amount {:?}", stake_amount);
+			// ---- We query the Neuron set for the neuron data stored under
+			// the passed hotkey and retrieve it as a NeuronMetadata struct.
+			ensure!(Neurons::<T>::contains_key(&hotkey), Error::<T>::NotActive);
+			let neuron: NeuronMetadataOf<T> = Neurons::<T>::get(&hotkey);
+			debug::info!("Got metadata for hotkey {:?}", hotkey);
 
-			// Check subscribed.
-			ensure!(Neurons::<T>::contains_key(&neuron), Error::<T>::NotActive);
+			// ---- We check that the NeuronMetadata is linked to the calling
+			// cold key, otherwise throw a NonAssociatedColdKey error.
+			ensure!(neuron.coldkey == caller, Error::<T>::NonAssociatedColdKey);
 
-			// Update stake at Neuron.
-			// TODO (const): transfer from balance pallet.
-			Stake::<T>::insert(&neuron, stake_amount);
+			// ---- We check that the calling coldkey contains enough funds to
+			// create the staking transaction.
+			let staked_currency = Self::u32_to_balance( ammount_staked );
+			let new_potential_balance = T::Currency::free_balance(&caller) - staked_currency;
+			let can_withdraw = T::Currency::ensure_can_withdraw(&caller, staked_currency, WithdrawReasons::except(WithdrawReason::Tip), new_potential_balance).is_ok();
 
-			// Remove stake_amount from neuron's balance to put it in the "stake"
-			let stake_currency = Self::u32_to_balance(stake_amount);
-
-			// Adding to stake amount, remove from currency account.
-			let new_potential_balance = T::Currency::free_balance(&neuron) - stake_currency;
-
-			let can_withdraw = T::Currency::ensure_can_withdraw(&neuron, stake_currency, WithdrawReasons::except(WithdrawReason::Tip), new_potential_balance).is_ok();
-
+			// ---- If we can withdraw the requested funds, we withdraw from the
+			// coldkey account and deposit the funds into the staking account of
+			// the associated hotkey-neuron.
 			if can_withdraw {
-				let _ = T::Currency::withdraw(&neuron, stake_currency, WithdrawReasons::except(WithdrawReason::Tip), ExistenceRequirement::AllowDeath);
-				debug::info!("New neuron balance is {:?}", T::Currency::total_balance(&neuron));
 
-				// Update total staked storage iterm.
-				let total_stake: u32  = TotalStake::get();
-				TotalStake::put(total_stake + stake_amount); // TODO (const): check overflow.
-				debug::info!("sink new stake.");
+				// ---- We perform the withdrawl from the coldkey account before
+				// addding stake into the hotkey neuron's staking account.
+				let _ = T::Currency::withdraw(&caller, staked_currency, WithdrawReasons::except(WithdrawReason::Tip), ExistenceRequirement::KeepAlive);
+				debug::info!("Withdrew {:?} from coldkey: {:?}", staked_currency, caller);
 
-				// Emit event and finish.
-				Self::deposit_event(RawEvent::StakeAdded(neuron, stake_amount));
+				// --- We update the hotkey's staking account with the new funds.
+				let hotkey_stake: u32 = Stake::<T>::get(&hotkey);
+				Stake::<T>::insert(&hotkey, hotkey_stake + ammount_staked);
+				debug::info!("Added new stake: {:?} to hotkey {:?}", ammount_staked, hotkey);
+
+				// --- We update the total staking pool with the new funds.
+				let total_stake: u32 = TotalStake::get();
+				TotalStake::put(total_stake + ammount_staked);
+				debug::info!("Added {:?} to total stake, now {:?}", ammount_staked, TotalStake::get());
+
+				// ---- Emit the staking event.
+				Self::deposit_event(RawEvent::StakeAdded(hotkey, ammount_staked));
+
+			} else {
+
+				debug::info!("Could not withdraw {:?} from coldkey {:?}", staked_currency, caller);
 			}
+
+			// --- ok and return.
+			debug::info!("--- Done add_stake.");
 			Ok(())
 		}
 
-		// Subscribes the calling Neuron to the active set.
+		// ---- Remove stake from the staking account. The call must be made
+		// from the coldkey account attached to the neuron metadata. Only this key
+		// has permission to make staking and unstaking requests.
+		/// Args:
+		/// 	origin: (<T as frame_system::Trait>Origin):
+		/// 		The caller, a coldkey signature associated with the hotkey account.
+		///
+		/// 	hotkey (T::AccountId):
+		/// 		The hotkey account to withdraw stake from.
+		///
+		/// 	ammount_unstaked (u32):
+		/// 		The ammount to transfer from the staking account into the balance
+		/// 		of the coldkey.
+		/// Emits:
+		/// 	StakeRemoved:
+		/// 		On successful withdrawl.
+		///
+		/// Raises
+		/// 	NonAssociatedColdKey:
+		/// 		When the calling coldkey is not associated with the hotkey account.
+		///
+		/// 	NotEnoughStaketoWithdraw:
+		/// 		When the amount to unstake exceeds the quantity staked in the
+		/// 		associated hotkey staking account.
+		///
 		#[weight = (0, DispatchClass::Operational, Pays::No)]
-		fn subscribe(origin, ip: u128, port: u16, ip_type: u8) -> dispatch::DispatchResult {
+		fn remove_stake(origin, hotkey: T::AccountId, ammount_unstaked: u32) -> dispatch::DispatchResult {
 
-			// Check sig.
-			let new_neuron = ensure_signed(origin)?;
-			debug::info!("new_neuron sent by: {:?}", new_neuron);
+			// ---- We check the transaction is signed by the caller
+			// and retrieve the T::AccountId pubkey information.
+			let caller = ensure_signed(origin)?;
+			debug::info!("--- Called remove_stake with {:?}, hotkey {:?} and ammount {:?}", caller, hotkey, ammount_unstaked);
 
-			// Check Neuron does not already exist.
-			ensure!(!Neurons::<T>::contains_key(&new_neuron), Error::<T>::AlreadyActive);
+			// ---- We query the Neuron set for the NeuronMetadata stored under
+			// the passed hotkey.
+			ensure!(Neurons::<T>::contains_key(&hotkey), Error::<T>::NotActive);
+			let neuron: NeuronMetadataOf<T> = Neurons::<T>::get(&hotkey);
+			debug::info!("Got metadata for hotkey.");
 
-			// Insert the new Neuron into the active set.
-			Neurons::<T>::insert(&new_neuron,
-				NeuronMetadata {
+			// ---- We check that the NeuronMetadata is linked to the calling
+			// cold key, otherwise throw a NonAssociatedColdKey error.
+			ensure!(neuron.coldkey == caller, Error::<T>::NonAssociatedColdKey);
+
+			// ---- We check that the hotkey has enough stake to withdraw
+			// and then withdraw from the account.
+			let hotkey_stake: u32 = Stake::<T>::get(&hotkey);
+			ensure!(hotkey_stake >= ammount_unstaked, Error::<T>::NotEnoughStaketoWithdraw);
+			Stake::<T>::insert(&hotkey, hotkey_stake - ammount_unstaked);
+			debug::info!("Withdraw: {:?} from hotkey staking account for new ammount {:?} staked", ammount_unstaked, hotkey_stake - ammount_unstaked);
+
+			// --- We perform the withdrawl by converting the stake to a u32 balance
+			// and deposit the balance into the coldkey account. If the coldkey account
+			// does not exist it is created.
+			// TODO(const): change to u32
+			let _ = T::Currency::deposit_creating(&caller, Self::u32_to_balance(ammount_unstaked));
+			debug::info!("Deposit {:?} into coldkey balance ", Self::u32_to_balance(ammount_unstaked));
+
+			// --- We update the total staking pool with the removed funds.
+			let total_stake: u32 = TotalStake::get();
+			TotalStake::put(total_stake - ammount_unstaked);
+			debug::info!("Remove {:?} from total stake, now {:?} ", ammount_unstaked, TotalStake::get());
+
+			// ---- Emit the unstaking event.
+			Self::deposit_event(RawEvent::StakeRemoved(hotkey, ammount_unstaked));
+			debug::info!("--- Done remove_stake.");
+
+			// --- Done and ok.
+			Ok(())
+		}
+
+		/// ---- Subscribes the caller to the Neuron set with given metadata. If the caller
+		/// already exists in the active set, the metadata is updated but the cold key remains unchanged.
+		/// If the caller does not exist they make a link between this hotkey account
+		/// and the passed coldkey account. Only the cold key has permission to make add_stake/remove_stake calls.
+		/// Args:
+		/// 	origin: (<T as frame_system::Trait>Origin):
+		/// 		The caller, a hotkey associated with the subscribing neuron.
+		/// 	ip (u128):
+		/// 		The u32 encoded IP address of type 6 or 4.
+		/// 	port (u16):
+		/// 		The port number where this neuron receives RPC requests.
+		/// 	ip_type (u8):
+		/// 		The ip type one of (4,6).
+		/// 	coldkey (T::AccountId):
+		/// 		The associated coldkey to be attached to the account.
+		/// Emits:
+		/// 	NeuronAdded:
+		/// 		On subscription of a new neuron to the active set.
+		///
+		/// 	NeuronUpdated:
+		/// 		On subscription of new metadata attached to the calling hotkey.
+		#[weight = (0, DispatchClass::Operational, Pays::No)]
+		fn subscribe(origin, ip: u128, port: u16, ip_type: u8, coldkey: T::AccountId) -> dispatch::DispatchResult {
+
+			// --- We check the callers (hotkey) signature.
+			let caller = ensure_signed(origin)?;
+			debug::info!("--- Called subscribe with caller {:?}", caller);
+
+			// ---- We check to see if the Neuron already exists.
+			// We do not allow peers to re-subscribe with the same key.
+			ensure!( !Neurons::<T>::contains_key(&caller), Error::<T>::AlreadyActive );
+
+			// ---- If the neuron is not-already subscribed, we create a
+			// new entry in the table with the new metadata.
+			debug::info!("Insert new metadata with ip: {:?}, port: {:?}, ip_type: {:?}, coldkey: {:?}", ip, port, ip_type, coldkey);
+			Neurons::<T>::insert( &caller,
+				NeuronMetadataOf::<T> {
 					ip: ip,
 					port: port,
 					ip_type: ip_type,
+					coldkey: coldkey,
 				}
 			);
 
-			// Update Neuron count.
-			let neuron_count = NeuronCount::get();
-			NeuronCount::put(neuron_count + 1); // overflow check not necessary because of maximum
-			debug::info!("neuron_count: {:?}", neuron_count + 1);
+			// ---- We provide the subscriber with and initial subscription gift.
+			// NOTE: THIS IS FOR TESTING, NEEDS TO BE REMOVED FROM PRODUCTION
+			let subscription_gift: u32 = 1000;
+			debug::info!("Adding subscription gift to the stake {:?} ", subscription_gift);
 
-			// Add current block to last emit under Neuron account.
+			// --- We update the total staking pool with the subscription.
+			let total_stake: u32 = TotalStake::get();
+			TotalStake::put(total_stake + subscription_gift);
+			debug::info!("Adding amount: {:?} to total stake, now: {:?}", subscription_gift, TotalStake::get());
+
+			// The last emit determines the last time this peer made an incentive
+			// mechanism emit call. Since he is just subscribed with zero stake,
+			// this moment is considered his first emit.
 			let current_block: T::BlockNumber = system::Module::<T>::block_number();
-			LastEmit::<T>::insert(&new_neuron, current_block);
-			debug::info!("add last emit.");
+			debug::info!("The new last emit for this caller is: {:?} ", current_block);
 
-			// Initizialize stake to some arbitrary number for testing purposes.
-			// TODO (shibshib): Fix this so we're not just arbitrarily setting numbers.
-			debug::info!("Minimum balance for an account is {:?}", T::Currency::minimum_balance());
+			// ---- We initilize the neuron maps with nill weights,
+			// the subscription gift and the current block as last emit.
+			Stake::<T>::insert(&caller, subscription_gift);
+			LastEmit::<T>::insert(&caller, current_block);
+			WeightVals::<T>::insert(&caller, &Vec::new());
+			WeightKeys::<T>::insert(&caller, &Vec::new());
 
-			// Should withdraw from this account to stake the amount.
+			// ---- We increment the neuron count for the additional member.
+			let neuron_count = NeuronCount::get();
+			NeuronCount::put(neuron_count + 1);
+			debug::info!("Increment the neuron count to: {:?} ", NeuronCount::get());
 
-			// Let's add the minimum balance required to test this out
-			// THIS IS FOR TESTING, NEEDS TO BE REMOVED FROM PRODUCTION
-			// Provide each new subscriber with 1000 tokens
-			let subscription_gift = 1000;
-			Stake::<T>::insert(&new_neuron, 100);
-			let new_stake = Self::u32_to_balance(Stake::<T>::get(&new_neuron));
-			TotalStake::put(Stake::<T>::get(&new_neuron));
-			debug::info!("set stake to {:?}.", new_stake);
+			// --- We deposit the neuron added event.
+			Self::deposit_event(RawEvent::NeuronAdded(caller));
+			debug::info!("--- Done subscribe");
 
-			// Gift the new neuron the 1000 tokens, just as starting point.
-			let _ = T::Currency::deposit_into_existing(&new_neuron, Self::u32_to_balance(subscription_gift));
-			debug::info!("Balance is now {:?}, withdrawing {:?} to stake.", T::Currency::free_balance(&new_neuron), new_stake);
-
-			// Stake 100 of the total tokens it has
-			let new_potential_balance = T::Currency::free_balance(&new_neuron) - new_stake;
-			let can_withdraw = T::Currency::ensure_can_withdraw(&new_neuron, new_stake, WithdrawReasons::except(WithdrawReason::Tip), new_potential_balance).is_ok();
-
-			if can_withdraw {
-				let _ = T::Currency::withdraw(&new_neuron, new_stake, WithdrawReasons::except(WithdrawReason::Tip), ExistenceRequirement::KeepAlive);
-				debug::info!("Balance left: {:?}", T::Currency::free_balance(&new_neuron));
-			}
-
-			// Init empty weights.
-			// WeightVals::<T>::insert(&new_neuron, &Vec::new());
-			WeightKeys::<T>::insert(&new_neuron, &Vec::new());
-
-			// Emit event.
-			Self::deposit_event(RawEvent::NeuronAdded(new_neuron));
 			Ok(())
 		}
 
-
-		// Removes Neuron from active set.
+		/// ---- Unsubscribes the caller from the active Neuron. The call triggers
+		/// an emit call before unstaking the current stake balance into the coldkey account.
+		/// Args:
+		/// 	origin: (<T as frame_system::Trait>Origin):
+		/// 		The caller, a hotkey associated with the subscribing neuron.
+		/// Emits:
+		/// 	NeuronRemoved:
+		/// 		On subscription of a new neuron to the active set.
+		///
+		/// 	NeuronUpdated:
+		/// 		On subscription of new metadata attached to the calling hotkey.
+		///
+		/// Raises:
+		/// 	NotActive:
+		/// 		Raised if the unsubscriber does not exist.
 		#[weight = (0, DispatchClass::Operational, Pays::No)]
 		fn unsubscribe(origin) -> dispatch::DispatchResult {
 
-			// Check sig.
-			let old_neuron = ensure_signed(origin)?;
-			debug::info!("unsubscribe sent by: {:?}", old_neuron);
+			// --- We check the signature of the calling account.
+			let caller = ensure_signed(origin)?;
+			debug::info!("--- Called unsubscribe with caller: {:?}", caller);
 
-			// Check that the Neuron already exists.
-			ensure!(Neurons::<T>::contains_key(&old_neuron), Error::<T>::NotActive);
+			// --- We check that the Neuron already exists in the active set.
+			ensure!(Neurons::<T>::contains_key(&caller), Error::<T>::NotActive);
+			let neuron: NeuronMetadataOf<T> = Neurons::<T>::get(&caller);
+			debug::info!("Metadata retrieved with coldkey: {:?}", neuron.coldkey);
 
-			// Remove Neuron.
-			Neurons::<T>::remove(&old_neuron);
-			NeuronCount::mutate(|v| *v -= 1);
-			debug::info!("remove from Neuron set and decrement count.");
+			// TODO(const): call the emit function.
+			// emit(caller)
 
-			// Remove Last Emit.
-			LastEmit::<T>::remove(&old_neuron);
-			debug::info!("remove from last emit set.");
+			// --- If there are funds staked, we unstake them and add them to the coldkey.
+			let ammount_unstaked: u32 = Stake::<T>::get( &caller );
+			debug::info!("Ammount staked on this account is: {:?}", ammount_unstaked);
 
-			// Remove Stake.
-			Stake::<T>::remove(&old_neuron);
-			debug::info!("remove stake");
+			if ammount_unstaked > 0 {
+				// --- We perform the withdrawl by converting the stake to a u32 balance
+				// and deposit the balance into the coldkey account. If the coldkey account
+				// does not exist it is created.
+				// TODO(const): change to u32
+				T::Currency::deposit_creating( &neuron.coldkey, Self::u32_to_balance( ammount_unstaked ) );
+				debug::info!("Depositing: {:?} into coldkey account: {:?}", ammount_unstaked, neuron.coldkey);
 
-			// Add back to balance
-			let deposit_back = Self::u32_to_balance(TotalStake::get());
-			T::Currency::deposit_into_existing(&old_neuron, deposit_back).ok();
-			debug::info!("Balance is {:?}", T::Currency::total_balance(&old_neuron));
 
-			// Remove Weights.
-			// WeightVals::<T>::remove(&old_neuron);
-			WeightKeys::<T>::remove(&old_neuron);
-			debug::info!("remove weights.");
+				// --- We update the total staking pool with the removed funds.
+				let total_stake: u32 = TotalStake::get();
+				TotalStake::put(total_stake - ammount_unstaked);
+				debug::info!("Removing amount: {:?} from total stake, now: {:?}", ammount_unstaked, TotalStake::get());
+			}
 
-			// Emit event.
-			Self::deposit_event(RawEvent::NeuronRemoved(old_neuron));
+			// --- We remove the neuron info from the various maps.
+			Stake::<T>::remove( &caller );
+			Neurons::<T>::remove( &caller );
+			LastEmit::<T>::remove( &caller );
+			WeightVals::<T>::remove( &caller );
+			WeightKeys::<T>::remove( &caller );
+			debug::info!("Hotkey account removed: {:?}", caller);
+
+			// --- We decrement the neuron counter.
+			let neuron_count = NeuronCount::get();
+			NeuronCount::put(neuron_count - 1);
+			debug::info!("New neuron count: {:?}", NeuronCount::get());
+
+			// --- We emit the neuron removed event and return ok.
+			Self::deposit_event(RawEvent::NeuronRemoved(caller));
+			debug::info!("--- Done unsubscribe.");
 
 			Ok(())
 		}
@@ -428,16 +649,18 @@ impl<T: Trait> Module<T> {
 
 		// Bitcoin block halving rate was 210,000 blocks at block every 10 minutes.
 		// The average substrate block time is 6 seconds.
-		// The equivalent halving would be 10 min * 60 sec / 6 sec =  100 * 210,000.
-		// So our halving is every 21,000,000 blocks.
+		// The equivalent halving is (210,000 blocks) * (10 min * 60 sec / 6 sec) =  (210,000) * (100) = (21,000,000 blocks)
 		let block_halving = U32F32::from_num(21000000);
 		let fractional_halvings = elapsed_blocks_u32_f32 / block_halving;
 		let floored_halvings = fractional_halvings.floor().to_num::<u32>();
 		debug::info!("block_halving: {:?}", block_halving);
 		debug::info!("floored_halvings: {:?}", floored_halvings);
 
-		// Return the bitcoin block reward.
-		let block_reward = U32F32::from_num(50);
+		// Bitcoin block reward started at 50 tokens per block.
+		// The average substrate block time is 6 seconds.
+		// The equivalent halving is (50 blocks) / (10 min * 60 sec / 6 sec) =  (50) / (100) = (0.5 tokens per block)
+		let block_reward = U32F32::from_num(0.5);
+
 		// NOTE: Underflow occurs in 21,000,000 * (16 + 4) blocks essentially never.
 		let block_reward_shift = block_reward.overflowing_shr(floored_halvings).0;
 		block_reward_shift
@@ -448,12 +671,6 @@ impl<T: Trait> Module<T> {
 		input.into()
 	}
 }
-
-// fn convert_weights(mut weights: Vec<u32>) -> Vec<U1F32> {
-//
-//
-// }
-
 
 fn normalize_weights(mut weights: Vec<U1F31>) -> Vec<U1F31> {
 	let sum : U1F31 = weights.iter().sum();
@@ -467,18 +684,31 @@ fn normalize_weights(mut weights: Vec<U1F31>) -> Vec<U1F31> {
 	return weights;
 }
 
-fn validate_weights(weights : &Vec<U1F31>) -> bool {
-	if weights.iter().any(|x:&U1F31| x > &1.0) {
+fn is_within_bounds(values: &Vec<u32>) -> bool {
+	if values.iter().any(|x:&u32| x > &U1F31_EQ_1POINT0) {
 		return false;
 	}
 
 	return true
 }
 
+fn vec_u32_to_vec_u1f31(items: Vec<u32>) -> Vec<U1F31> {
+	let mut ret : Vec<U1F31> = vec![];
+	items.iter().for_each(|x:&u32| ret.push(U1F31::from_bits(*x)));
+	return ret;
+}
+
+fn vec_u1f31_to_vec_u32(items: Vec<U1F31>) -> Vec<u32> {
+	let mut ret : Vec<u32> = vec![];
+	items.iter().for_each(|x: &U1F31| ret.push(U1F31::to_bits(*x)));
+	return ret;
+}
+
+
 
 #[cfg(test)]
 mod tests {
-	use crate::{validate_weights, normalize_weights};
+	use crate::{normalize_weights, vec_u32_to_vec_u1f31, vec_u1f31_to_vec_u32, is_within_bounds, U1F31_EQ_1POINT0};
 	use substrate_fixed::types::U1F31;
 
 	/**
@@ -496,15 +726,15 @@ mod tests {
 
 	#[test]
 	fn validate_weights_valid() {
-		// let weights: Vec<U1F31> = vec![U1F31::from_num(0.000),U1F31::from_num(1.0000)];
-		let weights = fp_vec(vec![0.0000, 1.0000]);
-		assert_eq!(validate_weights(&weights), true)
+		let values = vec![U1F31_EQ_1POINT0, U1F31_EQ_1POINT0 - 36];
+		assert_eq!(is_within_bounds(&values), true)
 	}
+
 
 	#[test]
 	fn validate_weights_invalid() {
-		let weights: Vec<U1F31> = fp_vec(vec![0.001, 1.9999]);
-		assert_eq!(validate_weights(&weights), false);
+		let values = vec![U1F31_EQ_1POINT0, U1F31_EQ_1POINT0 + 36];
+		assert_eq!(is_within_bounds(&values), false);
 	}
 
 	#[test]
@@ -523,5 +753,19 @@ mod tests {
 	fn normalize_sum_zero() {
 		let weights: Vec<U1F31> = fp_vec(vec![0.0, 0.0]);
 		assert_eq!(normalize_weights(weights), fp_vec(vec![0.0,0.0]));
+	}
+
+	#[test]
+	fn vec_u32_to_vec_u1f31_normal_operation() {
+		let test: Vec<u32> = vec![U1F31_EQ_1POINT0];
+		let target: Vec<U1F31> = fp_vec(vec![1.0]);
+		assert_eq!(vec_u32_to_vec_u1f31(test), target);
+	}
+
+	#[test]
+	fn vec_u1f31_to_vec_u32_normal_operation() {
+		let target: Vec<u32> = vec![U1F31_EQ_1POINT0];
+		let test: Vec<U1F31> = fp_vec(vec![1.0]);
+		assert_eq!(vec_u1f31_to_vec_u32(test), target);
 	}
 }
