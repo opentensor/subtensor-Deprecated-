@@ -162,12 +162,12 @@ pub fn kusanagi_testnet_config() -> Result<ChainSpec, String> {
 		move || testnet_genesis(
 			wasm_binary,
 			vec![
-				authority_keys_from_ss58("5H9cxPkm15NEwUCS8rXKAQuq3z6hDDaBQfVneDme8tLP2NnR", "5EcstGNGzbZ8kLhpAdVSjT3So99hYCtV4ur8PPcdVaBQDpmR"),
-				authority_keys_from_ss58("5H18kRHixaSSz9o1YeL4RBjm48YbcBW64wt9NQchbBzrMDFK", "5GuNfTJpx4NTyhwxZ2rLpndHnHau1qsoA16rruPppGTtKTRS"),
-				authority_keys_from_ss58("5CnyFHQhU2xeNWYCcBaEgsWyeyEj62xjotn1dHfaN2aWfdSK", "5DDsBzUkaNaLbYv5cewYuaaWWkvACoFguErRpQQqiEM4vndm"),
-				authority_keys_from_ss58("5EnpbUbZ1kDmuefTm2t43K4TXBKu8cponanH8fXQCkPCPJ1j", "5ESo84zVXx7F6wuhfhD6qGVgF9ji2ShJFRR7GqewYnvC6bBB"),
-				authority_keys_from_ss58("5Dbz2iqzsP1dbHqsETLE7Kg8Xx4AakJobv71XU9gZh1Dvpb2", "5HLVPabG3pb33WjvwnEpbQivacF3WdodMN3GqJPbycGsPbY8"),
-				authority_keys_from_ss58("5F93P3nuzNdwGz8yTEoLTco3qknmzKkQYAkqbkJccunohevd", "5GaoAfPg71886Y6qZ2dEWFugmRGUhjLWiKz1tG7WE53e93Qz")
+				authority_keys_from_ss58("5H9cxPkm15NEwUCS8rXKAQuq3z6hDDaBQfVneDme8tLP2NnR", "5EcstGNGzbZ8kLhpAdVSjT3So99hYCtV4ur8PPcdVaBQDpmR"), //Jarvis
+				authority_keys_from_ss58("5H18kRHixaSSz9o1YeL4RBjm48YbcBW64wt9NQchbBzrMDFK", "5GuNfTJpx4NTyhwxZ2rLpndHnHau1qsoA16rruPppGTtKTRS"), //Genisys
+				authority_keys_from_ss58("5CnyFHQhU2xeNWYCcBaEgsWyeyEj62xjotn1dHfaN2aWfdSK", "5DDsBzUkaNaLbYv5cewYuaaWWkvACoFguErRpQQqiEM4vndm"), //HAL
+				authority_keys_from_ss58("5EnpbUbZ1kDmuefTm2t43K4TXBKu8cponanH8fXQCkPCPJ1j", "5ESo84zVXx7F6wuhfhD6qGVgF9ji2ShJFRR7GqewYnvC6bBB"), //WOPR
+				authority_keys_from_ss58("5Dbz2iqzsP1dbHqsETLE7Kg8Xx4AakJobv71XU9gZh1Dvpb2", "5HLVPabG3pb33WjvwnEpbQivacF3WdodMN3GqJPbycGsPbY8"), //Gibson
+				authority_keys_from_ss58("5F93P3nuzNdwGz8yTEoLTco3qknmzKkQYAkqbkJccunohevd", "5GaoAfPg71886Y6qZ2dEWFugmRGUhjLWiKz1tG7WE53e93Qz")  //Glados
 			],
 			AccountId::from_ss58check("5CRgsNaiCeGqSRZNGkVWu1rhs37cXQMyH4nbdfpHEwXivUQr").unwrap(),
 			vec![
