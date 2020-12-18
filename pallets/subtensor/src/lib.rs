@@ -157,161 +157,36 @@ decl_module! {
 		// Events must be initialized if they are used by the pallet.
 		fn deposit_event() = default;
 		
-		/// Emission. Called by an active Neuron. Distributes inflation neighbors and to themselves. 
-		/// The amount emitted = (blocks_since_last_emit) * (inflation_per_block) * (this_neurons_stake) / (total_stake)
-		/// Neurons are incentivized to call this function often as to maximize inflation in the graph.
-		/// Along with emission, the neuron is given the opportunity to set their weights with this function call.
-		#[weight = (0, DispatchClass::Operational, Pays::No)]
-		pub fn emit(origin, 
-			dests: Vec<T::AccountId>, 
-			values: Vec<u32>) -> dispatch::DispatchResult {
-			RuntimeLogger::init();
-			// Check that the extrinsic was signed and get the signer.
-			// This function will return an error if the extrinsic is not signed.
-			// https://substrate.dev/docs/en/knowledgebase/runtime/origin
-			let calling_neuron = ensure_signed(origin)?;
-			debug::info!("Emit sent by: {:?}", calling_neuron);
-
-			// Check that the Neuron exists in the Neuron set.
-			// Check that the Neuron has stake to emit.
-			// Check that the Neuron has weights set. etc.
-			ensure!(Neurons::<T>::contains_key(&calling_neuron), Error::<T>::NotActive);
-			ensure!(Stake::<T>::contains_key(&calling_neuron), Error::<T>::NotActive);
-			ensure!(LastEmit::<T>::contains_key(&calling_neuron), Error::<T>::NotActive);
-			ensure!(WeightKeys::<T>::contains_key(&calling_neuron), Error::<T>::NotActive);
-			ensure!(WeightVals::<T>::contains_key(&calling_neuron), Error::<T>::NotActive);
-
-			// Get the last emission block.
-			// Get the current block.
-			// Get the block reward at this current block.
-			// Set the current block as last emit.
-			let last_block: T::BlockNumber = LastEmit::<T>::get(&calling_neuron);
-			let current_block = system::Module::<T>::block_number();
-			let block_reward = Self::block_reward(&current_block);
-			LastEmit::<T>::insert(&calling_neuron, current_block);
-			debug::info!("Last emit block: {:?}", last_block);
-			debug::info!("Current block: {:?}", current_block);
-			debug::info!("Block reward: {:?}", block_reward);
-
-			// Get the number of elapsed blocks since last emit.
-			// Convert to u32f32.
-			let elapsed_blocks = current_block - last_block;
-			let elapsed_blocks_u32: usize = TryInto::try_into(elapsed_blocks)
-			.ok()
-			.expect("blockchain will not exceed 2^32 blocks; qed");
-			let elapsed_blocks_u32_f32 = U32F32::from_num(elapsed_blocks_u32);
-			debug::info!("elapsed_blocks_u32: {:?}", elapsed_blocks_u32);
-			debug::info!("elapsed_blocks_u32_f32: {:?}", elapsed_blocks_u32_f32);
-
-			// Get local and total stake.
-			// Convert to u32f32.
-			// Calculate stake fraction.
-			let total_stake: u32  = TotalStake::get();
-			let total_stake_u32_f32 = U32F32::from_num(total_stake);
-			let local_stake: u32 = Stake::<T>::get(&calling_neuron);
-			let local_stake_u32_f32 = U32F32::from_num(local_stake);
-
-			let mut stake_fraction_u32_f32 = U32F32::from_num(1);
-			if total_stake_u32_f32 > 0 {
-				stake_fraction_u32_f32 = local_stake_u32_f32 / total_stake_u32_f32;
-			}
-			
-			debug::info!("total_stake_u32_f32 {:?}", total_stake_u32_f32);
-			debug::info!("local_stake_u32_f32 {:?}", local_stake_u32_f32);
-			debug::info!("stake_fraction_u32_f32 {:?}", stake_fraction_u32_f32);
-
-			// Calculate total emission at this Neuron based on times since last emit
-			// stake fraction and block reward.
-			let total_emission_u32_f32 = stake_fraction_u32_f32 * block_reward * elapsed_blocks_u32_f32;
-			let total_emission_u32 = total_emission_u32_f32.to_num::<u32>();
-			debug::info!("total_emission_u32_f32 {:?} = {:?}*{:?}*{:?}", total_emission_u32_f32, stake_fraction_u32_f32, block_reward, elapsed_blocks_u32_f32);
-			ensure!(total_emission_u32_f32 > U32F32::from_num(0), Error::<T>::NothingToEmit);
-
-			// Get current weights and vals from storage.
-			// Get the weight sum for normalization.
-			let w_keys: Vec<T::AccountId> = WeightKeys::<T>::get(&calling_neuron);
-			let w_vals: Vec<u32> = WeightVals::<T>::get(&calling_neuron);
-			let mut w_sum = U32F32::from_num(0);
-			let u32_max = U32F32::from_num(u32::MAX);
-			for x in w_vals.iter() {
-				// Overflow not possible since we check weight prior to adding to it
-				let x_u32_f32 = U32F32::from_num(*x);
-				if u32_max - x_u32_f32 <= w_sum {
-					w_sum = w_sum + x_u32_f32;
-				}
-			}
-		
-			// Iterate through weight matrix and distribute emission to 
-			// neurons on a weighted basis. 
-			for (i, dest_key) in w_keys.iter().enumerate() {
-
-				// Get emission to Neuron j from Neuron i.
-				let wij_u32_f32 = U32F32::from_num(w_vals[i]);
-				let wij_norm_u32_f32 = wij_u32_f32 / w_sum;
-				let emission_u32_f32 = total_emission_u32_f32 * wij_norm_u32_f32;
-				debug::info!("emit to {:?}", dest_key);
-				debug::info!("wij {:?}", wij_norm_u32_f32);
-				debug::info!("emission_u32_f32 {:?}", emission_u32_f32);
-
-				// Determine stake ammount for Neuron j.
-				let prev_stake: u32 = Stake::<T>::get(&dest_key);
-				let prev_stake_u32_f32 = U32F32::from_num(prev_stake);
-				let new_stake_u32_f32 = prev_stake_u32_f32 + emission_u32_f32;
-				let new_stake_u32: u32 = new_stake_u32_f32.to_num::<u32>();
-				debug::info!("prev_stake_u32_f32 {:?}", prev_stake_u32_f32);
-				debug::info!("new_stake_u32_f32 {:?} = {:?} + {:?}", new_stake_u32_f32, prev_stake_u32_f32, emission_u32_f32);
-				debug::info!("new_stake_u32 {:?}", new_stake_u32);
-
-				// Update stake in storage.
-				// Update total stake in storage.
-				Stake::<T>::insert(&dest_key, new_stake_u32);
-				let total_stake: u32  = TotalStake::get();
-				TotalStake::put(total_stake + new_stake_u32); // TODO (const): check overflow.
-				debug::info!("sink new stake.");
-				
-				let withdraw_amount = Self::u32_to_balance(new_stake_u32);
-				let _ = T::Currency::withdraw(&calling_neuron, withdraw_amount, WithdrawReasons::except(WithdrawReason::Tip), ExistenceRequirement::KeepAlive);
-				debug::info!("Balance is {:?}", T::Currency::total_balance(&calling_neuron));
-			}
-
-			if !values.is_empty() && !dests.is_empty() {
-				Self::set_weights(&calling_neuron, dests, values)?;
-			}
-			
-			Self::deposit_event(RawEvent::Emission(calling_neuron, total_emission_u32));
-			// Return.
-			Ok(())
-		}
-
 		// --- Adds stake to a neuron account. The call is made from the 
 		// coldkey account linked in the neurons's NeuronMetadata. 
 		// Only the associated coldkey is allowed to make staking and 
 		// unstaking requests. This protects the neuron against 
 		// attacks on its hotkey running in production code. 
-		/// Args:
-		/// 	origin: (<T as frame_system::Trait>Origin):
-		/// 		The caller, a coldkey signature associated with the hotkey account.
 		/// 
-		/// 	hotkey (T::AccountId):
-		/// 		The hotkey account to add stake to.
+		/// # Args:
+		/// 	* `origin`: (<T as frame_system::Trait>Origin):
+		/// 		- The caller, a coldkey signature associated with the hotkey account.
 		/// 
-		/// 	ammount_staked (u32):
-		/// 		The ammount to transfer from the balances account of the cold key 
+		/// 	* `hotkey` (T::AccountId):
+		/// 		- The hotkey account to add stake to.
+		/// 
+		/// 	* `ammount_staked` (u32):
+		/// 		- The ammount to transfer from the balances account of the cold key 
 		/// 		into the staking account of the hotkey.
 		/// 
-		/// Emits:
-		/// 	StakeAdded:
-		/// 		On the successful staking of funds.
+		/// # Emits:
+		/// 	`StakeAdded`:
+		/// 		- On the successful staking of funds.
 		/// 
-		/// Raises
-		/// 	NotActive:
-		/// 		If the hotkey account is not active (has not subscribed)
+		/// # Raises:
+		/// 	* `NotActive`:
+		/// 		- If the hotkey account is not active (has not subscribed)
 		/// 
-		/// 	NonAssociatedColdKey:
-		/// 		When the calling coldkey is not associated with the hotkey account.
+		/// 	* `NonAssociatedColdKey`:
+		/// 		- When the calling coldkey is not associated with the hotkey account.
 		/// 
-		/// 	InsufficientBalance:
-		/// 		When the amount to stake exceeds the amount of balance in the
+		/// 	* `InsufficientBalance`:
+		/// 		- When the amount to stake exceeds the amount of balance in the
 		/// 		associated colkey account.
 		/// 		
 		#[weight = (0, DispatchClass::Operational, Pays::No)] // TODO(const): should be a normal transaction fee.
@@ -331,6 +206,12 @@ decl_module! {
 			// ---- We check that the NeuronMetadata is linked to the calling
 			// cold key, otherwise throw a NonAssociatedColdKey error.
 			ensure!(neuron.coldkey == caller, Error::<T>::NonAssociatedColdKey);
+
+			// --- We call the emit function for the associated hotkey. Neurons must call an emit before they change 
+			// their stake or else can cheat the system by adding stake just before
+			// and emission to maximize their inflation.
+			// TODO(const): can we pay for this transaction through inflation.
+			Self::emit( &hotkey );
 
 			// ---- We check that the calling coldkey contains enough funds to
 			// create the staking transaction.
@@ -374,26 +255,28 @@ decl_module! {
 		// ---- Remove stake from the staking account. The call must be made
 		// from the coldkey account attached to the neuron metadata. Only this key
 		// has permission to make staking and unstaking requests.
-		/// Args:
-		/// 	origin: (<T as frame_system::Trait>Origin):
-		/// 		The caller, a coldkey signature associated with the hotkey account.
 		/// 
-		/// 	hotkey (T::AccountId):
-		/// 		The hotkey account to withdraw stake from.
+		/// # Args:
+		/// 	* `origin``: (<T as frame_system::Trait>Origin):
+		/// 		- The caller, a coldkey signature associated with the hotkey account.
 		/// 
-		/// 	ammount_unstaked (u32):
-		/// 		The ammount to transfer from the staking account into the balance
+		/// 	* `hotkey` (T::AccountId):
+		/// 		- The hotkey account to withdraw stake from.
+		/// 
+		/// 	* `ammount_unstaked` (u32):
+		/// 		- The ammount to transfer from the staking account into the balance
 		/// 		of the coldkey.
-		/// Emits:
-		/// 	StakeRemoved:
-		/// 		On successful withdrawl.
 		/// 
-		/// Raises
-		/// 	NonAssociatedColdKey:
-		/// 		When the calling coldkey is not associated with the hotkey account.
+		/// # Emits:
+		/// 	* `StakeRemoved`:
+		/// 		- On successful withdrawl.
 		/// 
-		/// 	NotEnoughStaketoWithdraw:
-		/// 		When the amount to unstake exceeds the quantity staked in the
+		/// # Raises:
+		/// 	* `NonAssociatedColdKey`:
+		/// 		- When the calling coldkey is not associated with the hotkey account.
+		/// 
+		/// 	* `NotEnoughStaketoWithdraw`:
+		/// 		- When the amount to unstake exceeds the quantity staked in the
 		/// 		associated hotkey staking account.
 		/// 		
 		#[weight = (0, DispatchClass::Operational, Pays::No)]
@@ -413,6 +296,11 @@ decl_module! {
 			// ---- We check that the NeuronMetadata is linked to the calling
 			// cold key, otherwise throw a NonAssociatedColdKey error.
 			ensure!(neuron.coldkey == caller, Error::<T>::NonAssociatedColdKey);
+
+			// --- We call the emit function for the associated hotkey.
+			// Neurons must call an emit before they remove
+			// stake or they may be able to cheat their peers of inflation.
+			Self::emit( &hotkey );
 
 			// ---- We check that the hotkey has enough stake to withdraw
 			// and then withdraw from the account.
@@ -445,23 +333,29 @@ decl_module! {
 		/// already exists in the active set, the metadata is updated but the cold key remains unchanged.
 		/// If the caller does not exist they make a link between this hotkey account
 		/// and the passed coldkey account. Only the cold key has permission to make add_stake/remove_stake calls. 
-		/// Args:
-		/// 	origin: (<T as frame_system::Trait>Origin):
-		/// 		The caller, a hotkey associated with the subscribing neuron.
-		/// 	ip (u128):
-		/// 		The u32 encoded IP address of type 6 or 4.
-		/// 	port (u16):
-		/// 		The port number where this neuron receives RPC requests.
-		/// 	ip_type (u8):
-		/// 		The ip type one of (4,6).
-		/// 	coldkey (T::AccountId):
-		/// 		The associated coldkey to be attached to the account.
-		/// Emits:
-		/// 	NeuronAdded:
-		/// 		On subscription of a new neuron to the active set.
 		/// 
-		/// 	NeuronUpdated:
-		/// 		On subscription of new metadata attached to the calling hotkey.
+		/// # Args:
+		/// 	* `origin`: (<T as frame_system::Trait>Origin):
+		/// 		- The caller, a hotkey associated with the subscribing neuron.
+		/// 
+		/// 	* `ip` (u128):
+		/// 		- The u32 encoded IP address of type 6 or 4.
+		/// 
+		/// 	* `port` (u16):
+		/// 		- The port number where this neuron receives RPC requests.
+		/// 
+		/// 	* `ip_type` (u8):
+		/// 		- The ip type one of (4,6).
+		/// 
+		/// 	* `coldkey` (T::AccountId):
+		/// 		- The associated coldkey to be attached to the account.
+		/// 
+		/// # Emits:
+		/// 	* `NeuronAdded`:
+		/// 		- On subscription of a new neuron to the active set.
+		/// 
+		/// 	* `NeuronUpdated`:
+		/// 		- On subscription of new metadata attached to the calling hotkey.
 		#[weight = (0, DispatchClass::Operational, Pays::No)]
 		fn subscribe(origin, ip: u128, port: u16, ip_type: u8, coldkey: T::AccountId) -> dispatch::DispatchResult {
 			
@@ -522,19 +416,21 @@ decl_module! {
 
 		/// ---- Unsubscribes the caller from the active Neuron. The call triggers
 		/// an emit call before unstaking the current stake balance into the coldkey account.
-		/// Args:
-		/// 	origin: (<T as frame_system::Trait>Origin):
-		/// 		The caller, a hotkey associated with the subscribing neuron.
-		/// Emits:
-		/// 	NeuronRemoved:
-		/// 		On subscription of a new neuron to the active set.
 		/// 
-		/// 	NeuronUpdated:
-		/// 		On subscription of new metadata attached to the calling hotkey.
+		/// # Args:
+		/// 	* `origin`: (<T as frame_system::Trait>Origin):
+		/// 		- The caller, a hotkey associated with the subscribing neuron.
 		/// 
-		/// Raises:
-		/// 	NotActive:
-		/// 		Raised if the unsubscriber does not exist.
+		/// # Emits:
+		/// 	* `NeuronRemoved`:
+		/// 		- On subscription of a new neuron to the active set.
+		/// 
+		/// 	* `NeuronUpdated`:
+		/// 		- On subscription of new metadata attached to the calling hotkey.
+		/// 
+		/// # Raises:
+		/// 	* `NotActive`:
+		/// 		- Raised if the unsubscriber does not exist.
 		#[weight = (0, DispatchClass::Operational, Pays::No)]
 		fn unsubscribe(origin) -> dispatch::DispatchResult {
 
@@ -547,8 +443,10 @@ decl_module! {
 			let neuron: NeuronMetadataOf<T> = Neurons::<T>::get(&caller);
 			debug::info!("Metadata retrieved with coldkey: {:?}", neuron.coldkey);
 
-			// TODO(const): call the emit function.
-			// emit(caller)
+			// --- We call the emit function. Neurons must call an emit before
+			// they leave the incentive mechanim or else they can cheat their peers
+			// of promised inflation.
+			Self::emit( &caller );
 
 			// --- If there are funds staked, we unstake them and add them to the coldkey.
 			let ammount_unstaked: u32 = Stake::<T>::get( &caller );
@@ -593,16 +491,37 @@ decl_module! {
 
 impl<T: Trait> Module<T> {
 
-	// Returns the bitcoin block reward from the block step.
+	/// Returns the bitcoin inflation rate at block number. We use a mapping between the bitcoin blocks and substrate.
+	/// Substrate blocks mint 100x faster and so the halving time and emission rate need to correspondingly changed.
+	/// Each block produces 0.5 x 10^12 tokens, or semantically, as 0.5 full coins every 6 seconds. The halving
+	/// is occurs every 21 million blocks. Like bitcoin, this ensures there are only every 21 million full tokens 
+	/// created. In our case this ammount is furthre limited since inflation is only triggered by calling peers.
+	/// The inflation is therefore not continuous, and we lose out when peers fail to emit with their stake, or
+	/// fail to emit before a halving.
+	/// 
+	/// # Args:
+	///  	* `now` (&T::BlockNumber):
+	/// 		- The block number we wish to return the block reward at (tau)
+	/// 
+	/// # Returns
+	/// 	* block_reward (U32F32):
+	/// 		- The number of tokens to emit at this block as a fixed point.
+	/// 	
 	fn block_reward(now: &<T as system::Trait>::BlockNumber) -> U32F32 {
-		// Convert block number into u32.
-		let elapsed_blocks_u32 = TryInto::try_into(*now)
-			.ok()
-			.expect("blockchain will not exceed 2^32 blocks; QED.");
 
-		// Convert block number into u32f32 float.
+		// --- We convert the block number to u32 and then to a fixed point for further 
+		// calculations.
+		let elapsed_blocks_u32 = TryInto::try_into(*now).ok().expect("blockchain will not exceed 2^32 blocks; QED.");
 		let elapsed_blocks_u32_f32 = U32F32::from_num(elapsed_blocks_u32);
 
+		// --- We get the initial block reward.
+		// TODO(const): shoudl be 0.5 x 10 ^ 12.
+		// Bitcoin block reward started at 50 tokens per block. 
+		// The average substrate block time is 6 seconds. 
+		// The equivalent halving is (50 blocks) / (10 min * 60 sec / 6 sec) =  (50) / (100) = (0.5 tokens per block)
+		let block_reward = U32F32::from_num(0.5);
+
+		// --- We calculate the number of halvings since the chain was initialized
 		// Bitcoin block halving rate was 210,000 blocks at block every 10 minutes.
 		// The average substrate block time is 6 seconds.
 		// The equivalent halving is (210,000 blocks) * (10 min * 60 sec / 6 sec) =  (210,000) * (100) = (21,000,000 blocks)
@@ -612,13 +531,11 @@ impl<T: Trait> Module<T> {
 		debug::info!("block_halving: {:?}", block_halving);
 		debug::info!("floored_halvings: {:?}", floored_halvings);
 
-		// Bitcoin block reward started at 50 tokens per block. 
-		// The average substrate block time is 6 seconds. 
-		// The equivalent halving is (50 blocks) / (10 min * 60 sec / 6 sec) =  (50) / (100) = (0.5 tokens per block)
-		let block_reward = U32F32::from_num(0.5);
-
+		// --- We shit the block reward for each halving to get the actual reward at this block.
 		// NOTE: Underflow occurs in 21,000,000 * (16 + 4) blocks essentially never.
 		let block_reward_shift = block_reward.overflowing_shr(floored_halvings).0;
+
+		// --- We return the result.
 		block_reward_shift
 	}
 
@@ -658,21 +575,156 @@ impl<T: Trait> Module<T> {
 
 		Ok(())
 	}
+
+
+	/// TODO(const & paralax): The self emission can be used to fund the transaction, this allows us to remove the need
+	/// for transactions costs.
+	/// Emits inflation from the calling neuron to neighbors and themselves. Returns the total amount of emitted stake.
+	/// The inflation available to this caller is given by (blocks_since_last_emit) * (inflation_per_block) * (this_neurons_stake) / (total_stake).
+	/// Neurons are incentivized to make calls to this function often as-to maximize inflation in the graph.
+	/// 
+	/// # Args:
+	///  	* `caller` (&T::AccountId):
+	/// 		- The associated calling neuron key. Not a signature
+	/// 		just the associated public key. Checking the permissions is left to 
+	/// 		the calling function.
+	/// 
+	/// # Returns
+	/// 	* emission (u32):
+	/// 		- The total amount emitted to the caller.
+	/// 	
+	fn emit( caller: &T::AccountId ) -> u32 {
+		// --- We init the Runtimelogger for WASM debugging
+		RuntimeLogger::init();
+		debug::info!("--- Calling emit, caller: {:?}", caller);
+
+		// --- We dont check that the caller exists in the Neuron set with corresponding
+		// mapped values. These are initialized on subscription. This should never
+		// occur unless the calling function does not check the callers subscription first.
+		// ensure!(Neurons::<T>::contains_key(&caller), Error::<T>::NotActive);
+		// ensure!(Stake::<T>::contains_key(&caller), Error::<T>::NotActive);
+		// ensure!(LastEmit::<T>::contains_key(&caller), Error::<T>::NotActive);
+		// ensure!(WeightKeys::<T>::contains_key(&caller), Error::<T>::NotActive);
+		// ensure!(WeightVals::<T>::contains_key(&caller), Error::<T>::NotActive);
+
+		// --- We get the current block reward and the last time the user emitted.
+		// This is needed to determine the proportion of inflation allocated to 
+		// the caller. Note also, that the block reward is a decreasing function
+		// callers want to call emit before the block inflation decreases.
+		let last_emit: T::BlockNumber = LastEmit::<T>::get(&caller);
+		let current_block = system::Module::<T>::block_number();
+		let block_reward = Self::block_reward(&current_block);
+		debug::info!("Last emit block: {:?}", last_emit);
+		debug::info!("Current block: {:?}", current_block);
+		debug::info!("Block reward: {:?}", block_reward);
+
+		// --- We get the number of blocks since the last emit and 
+		// convert types into U32F32. The floating precision enables 
+		// the following calculations. 
+		let elapsed_blocks = current_block - last_emit;
+		let elapsed_blocks_u32: usize = TryInto::try_into(elapsed_blocks).ok().expect("blockchain will not exceed 2^32 blocks; qed");
+		let elapsed_blocks_u32_f32 = U32F32::from_num(elapsed_blocks_u32);
+		debug::info!("elapsed_blocks_u32: {:?}", elapsed_blocks_u32);
+		debug::info!("elapsed_blocks_u32_f32: {:?}", elapsed_blocks_u32_f32);
+		if elapsed_blocks_u32_f32 == U32F32::from_num(0) {
+			// No blocks have passed, nothing to emit. Return without error.
+			return 0;
+		}
+
+		// --- We get the callers stake and the total stake ammounts
+		// converting them to U32F32 for the following calculations.
+		let total_stake: u32  = TotalStake::get();
+		let total_stake_u32_f32 = U32F32::from_num(total_stake);
+		let caller_stake: u32 = Stake::<T>::get(&caller);
+		let caller_stake_u32_f32 = U32F32::from_num(caller_stake);
+		debug::info!("total_stake_u32_f32 {:?}", total_stake_u32_f32);
+		debug::info!("caller_stake_u32_f32 {:?}", caller_stake_u32_f32);
+		if total_stake_u32_f32 == U32F32::from_num(0) {
+			// total stake is zero, nothing to emit. Return without error.
+			return 0;	
+		}
+
+		// --- We get the fraction of total stake held by the caller.
+		// This should only be zero if the caller has zero stake. Otherwise 
+		// it returns a floating point (a.k.a, bits in the F32 part.)
+		let stake_fraction_u32_f32 = caller_stake_u32_f32 / total_stake_u32_f32;
+		debug::info!("stake_fraction_u32_f32 {:?}", stake_fraction_u32_f32);
+		if stake_fraction_u32_f32 == U32F32::from_num(0) {
+			// stake fraction is zero, nothing to emit. Return without error.
+			return 0;
+		}
+
+		// --- We calculate the total emission available to the caller.
+		// the block reward is positive and non-zero, so is the stake_fraction and elapsed blocks.
+		// this ensures the total_emission is positive non-zero. To begin the block reward is (0.5 * 10^12).
+		let callers_emission_u32_f32 = stake_fraction_u32_f32 * block_reward * elapsed_blocks_u32_f32;
+		debug::info!("callers_emission_u32_f32: {:?} = {:?} * {:?} * {:?}", callers_emission_u32_f32, stake_fraction_u32_f32, block_reward, elapsed_blocks_u32_f32);
+		if callers_emission_u32_f32 == U32F32::from_num(0) {
+			// callers emission is zero, nothing to emit. Return without error.
+			return 0;
+		}
+
+		// --- We get the callers weights. The total emission will be distributed
+		// according to these weights. Previous checks in fn set_weights ensure
+		// that the weight_vals sum to u32::max / are nomalized to 1. 
+		let weight_vals: Vec<u32> = WeightVals::<T>::get( &caller );
+		let weight_keys: Vec<T::AccountId> = WeightKeys::<T>::get( &caller );
+		if weight_keys.is_empty() || weight_vals.is_empty() {
+			// callers has no weights, nothing to emit. Return without error.
+			return 0;
+		}
+
+		// --- We iterate through the weights and distribute the caller's emission to 
+		// neurons on a weighted basis. The emission is added as new stake to their 
+		// staking account and the total emission is increased. 
+		let mut total_new_stake_u32: u32 = 0; // Total stake added across all emissions.
+		for (i, dest_key) in weight_keys.iter().enumerate() {
+
+			// --- We get the weight from neuron i to neuron j.
+			// The weights are normalized and sum to u32::max. 
+			// This weight value as floating point value in the 
+			// range [0, 1] is thus given by w_ij_u32 / u32::max
+			let wij_u32_f32 = U32F32::from_num( weight_vals[i] );
+			let wij_norm_u32_f32 = wij_u32_f32 / U32F32::from_num( u32::MAX );
+			debug::info!("Emitting to {:?}", dest_key);
+			debug::info!("wij {:?}", wij_norm_u32_f32);
+
+			// --- We get the emission from neuron i to neuron j.
+			// The multiplication of the weight \in [0, 1]
+			// by the total_emission gives us the emission proportion.
+			let emission_u32_f32 = callers_emission_u32_f32 * wij_norm_u32_f32;
+			debug::info!("emission_u32_f32 {:?}", emission_u32_f32);
+
+			// --- We increase the staking account by this new emission
+			// value by first converting both to u32f32 floats. The floating 
+			// point emission is dropped in the conversion back to u32.
+			let prev_stake: u32 = Stake::<T>::get(&dest_key);
+			let prev_stake_u32_f32 = U32F32::from_num(prev_stake);
+			let new_stake_u32_f32 = prev_stake_u32_f32 + emission_u32_f32;
+			let new_stake_u32: u32 = new_stake_u32_f32.to_num::<u32>();
+			Stake::<T>::insert(&dest_key, new_stake_u32);
+			debug::info!("prev_stake_u32_f32 {:?}", prev_stake_u32_f32);
+			debug::info!("new_stake_u32_f32 {:?} = {:?} + {:?}", new_stake_u32_f32, prev_stake_u32_f32, emission_u32_f32);
+			debug::info!("new_stake_u32 {:?}", new_stake_u32);
+
+			// --- We increase the total stake emitted. For later addition to 
+			// the total staking pool.
+			total_new_stake_u32 = total_new_stake_u32 + new_stake_u32
+		}
+		
+		// --- We add the total amount of stake emitted to the staking pool.
+		// Note: This value may not perfectly match total_emission_u32_f32 after rounding.
+		let total_stake: u32  = TotalStake::get();
+		TotalStake::put(total_stake + total_new_stake_u32); 
+		debug::info!("Adding new total stake {:?}, now {:?}", total_stake, TotalStake::get());
+
+		// --- Finally, we update the last emission by the caller.
+		LastEmit::<T>::insert(&caller, current_block);
+		debug::info!("The old last emit: {:?} the new last emit: {:?}", last_emit, current_block);
 	
-}
-
-
-#[cfg(test)]
-mod tests {
-
-	#[test]
-	fn test_blah () {
-		assert_eq!(1, 1);
+		// --- Return ok.
+		debug::info!("--- Done emit");
+		return total_new_stake_u32;
 	}
-
-	#[test]
-	fn test_blah2 () {
-
-		assert_eq!(1, 1);
-	}
+	
 }
