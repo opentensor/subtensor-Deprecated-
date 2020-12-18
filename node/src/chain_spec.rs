@@ -171,8 +171,8 @@ pub fn kusanagi_testnet_config() -> Result<ChainSpec, String> {
 			],
 			AccountId::from_ss58check("5CRgsNaiCeGqSRZNGkVWu1rhs37cXQMyH4nbdfpHEwXivUQr").unwrap(),
 			vec![
-				AccountId::from_ss58check("5GmrLHp3gPsaPJzZ33csny8bcVJGYkUVFbQfGfhoAUSjKrNL").unwrap() // parallax
-				AccountId::from_ss58check("5HphewmMGJVLjnKEFUc2czcB1U7pyVcnc1Vg6GrtBF8SiE8W").unwrap() // shibshib
+				AccountId::from_ss58check("5GmrLHp3gPsaPJzZ33csny8bcVJGYkUVFbQfGfhoAUSjKrNL").unwrap(), // parallax
+				AccountId::from_ss58check("5HphewmMGJVLjnKEFUc2czcB1U7pyVcnc1Vg6GrtBF8SiE8W").unwrap(), // shibshib
 				AccountId::from_ss58check("5Dkye6UWhupj3yqS1iKssmpPcwGnxwp4nBUFbpCm8nLcZbVC").unwrap() // unconst
 			],
 			true,
