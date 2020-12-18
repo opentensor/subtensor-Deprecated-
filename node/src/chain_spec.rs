@@ -169,7 +169,7 @@ pub fn kusanagi_testnet_config() -> Result<ChainSpec, String> {
 				authority_keys_from_ss58("5Dbz2iqzsP1dbHqsETLE7Kg8Xx4AakJobv71XU9gZh1Dvpb2"),
 				authority_keys_from_ss58("5F93P3nuzNdwGz8yTEoLTco3qknmzKkQYAkqbkJccunohevd")
 			],
-			get_account_id_from_seed::<sr25519::Public>("Alice"),
+			AccountId::from_ss58check("5CRgsNaiCeGqSRZNGkVWu1rhs37cXQMyH4nbdfpHEwXivUQr").unwrap(),
 			vec![
 				AccountId::from_ss58check("5GmrLHp3gPsaPJzZ33csny8bcVJGYkUVFbQfGfhoAUSjKrNL").unwrap() // parallax
 				AccountId::from_ss58check("5HphewmMGJVLjnKEFUc2czcB1U7pyVcnc1Vg6GrtBF8SiE8W").unwrap() // shibshib
