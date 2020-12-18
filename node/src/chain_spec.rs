@@ -8,6 +8,8 @@ use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{Verify, IdentifyAccount};
 use sc_service::ChainType;
 use sp_core::crypto::Ss58Codec;
+use sc_service::config::MultiaddrWithPeerId;
+use sp_runtime::sp_std::str::FromStr;
 
 // The URL for the telemetry server.
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
@@ -153,9 +155,7 @@ pub fn kusanagi_testnet_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
 
 	Ok(ChainSpec::from_genesis(
-		// Name
 		"Kusanagi bittensor testnet",
-		// ID
 		"kusanagi_testnet",
 		ChainType::Local,
 		move || testnet_genesis(
@@ -169,7 +169,6 @@ pub fn kusanagi_testnet_config() -> Result<ChainSpec, String> {
 				authority_keys_from_ss58("5F93P3nuzNdwGz8yTEoLTco3qknmzKkQYAkqbkJccunohevd")
 			],
 			get_account_id_from_seed::<sr25519::Public>("Alice"),
-			// Pre-funded accounts
 			vec![
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
 				get_account_id_from_seed::<sr25519::Public>("Bob"),
@@ -186,8 +185,10 @@ pub fn kusanagi_testnet_config() -> Result<ChainSpec, String> {
 			],
 			true,
 		),
-		// Bootnodes
-		vec![],
+		vec![
+						MultiaddrWithPeerId::from_str("/dns4/anton.kusanagi.bittensor.com/tcp/30333/p2p/12D3KooWAcwbhijTx8NB5P9sLGcWyf4QrhScZrqkqWsh418Nuczd").unwrap(),
+						MultiaddrWithPeerId::from_str("/dns4/skynet.kusanagi.bittensor.com/tcp/30333/p2p/12D3KooWEr7Dq9oFJRSXZrZspibBLRySnGCDV7598xrGF8iT5DHD").unwrap()
+						  ],
 		// Telemetry
 		None,
 		// Protocol ID
