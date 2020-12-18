@@ -7,6 +7,7 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{Verify, IdentifyAccount};
 use sc_service::ChainType;
+use sp_core::crypto::Ss58Codec;
 
 // The URL for the telemetry server.
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
@@ -19,6 +20,15 @@ pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Pu
 	TPublic::Pair::from_string(&format!("//{}", seed), None)
 		.expect("static values are valid; qed")
 		.public()
+}
+
+
+pub fn get_aura_from_ss58_addr(s: &str) -> AuraId {
+	AuraId::from_ss58check(s).unwrap()
+}
+
+pub fn get_grandpa_from_ss58_addr(s: &str) -> GrandpaId {
+	GrandpaId::from_ss58check(s).unwrap()
 }
 
 type AccountPublic = <Signature as Verify>::Signer;
@@ -35,6 +45,13 @@ pub fn authority_keys_from_seed(s: &str) -> (AuraId, GrandpaId) {
 	(
 		get_from_seed::<AuraId>(s),
 		get_from_seed::<GrandpaId>(s),
+	)
+}
+
+pub fn authority_keys_from_ss58(s :&str) -> (AuraId, GrandpaId) {
+	(
+		get_aura_from_ss58_addr(s),
+		get_grandpa_from_ss58_addr(s),
 	)
 }
 
@@ -143,12 +160,14 @@ pub fn kusanagi_testnet_config() -> Result<ChainSpec, String> {
 		ChainType::Local,
 		move || testnet_genesis(
 			wasm_binary,
-			// Initial PoA authorities
 			vec![
-				authority_keys_from_seed("Alice"),
-				authority_keys_from_seed("Bob"),
+				authority_keys_from_ss58("5H9cxPkm15NEwUCS8rXKAQuq3z6hDDaBQfVneDme8tLP2NnR"),
+				authority_keys_from_ss58("5H18kRHixaSSz9o1YeL4RBjm48YbcBW64wt9NQchbBzrMDFK"),
+				authority_keys_from_ss58("5CnyFHQhU2xeNWYCcBaEgsWyeyEj62xjotn1dHfaN2aWfdSK"),
+				authority_keys_from_ss58("5EnpbUbZ1kDmuefTm2t43K4TXBKu8cponanH8fXQCkPCPJ1j"),
+				authority_keys_from_ss58("5Dbz2iqzsP1dbHqsETLE7Kg8Xx4AakJobv71XU9gZh1Dvpb2"),
+				authority_keys_from_ss58("5F93P3nuzNdwGz8yTEoLTco3qknmzKkQYAkqbkJccunohevd")
 			],
-			// Sudo account
 			get_account_id_from_seed::<sr25519::Public>("Alice"),
 			// Pre-funded accounts
 			vec![
