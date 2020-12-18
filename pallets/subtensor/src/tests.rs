@@ -1,6 +1,8 @@
 use crate::{Error, mock::*};
 use frame_support::{assert_ok, assert_noop};
 
+
+
 #[test]
 fn it_works_for_default_value() {
 	new_test_ext().execute_with(|| {
@@ -21,3 +23,12 @@ fn correct_error_for_none_value() {
 		);
 	});
 }
+
+
+#[test]
+fn simple_test() {
+	assert_eq!(1,1);
+}
+
+
+
