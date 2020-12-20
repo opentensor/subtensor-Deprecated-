@@ -1,3 +1,6 @@
+// On spliting modules : https://stackoverflow.com/questions/56902167/in-substrate-is-there-a-way-to-use-storage-and-functions-from-one-custom-module
+
+
 #![cfg_attr(not(feature = "std"), no_std)]
 
 // --- Frame imports.
@@ -10,6 +13,8 @@ use sp_std::convert::TryInto;
 use sp_std::{
 	prelude::*
 };
+
+mod weights;
 
 use frame_support::debug::RuntimeLogger;
 
@@ -182,18 +187,8 @@ decl_module! {
 				dests: Vec<T::AccountId>,
 				values: Vec<u32>) -> dispatch::DispatchResult {
 
-		 	let neuron = ensure_signed(origin)?;
 
-		 	ensure!(values.len() == dests.len(), Error::<T>::WeightVecNotEqualSize);
-
-			let normalized_values = normalize(values);
-
-			WeightVals::<T>::insert(&neuron, &normalized_values);
-			WeightKeys::<T>::insert(&neuron, &dests);
-
-			// Emit and return
-			Self::deposit_event(RawEvent::WeightsSet(neuron));
-			Ok(())
+			Self::do_set_weights(origin, dests, values)
 		}
 
 
@@ -215,7 +210,7 @@ decl_module! {
 		/// 	* `ammount_staked` (u32):
 		/// 		- The ammount to transfer from the balances account of the cold key
 		/// 		into the staking account of the hotkey.
-		/// 
+		///
 		/// # Emits:
 		/// 	`StakeAdded`:
 		/// 		- On the successful staking of funds.
@@ -230,10 +225,10 @@ decl_module! {
 		/// 	* `InsufficientBalance`:
 		/// 		- When the amount to stake exceeds the amount of balance in the
 		/// 		associated colkey account.
-		/// 		
+		///
 		#[weight = (0, DispatchClass::Operational, Pays::No)] // TODO(const): should be a normal transaction fee.
 		fn add_stake(origin, hotkey: T::AccountId, ammount_staked: u32) -> dispatch::DispatchResult {
-			
+
 			// ---- We check the transaction is signed by the caller
 			// and retrieve the T::AccountId pubkey information.
 			let caller = ensure_signed(origin)?;
@@ -320,10 +315,10 @@ decl_module! {
 		/// 	* `NotEnoughStaketoWithdraw`:
 		/// 		- When the amount to unstake exceeds the quantity staked in the
 		/// 		associated hotkey staking account.
-		/// 		
+		///
 		#[weight = (0, DispatchClass::Operational, Pays::No)]
 		fn remove_stake(origin, hotkey: T::AccountId, ammount_unstaked: u32) -> dispatch::DispatchResult {
-			
+
 			// ---- We check the transaction is signed by the caller
 			// and retrieve the T::AccountId pubkey information.
 			let caller = ensure_signed(origin)?;
@@ -350,7 +345,7 @@ decl_module! {
 			ensure!(hotkey_stake >= ammount_unstaked, Error::<T>::NotEnoughStaketoWithdraw);
 			Stake::<T>::insert(&hotkey, hotkey_stake - ammount_unstaked);
 			debug::info!("Withdraw: {:?} from hotkey staking account for new ammount {:?} staked", ammount_unstaked, hotkey_stake - ammount_unstaked);
-		
+
 			// --- We perform the withdrawl by converting the stake to a u32 balance
 			// and deposit the balance into the coldkey account. If the coldkey account
 			// does not exist it is created.
@@ -362,11 +357,11 @@ decl_module! {
 			let total_stake: u32 = TotalStake::get();
 			TotalStake::put(total_stake - ammount_unstaked);
 			debug::info!("Remove {:?} from total stake, now {:?} ", ammount_unstaked, TotalStake::get());
-	
+
 			// ---- Emit the unstaking event.
 			Self::deposit_event(RawEvent::StakeRemoved(hotkey, ammount_unstaked));
 			debug::info!("--- Done remove_stake.");
-			
+
 			// --- Done and ok.
 			Ok(())
 		}
@@ -374,7 +369,7 @@ decl_module! {
 		/// ---- Subscribes the caller to the Neuron set with given metadata. If the caller
 		/// already exists in the active set, the metadata is updated but the cold key remains unchanged.
 		/// If the caller does not exist they make a link between this hotkey account
-		/// and the passed coldkey account. Only the cold key has permission to make add_stake/remove_stake calls. 
+		/// and the passed coldkey account. Only the cold key has permission to make add_stake/remove_stake calls.
 		///
 		/// # Args:
 		/// 	* `origin`: (<T as frame_system::Trait>Origin):
@@ -400,7 +395,7 @@ decl_module! {
 		/// 		- On subscription of new metadata attached to the calling hotkey.
 		#[weight = (0, DispatchClass::Operational, Pays::No)]
 		fn subscribe(origin, ip: u128, port: u16, ip_type: u8, coldkey: T::AccountId) -> dispatch::DispatchResult {
-			
+
 			// --- We check the callers (hotkey) signature.
 			let caller = ensure_signed(origin)?;
 			debug::info!("--- Called subscribe with caller {:?}", caller);
@@ -409,7 +404,7 @@ decl_module! {
 			// We do not allow peers to re-subscribe with the same key.
 			ensure!( !Neurons::<T>::contains_key(&caller), Error::<T>::AlreadyActive );
 
-			// ---- If the neuron is not-already subscribed, we create a 
+			// ---- If the neuron is not-already subscribed, we create a
 			// new entry in the table with the new metadata.
 			debug::info!("Insert new metadata with ip: {:?}, port: {:?}, ip_type: {:?}, coldkey: {:?}", ip, port, ip_type, coldkey);
 			Neurons::<T>::insert( &caller,
@@ -431,13 +426,13 @@ decl_module! {
 			TotalStake::put(total_stake + subscription_gift);
 			debug::info!("Adding amount: {:?} to total stake, now: {:?}", subscription_gift, TotalStake::get());
 
-			// The last emit determines the last time this peer made an incentive 
+			// The last emit determines the last time this peer made an incentive
 			// mechanism emit call. Since he is just subscribed with zero stake,
 			// this moment is considered his first emit.
 			let current_block: T::BlockNumber = system::Module::<T>::block_number();
 			debug::info!("The new last emit for this caller is: {:?} ", current_block);
 
-			// ---- We initilize the neuron maps with nill weights, 
+			// ---- We initilize the neuron maps with nill weights,
 			// the subscription gift and the current block as last emit.
 			Stake::<T>::insert(&caller, subscription_gift);
 			LastEmit::<T>::insert(&caller, current_block);
@@ -508,7 +503,7 @@ decl_module! {
 				TotalStake::put(total_stake - ammount_unstaked);
 				debug::info!("Removing amount: {:?} from total stake, now: {:?}", ammount_unstaked, TotalStake::get());
 			}
-	
+
 			// --- We remove the neuron info from the various maps.
 			Stake::<T>::remove( &caller );
 			Neurons::<T>::remove( &caller );
@@ -741,47 +736,7 @@ impl<T: Trait> Module<T> {
 
 }
 
-fn normalize(mut weights: Vec<u32>) -> Vec<u32> {
-	let sum : u64  = weights.iter().map(|x| *x as u64).sum();
-
-	if sum == 0 {
-		return weights;
-	}
-
-	weights.iter_mut().for_each(|x| {
-		*x = (*x as u64 * u32::max_value() as u64 / sum) as u32;
-	});
-
-	return weights;
-}
 
 
-#[cfg(test)]
-mod tests {
-	use crate::{normalize};
 
-	#[test]
-	fn normalize_sum_smaller_than_one() {
-		let values: Vec<u32> = vec![u32::max_value() / 10, u32::max_value() / 10];
-		assert_eq!(normalize(values), vec![u32::max_value() / 2, u32::max_value() / 2]);
-	}
-
-	#[test]
-	fn normalize_sum_greater_than_one() {
-		let values: Vec<u32> = vec![u32::max_value() / 7, u32::max_value() / 7];
-		assert_eq!(normalize(values), vec![u32::max_value() / 2, u32::max_value() / 2]);
-	}
-
-	#[test]
-	fn normalize_sum_zero() {
-		let weights: Vec<u32> = vec![0, 0];
-		assert_eq!(normalize(weights), vec![0, 0]);
-	}
-
-	#[test]
-	fn normalize_values_maxed() {
-		let weights: Vec<u32> = vec![u32::max_value(), u32::max_value()];
-		assert_eq!(normalize(weights), vec![u32::max_value() / 2, u32::max_value() / 2]);
-	}
-}
 
