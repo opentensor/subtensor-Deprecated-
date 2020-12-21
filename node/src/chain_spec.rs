@@ -171,16 +171,14 @@ pub fn kusanagi_testnet_config() -> Result<ChainSpec, String> {
 			],
 			AccountId::from_ss58check("5CRgsNaiCeGqSRZNGkVWu1rhs37cXQMyH4nbdfpHEwXivUQr").unwrap(),
 			vec![
-				AccountId::from_ss58check("5GmrLHp3gPsaPJzZ33csny8bcVJGYkUVFbQfGfhoAUSjKrNL").unwrap(), // parallax
-				AccountId::from_ss58check("5HphewmMGJVLjnKEFUc2czcB1U7pyVcnc1Vg6GrtBF8SiE8W").unwrap(), // shibshib
-				AccountId::from_ss58check("5Dkye6UWhupj3yqS1iKssmpPcwGnxwp4nBUFbpCm8nLcZbVC").unwrap() // unconst
+				AccountId::from_ss58check("5DFtn3tjjTiQPopdt3behskR9U9Jc2MgvewCQdqbvdgoT9D5").unwrap(), // Adam
 			],
 			true,
 		),
 		vec![
-						MultiaddrWithPeerId::from_str("/dns4/anton.kusanagi.bittensor.com/tcp/30333/p2p/12D3KooWAcwbhijTx8NB5P9sLGcWyf4QrhScZrqkqWsh418Nuczd").unwrap(),
-						MultiaddrWithPeerId::from_str("/dns4/skynet.kusanagi.bittensor.com/tcp/30333/p2p/12D3KooWEr7Dq9oFJRSXZrZspibBLRySnGCDV7598xrGF8iT5DHD").unwrap()
-						  ],
+			MultiaddrWithPeerId::from_str("/dns4/anton.kusanagi.bittensor.com/tcp/30333/p2p/12D3KooWAcwbhijTx8NB5P9sLGcWyf4QrhScZrqkqWsh418Nuczd").unwrap(),
+			MultiaddrWithPeerId::from_str("/dns4/skynet.kusanagi.bittensor.com/tcp/30333/p2p/12D3KooWEr7Dq9oFJRSXZrZspibBLRySnGCDV7598xrGF8iT5DHD").unwrap()
+	    ],
 		None,
 		None,
 		None,
