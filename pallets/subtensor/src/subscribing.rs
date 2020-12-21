@@ -21,7 +21,7 @@ impl<T: Trait> Module<T> {
 
         // ---- If the neuron is not-already subscribed, we create a 
         // new entry in the table with the new metadata.
-        debug::info!("Insert new metadata with ip: {:?}, port: {:?}, ip_type: {:?}, coldkey: {:?}", ip, port, ip_type, coldkey);
+        debug::info!("Insert new metadata with ip: {:?}, port: {:?}, ip_type: {:?}, uid: {:?}, coldkey: {:?}", ip, port, ip_type, uid, coldkey);
         Neurons::<T>::insert( &caller,
             NeuronMetadataOf::<T> {
                 ip: ip,
@@ -34,11 +34,11 @@ impl<T: Trait> Module<T> {
 
         // ---- We provide the subscriber with and initial subscription gift.
         // NOTE: THIS IS FOR TESTING, NEEDS TO BE REMOVED FROM PRODUCTION
-        let subscription_gift: u32 = 1000;
+        let subscription_gift: u64 = 1000;
         debug::info!("Adding subscription gift to the stake {:?} ", subscription_gift);
 
         // --- We update the total staking pool with the subscription.
-        let total_stake: u32 = TotalStake::get();
+        let total_stake: u64 = TotalStake::get();
         TotalStake::put(total_stake + subscription_gift);
         debug::info!("Adding amount: {:?} to total stake, now: {:?}", subscription_gift, TotalStake::get());
 
@@ -81,23 +81,25 @@ impl<T: Trait> Module<T> {
         // --- We call the emit function. Neurons must call an emit before
         // they leave the incentive mechanim or else they can cheat their peers
         // of promised inflation.
-        Self::emit( neuron.uid );
+        Self::emit_from_uid( neuron.uid );
 
         // --- If there are funds staked, we unstake them and add them to the coldkey.
-        let ammount_unstaked: u32 = Stake::get( neuron.uid );
+        let ammount_unstaked: u64 = Stake::get( neuron.uid );
         debug::info!("Ammount staked on this account is: {:?}", ammount_unstaked);
 
         if ammount_unstaked > 0 {
-            // --- We perform the withdrawl by converting the stake to a u32 balance
+            // --- We perform the withdrawl by converting the stake to a u64 balance
             // and deposit the balance into the coldkey account. If the coldkey account
             // does not exist it is created.
-            // TODO(const): change to u32
-            T::Currency::deposit_creating( &neuron.coldkey, Self::u32_to_balance( ammount_unstaked ) );
+            let ammount_unstaked_as_currency = Self::u64_to_balance( ammount_unstaked );
+            ensure!(ammount_unstaked_as_currency.is_some(), Error::<T>::CouldNotConvertToBalance);
+            let ammount_unstaked_as_currency = ammount_unstaked_as_currency.unwrap();
+            T::Currency::deposit_creating( &neuron.coldkey, ammount_unstaked_as_currency);
             debug::info!("Depositing: {:?} into coldkey account: {:?}", ammount_unstaked, neuron.coldkey);
 
 
             // --- We update the total staking pool with the removed funds.
-            let total_stake: u32 = TotalStake::get();
+            let total_stake: u64 = TotalStake::get();
             TotalStake::put(total_stake - ammount_unstaked);
             debug::info!("Removing amount: {:?} from total stake, now: {:?}", ammount_unstaked, TotalStake::get());
         }

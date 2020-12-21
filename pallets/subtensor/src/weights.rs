@@ -19,13 +19,16 @@ impl<T: Trait> Module<T> {
         // ---- We call an inflation emit before setting the weights
         // to ensure that the caller is pays for his previously set weights.
         // TODO(const): can we pay for this transaction through inflation.
-        Self::emit( neuron.uid );
+        Self::emit_from_uid( neuron.uid );
+        debug::info!("finished emit");
 
         let normalized_values = normalize(values);
+        debug::info!("normalized values {:?}", normalized_values);
 
         // --- We update the weights under the uid map.
         WeightVals::insert( neuron.uid, &normalized_values);
         WeightUids::insert( neuron.uid, &uids);
+        debug::info!("values set.");
 
         // ---- Emit the staking event.
         Self::deposit_event(RawEvent::WeightsSet(caller));
