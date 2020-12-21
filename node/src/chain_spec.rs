@@ -7,6 +7,9 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{Verify, IdentifyAccount};
 use sc_service::ChainType;
+use sp_core::crypto::Ss58Codec;
+use sc_service::config::MultiaddrWithPeerId;
+use sp_runtime::sp_std::str::FromStr;
 
 // The URL for the telemetry server.
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
@@ -19,6 +22,15 @@ pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Pu
 	TPublic::Pair::from_string(&format!("//{}", seed), None)
 		.expect("static values are valid; qed")
 		.public()
+}
+
+
+pub fn get_aura_from_ss58_addr(s: &str) -> AuraId {
+	AuraId::from_ss58check(s).unwrap()
+}
+
+pub fn get_grandpa_from_ss58_addr(s: &str) -> GrandpaId {
+	GrandpaId::from_ss58check(s).unwrap()
 }
 
 type AccountPublic = <Signature as Verify>::Signer;
@@ -35,6 +47,13 @@ pub fn authority_keys_from_seed(s: &str) -> (AuraId, GrandpaId) {
 	(
 		get_from_seed::<AuraId>(s),
 		get_from_seed::<GrandpaId>(s),
+	)
+}
+
+pub fn authority_keys_from_ss58(s_aura :&str, s_grandpa : &str) -> (AuraId, GrandpaId) {
+	(
+		get_aura_from_ss58_addr(s_aura),
+		get_grandpa_from_ss58_addr(s_grandpa),
 	)
 }
 
@@ -127,7 +146,48 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 		// Extensions
 		None,
 	))
+
 }
+
+/// *************************************
+/// KUSANAGI TESTNET CONFIGURATION
+/// *************************************
+pub fn kusanagi_testnet_config() -> Result<ChainSpec, String> {
+	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
+
+	Ok(ChainSpec::from_genesis(
+		"Kusanagi bittensor testnet",
+		"kusanagi_testnet",
+		ChainType::Local,
+		move || testnet_genesis(
+			wasm_binary,
+			vec![
+				authority_keys_from_ss58("5H9cxPkm15NEwUCS8rXKAQuq3z6hDDaBQfVneDme8tLP2NnR", "5EcstGNGzbZ8kLhpAdVSjT3So99hYCtV4ur8PPcdVaBQDpmR"), //Jarvis
+				authority_keys_from_ss58("5H18kRHixaSSz9o1YeL4RBjm48YbcBW64wt9NQchbBzrMDFK", "5GuNfTJpx4NTyhwxZ2rLpndHnHau1qsoA16rruPppGTtKTRS"), //Genisys
+				authority_keys_from_ss58("5CnyFHQhU2xeNWYCcBaEgsWyeyEj62xjotn1dHfaN2aWfdSK", "5DDsBzUkaNaLbYv5cewYuaaWWkvACoFguErRpQQqiEM4vndm"), //HAL
+				authority_keys_from_ss58("5EnpbUbZ1kDmuefTm2t43K4TXBKu8cponanH8fXQCkPCPJ1j", "5ESo84zVXx7F6wuhfhD6qGVgF9ji2ShJFRR7GqewYnvC6bBB"), //WOPR
+				authority_keys_from_ss58("5Dbz2iqzsP1dbHqsETLE7Kg8Xx4AakJobv71XU9gZh1Dvpb2", "5HLVPabG3pb33WjvwnEpbQivacF3WdodMN3GqJPbycGsPbY8"), //Gibson
+				authority_keys_from_ss58("5F93P3nuzNdwGz8yTEoLTco3qknmzKkQYAkqbkJccunohevd", "5GaoAfPg71886Y6qZ2dEWFugmRGUhjLWiKz1tG7WE53e93Qz")  //Glados
+			],
+			AccountId::from_ss58check("5CRgsNaiCeGqSRZNGkVWu1rhs37cXQMyH4nbdfpHEwXivUQr").unwrap(),
+			vec![
+				AccountId::from_ss58check("5GmrLHp3gPsaPJzZ33csny8bcVJGYkUVFbQfGfhoAUSjKrNL").unwrap(), // parallax
+				AccountId::from_ss58check("5HphewmMGJVLjnKEFUc2czcB1U7pyVcnc1Vg6GrtBF8SiE8W").unwrap(), // shibshib
+				AccountId::from_ss58check("5Dkye6UWhupj3yqS1iKssmpPcwGnxwp4nBUFbpCm8nLcZbVC").unwrap() // unconst
+			],
+			true,
+		),
+		vec![
+						MultiaddrWithPeerId::from_str("/dns4/anton.kusanagi.bittensor.com/tcp/30333/p2p/12D3KooWAcwbhijTx8NB5P9sLGcWyf4QrhScZrqkqWsh418Nuczd").unwrap(),
+						MultiaddrWithPeerId::from_str("/dns4/skynet.kusanagi.bittensor.com/tcp/30333/p2p/12D3KooWEr7Dq9oFJRSXZrZspibBLRySnGCDV7598xrGF8iT5DHD").unwrap()
+						  ],
+		None,
+		None,
+		None,
+		None,
+	))
+}
+
 
 /// Configure initial storage state for FRAME modules.
 fn testnet_genesis(
@@ -145,7 +205,7 @@ fn testnet_genesis(
 		}),
 		pallet_balances: Some(BalancesConfig {
 			// Configure endowed accounts with initial balance of 1 << 60.
-			balances: endowed_accounts.iter().cloned().map(|k|(k, 1 << 60)).collect(),
+			balances: endowed_accounts.iter().cloned().map(|k|(k, u128::pow(10,15))).collect(),
 		}),
 		pallet_aura: Some(AuraConfig {
 			authorities: initial_authorities.iter().map(|x| (x.0.clone())).collect(),
