@@ -1,23 +1,39 @@
 use super::*;
 
 impl<T: Trait> Module<T> {
-    pub fn do_set_weights(origin: T::Origin, keys: Vec<T::AccountId>, values: Vec<u32>) -> dispatch::DispatchResult
+    pub fn do_set_weights(origin: T::Origin, uids: Vec<u64>, values: Vec<u32>) -> dispatch::DispatchResult
     {
-        let neuron = ensure_signed(origin)?;
-        ensure!(values.len() == keys.len(), Error::<T>::WeightVecNotEqualSize);
+        // ---- We check the caller signature 
+        let caller = ensure_signed(origin)?;
+        debug::info!("--- Called set_weights key {:?}, with uids: {:?} and weights: {:?}", caller, uids, values);
+
+        // ---- We check to see that the calling neuron is in the active set.
+        ensure!(Neurons::<T>::contains_key( &caller ), Error::<T>::NotActive);
+        let neuron: NeuronMetadataOf<T> = Neurons::<T>::get( &caller );
+        debug::info!("Got metadata with uid {:?}", neuron.uid);
+
+        // --- We check that the length of these two lists are equal. 
+        debug::info!("uids.len= {:?}, dests.len= {:?}", uids.len(), values.len());
+        ensure!(uids.len() == values.len(), Error::<T>::WeightVecNotEqualSize);
+
+        // ---- We call an inflation emit before setting the weights
+        // to ensure that the caller is pays for his previously set weights.
+        // TODO(const): can we pay for this transaction through inflation.
+        Self::emit( neuron.uid );
 
         let normalized_values = normalize(values);
 
-        // Put the weights from this neurons to its peers onto the chain
-        WeightKeys::<T>::insert(&neuron, &keys);
-        WeightVals::<T>::insert(&neuron, &normalized_values);
+        // --- We update the weights under the uid map.
+        WeightVals::insert( neuron.uid, &normalized_values);
+        WeightUids::insert( neuron.uid, &uids);
 
-        Self::deposit_event(RawEvent::WeightsSet(neuron));
+        // ---- Emit the staking event.
+        Self::deposit_event(RawEvent::WeightsSet(caller));
+
+        // --- Emit the event and return ok.
         Ok(())
     }
 }
-
-
 
 
 fn normalize(mut weights: Vec<u32>) -> Vec<u32> {

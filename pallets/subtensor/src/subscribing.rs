@@ -1,17 +1,25 @@
 use super::*;
 
 impl<T: Trait> Module<T> {
-    pub fn do_subscribe(origin : T::Origin, ip: u128, port: u16, ip_type:u8, coldkey : T::AccountId) -> dispatch::DispatchResult
-    {
+    pub fn do_subscribe(origin : T::Origin, ip: u128, port: u16, ip_type: u8, coldkey: T::AccountId) -> dispatch::DispatchResult {
+        
         // --- We check the callers (hotkey) signature.
         let caller = ensure_signed(origin)?;
         debug::info!("--- Called subscribe with caller {:?}", caller);
 
-        // ---- We check to see if the Neuron already exists.
+        // --- We check to see if the Neuron already exists.
         // We do not allow peers to re-subscribe with the same key.
         ensure!( !Neurons::<T>::contains_key(&caller), Error::<T>::AlreadyActive );
 
-        // ---- If the neuron is not-already subscribed, we create a
+        // --- We get the next available subscription uid.
+        // uids increment by one up u64:MAX, this allows the chain to 
+        // have over 18,446,744,073,709,551,615 peers before and overflow
+        // one per ipv6 address without an memory overflow. 
+        let uid: u64 = NextUID::get();
+        NextUID::put(uid + 1);
+        debug::info!("Incrementing the next uid by 1, now {:?} ", NextUID::get());
+
+        // ---- If the neuron is not-already subscribed, we create a 
         // new entry in the table with the new metadata.
         debug::info!("Insert new metadata with ip: {:?}, port: {:?}, ip_type: {:?}, coldkey: {:?}", ip, port, ip_type, coldkey);
         Neurons::<T>::insert( &caller,
@@ -19,6 +27,7 @@ impl<T: Trait> Module<T> {
                 ip: ip,
                 port: port,
                 ip_type: ip_type,
+                uid: uid,
                 coldkey: coldkey,
             }
         );
@@ -33,23 +42,23 @@ impl<T: Trait> Module<T> {
         TotalStake::put(total_stake + subscription_gift);
         debug::info!("Adding amount: {:?} to total stake, now: {:?}", subscription_gift, TotalStake::get());
 
-        // The last emit determines the last time this peer made an incentive
+        // The last emit determines the last time this peer made an incentive 
         // mechanism emit call. Since he is just subscribed with zero stake,
         // this moment is considered his first emit.
         let current_block: T::BlockNumber = system::Module::<T>::block_number();
         debug::info!("The new last emit for this caller is: {:?} ", current_block);
 
-        // ---- We initilize the neuron maps with nill weights,
+        // ---- We initilize the neuron maps with nill weights, 
         // the subscription gift and the current block as last emit.
-        Stake::<T>::insert(&caller, subscription_gift);
-        LastEmit::<T>::insert(&caller, current_block);
-        WeightVals::<T>::insert(&caller, &Vec::new());
-        WeightKeys::<T>::insert(&caller, &Vec::new());
+        LastEmit::<T>::insert(uid, current_block);
+        Stake::insert(uid, subscription_gift);
+        WeightVals::insert(uid, &Vec::new());
+        WeightUids::insert(uid, &Vec::new());
 
-        // ---- We increment the neuron count for the additional member.
-        let neuron_count = NeuronCount::get();
-        NeuronCount::put(neuron_count + 1);
-        debug::info!("Increment the neuron count to: {:?} ", NeuronCount::get());
+        // ---- We increment the active count for the additional member.
+        let neuron_count = ActiveCount::get();
+        ActiveCount::put(neuron_count + 1);
+        debug::info!("Increment the neuron count to: {:?} ", ActiveCount::get());
 
         // --- We deposit the neuron added event.
         Self::deposit_event(RawEvent::NeuronAdded(caller));
@@ -65,17 +74,17 @@ impl<T: Trait> Module<T> {
         debug::info!("--- Called unsubscribe with caller: {:?}", caller);
 
         // --- We check that the Neuron already exists in the active set.
-        ensure!(Neurons::<T>::contains_key(&caller), Error::<T>::NotActive);
-        let neuron: NeuronMetadataOf<T> = Neurons::<T>::get(&caller);
+        ensure!(Neurons::<T>::contains_key( &caller ), Error::<T>::NotActive);
+        let neuron: NeuronMetadataOf<T> = Neurons::<T>::get( &caller );
         debug::info!("Metadata retrieved with coldkey: {:?}", neuron.coldkey);
 
         // --- We call the emit function. Neurons must call an emit before
         // they leave the incentive mechanim or else they can cheat their peers
         // of promised inflation.
-        Self::emit( &caller );
+        Self::emit( neuron.uid );
 
         // --- If there are funds staked, we unstake them and add them to the coldkey.
-        let ammount_unstaked: u32 = Stake::<T>::get( &caller );
+        let ammount_unstaked: u32 = Stake::get( neuron.uid );
         debug::info!("Ammount staked on this account is: {:?}", ammount_unstaked);
 
         if ammount_unstaked > 0 {
@@ -93,23 +102,24 @@ impl<T: Trait> Module<T> {
             debug::info!("Removing amount: {:?} from total stake, now: {:?}", ammount_unstaked, TotalStake::get());
         }
 
-        // --- We remove the neuron info from the various maps.
-        Stake::<T>::remove( &caller );
+        // --- We remove the neuron-info from the various maps.
         Neurons::<T>::remove( &caller );
-        LastEmit::<T>::remove( &caller );
-        WeightVals::<T>::remove( &caller );
-        WeightKeys::<T>::remove( &caller );
+        Stake::remove( neuron.uid );
+        LastEmit::<T>::remove( neuron.uid );
+        WeightVals::remove( neuron.uid );
+        WeightUids::remove( neuron.uid );
         debug::info!("Hotkey account removed: {:?}", caller);
 
         // --- We decrement the neuron counter.
-        let neuron_count = NeuronCount::get();
-        NeuronCount::put(neuron_count - 1);
-        debug::info!("New neuron count: {:?}", NeuronCount::get());
+        let neuron_count = ActiveCount::get();
+        ActiveCount::put(neuron_count - 1);
+        debug::info!("New neuron count: {:?}", ActiveCount::get());
 
         // --- We emit the neuron removed event and return ok.
         Self::deposit_event(RawEvent::NeuronRemoved(caller));
         debug::info!("--- Done unsubscribe.");
 
         Ok(())
+		
     }
 }
