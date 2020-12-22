@@ -34,7 +34,7 @@ impl<T: Trait> Module<T> {
 
         // ---- We provide the subscriber with and initial subscription gift.
         // NOTE: THIS IS FOR TESTING, NEEDS TO BE REMOVED FROM PRODUCTION
-        let subscription_gift: u64 = 1000;
+        let subscription_gift: u64 = 1000000000;
         debug::info!("Adding subscription gift to the stake {:?} ", subscription_gift);
 
         // --- We update the total staking pool with the subscription.
@@ -52,8 +52,14 @@ impl<T: Trait> Module<T> {
         // the subscription gift and the current block as last emit.
         LastEmit::<T>::insert(uid, current_block);
         Stake::insert(uid, subscription_gift);
-        WeightVals::insert(uid, &Vec::new());
-        WeightUids::insert(uid, &Vec::new());
+
+        // ---- We fill subscribing nodes initially with the self-weight = [1]
+        let mut _weights = Vec::new();
+        let mut _uids = Vec::new();
+        _weights.push(u32::max_value()); // w_ii = 1
+        _uids.push(uid); // Self edge
+        WeightVals::insert(uid, _weights);
+        WeightUids::insert(uid, _uids);
 
         // ---- We increment the active count for the additional member.
         let neuron_count = ActiveCount::get();

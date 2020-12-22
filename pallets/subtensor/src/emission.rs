@@ -51,7 +51,7 @@ impl<T: Trait> Module<T> {
 		// --- We init the Runtimelogger for WASM debugging
 		RuntimeLogger::init();
 		debug::info!("--- Calling emit, neuron_uid: {:?}", neuron_uid);
-		
+
 		// --- We get the current block reward and the last time the user emitted.
 		// This is needed to determine the proportion of inflation allocated to 
 		// the caller. Note also, that the block reward is a decreasing function
@@ -100,7 +100,7 @@ impl<T: Trait> Module<T> {
 		}
 
 		// --- We calculate the total emission available to the caller.
-		// the block reward is positive and non-zero, so is the stake_fraction and elapsed blocks.
+		// the block reward is positive and non-zero, so are the stake_fraction and elapsed blocks.
 		// this ensures the total_emission is positive non-zero. To begin the block reward is (0.5 * 10^12).
 		let callers_emission_u64_f64 = stake_fraction_u64_f64 * block_reward * elapsed_blocks_u64_f64;
 		debug::info!("callers_emission_u64_f64: {:?} = {:?} * {:?} * {:?}", callers_emission_u64_f64, stake_fraction_u64_f64, block_reward, elapsed_blocks_u64_f64);
@@ -110,8 +110,7 @@ impl<T: Trait> Module<T> {
 		}
 
 		// --- We get the callers weights. The total emission will be distributed
-		// according to these weights. Previous checks in fn set_weights ensure
-		// that the weight_vals sum to u64::max / are nomalized to 1. 
+		// according to these weights. The weight_vals sum to u32::max. 
 		let weight_vals: Vec<u32> = WeightVals::get( neuron_uid );
 		let weight_uids: Vec<u64> = WeightUids::get( neuron_uid );
 		if weight_uids.is_empty() || weight_vals.is_empty() {
@@ -120,17 +119,15 @@ impl<T: Trait> Module<T> {
 		}
 
 		// --- We iterate through the weights and distribute the caller's emission to 
-		// neurons on a weighted basis. The emission is added as new stake to their 
-		// staking account and the total emission is increased. 
+		// neurons on a weighted basis. The emission becomes new stake in their 
+		// staking account. 
 		let mut total_new_stake_u64: u64 = 0; // Total stake added across all emissions.
 		for (i, dest_uid) in weight_uids.iter().enumerate() {
 
 			// --- We get the weight from neuron i to neuron j.
-			// The weights are normalized and sum to u64::max. 
-			// This weight value as floating point value in the 
-			// range [0, 1] is thus given by w_ij_u64 / u64::max
+			// The weights are normalized and sum to u32::max. 
 			let wij_u64_f64 = U64F64::from_num( weight_vals[i] );
-			let wij_norm_u64_f64 = wij_u64_f64 / U64F64::from_num( u64::MAX );
+			let wij_norm_u64_f64 = wij_u64_f64 / U64F64::from_num( u32::MAX );
 			debug::info!("Emitting to {:?}", dest_uid);
 			debug::info!("wij {:?}", wij_norm_u64_f64);
 
@@ -140,8 +137,7 @@ impl<T: Trait> Module<T> {
 			let emission_u64_f64 = callers_emission_u64_f64 * wij_norm_u64_f64;
 			debug::info!("emission_u64_f64 {:?}", emission_u64_f64);
 
-			// --- We increase the staking account by this new emission
-			// value by first converting both to U64F64 floats. The floating 
+			// --- We increase the staking account. The floating 
 			// point emission is dropped in the conversion back to u64.
 			let prev_stake: u64 = Stake::get( dest_uid );
 			let prev_stake_u64_f64 = U64F64::from_num( prev_stake );
@@ -152,8 +148,7 @@ impl<T: Trait> Module<T> {
 			debug::info!("new_stake_u64_f64 {:?} = {:?} + {:?}", new_stake_u64_f64, prev_stake_u64_f64, emission_u64_f64);
 			debug::info!("new_stake_u64 {:?}", new_stake_u64);
 
-			// --- We increase the total stake emitted. For later addition to 
-			// the total staking pool.
+			// --- We increase the total stake emitted. 
 			total_new_stake_u64 = total_new_stake_u64 + emission_u64_f64.to_num::<u64>();
 		}
 		
