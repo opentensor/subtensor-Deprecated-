@@ -378,9 +378,4 @@ impl<T: Trait> Module<T> {
 	{
 		input.try_into().ok()
 	}
-<<<<<<< HEAD
 }
-=======
-
-}
->>>>>>> eb8312e8e26b2b84349df07f08658289e4d57ad3
