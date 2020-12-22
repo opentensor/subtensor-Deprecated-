@@ -64,7 +64,7 @@ decl_storage! {
 		/// The metadata contains that uid, the ip, port, and coldkey address.
 		pub Neurons get(fn neuron): map hasher(blake2_128_concat) T::AccountId => NeuronMetadataOf<T>;
 	
-		/// ---- List of values which map between a neuron's uid that neurons
+		/// ---- List of values which map between a neuron's uid an that neuron's
 		/// weights, a.k.a is row_weights in the square matrix W. Each outward edge
 		/// is represented by a (u64, u64) tuple determining the endpoint and weight
 		/// value respectively. Each giga byte of chain storage can hold history for
@@ -378,4 +378,9 @@ impl<T: Trait> Module<T> {
 	{
 		input.try_into().ok()
 	}
+<<<<<<< HEAD
 }
+=======
+
+}
+>>>>>>> eb8312e8e26b2b84349df07f08658289e4d57ad3
