@@ -17,9 +17,6 @@ impl<T: Trait> Module<T> {
     }
 }
 
-
-
-
 fn normalize(mut weights: Vec<u32>) -> Vec<u32> {
     let sum: u64 = weights.iter().map(|x| *x as u64).sum();
 
