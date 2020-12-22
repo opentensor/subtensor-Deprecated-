@@ -1,6 +1,3 @@
-// On spliting modules : https://stackoverflow.com/questions/56902167/in-substrate-is-there-a-way-to-use-storage-and-functions-from-one-custom-module
-
-
 #![cfg_attr(not(feature = "std"), no_std)]
 
 // --- Frame imports.
@@ -8,7 +5,7 @@ use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch,
 use frame_support::weights::{DispatchClass, Pays};
 use codec::{Decode, Encode};
 use frame_system::{self as system, ensure_signed};
-use substrate_fixed::types::U32F32;
+use substrate_fixed::types::U64F64;
 use sp_std::convert::TryInto;
 use sp_std::{
 	prelude::*
@@ -18,9 +15,7 @@ mod weights;
 mod staking;
 mod subscribing;
 mod emission;
-
-use frame_support::debug::RuntimeLogger;
-
+mod block_reward;
 
 /// --- Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Trait: frame_system::Trait {
@@ -32,10 +27,10 @@ pub trait Trait: frame_system::Trait {
 }
 
 // ---- Create account types for the NeuronMetadata struct.
-// Account is of type system::Trait::AccoountId.
 type AccountIdOf<T> = <T as system::Trait>::AccountId;
 type NeuronMetadataOf<T> = NeuronMetadata<AccountIdOf<T>>;
 
+// ---- Neuron endpoint information
 #[derive(Encode, Decode, Default)]
 pub struct NeuronMetadata <AccountId> {
 	/// ---- The endpoint's u128 encoded ip address of type v6 or v4.  
@@ -47,6 +42,12 @@ pub struct NeuronMetadata <AccountId> {
 	/// ---- The endpoint's ip type, 4 for ipv4 and 6 for ipv6. 
 	ip_type: u8,
 
+	/// ---- The endpoint's unique identifier. The chain can have
+	/// 18,446,744,073,709,551,615 neurons before we overflow. However
+	/// by this point the chain would be 10 terabytes just from metadata
+	/// alone.
+	uid: u64, 
+
 	/// ---- The associated coldkey account. 
 	/// Staking and unstaking transactions must be made by this account.
 	/// The hotkey account (in the Neurons map) has permission to call emit
@@ -54,39 +55,45 @@ pub struct NeuronMetadata <AccountId> {
 	coldkey: AccountId,
 }
 
-// The pallet's runtime storage items.
+// ---- Subtensor storage items.
 decl_storage! {
 	trait Store for Module<T: Trait> as SubtensorModule {
-	
-		/// ---- Maps between a neuron's hotkey account address and that neurons
-		/// weights, a.k.a is row_weights in the square matrix W. The vector of keys
-		/// and the vector of weights must be the same length and if they exist
-		/// their values must be positive and sum to the largest u32 value.
-		pub WeightKeys: map hasher(blake2_128_concat) T::AccountId => Vec<T::AccountId>;
-		pub WeightVals: map hasher(blake2_128_concat) T::AccountId => Vec<u32>;
 
-		/// ---- Maps between a neuron's hotkey account address and the block number
+		/// ----  Maps between a neuron's hotkey account address and additional 
+		/// metadata associated with that neuron. All other maps, map between the with a uid. 
+		/// The metadata contains that uid, the ip, port, and coldkey address.
+		pub Neurons get(fn neuron): map hasher(blake2_128_concat) T::AccountId => NeuronMetadataOf<T>;
+	
+		/// ---- List of values which map between a neuron's uid an that neuron's
+		/// weights, a.k.a is row_weights in the square matrix W. Each outward edge
+		/// is represented by a (u64, u64) tuple determining the endpoint and weight
+		/// value respectively. Each giga byte of chain storage can hold history for
+		/// 83 million weights. 
+		pub WeightUids: map hasher(twox_64_concat) u64 => Vec<u64>;
+		pub WeightVals: map hasher(twox_64_concat) u64 => Vec<u32>;
+
+		/// ---- Maps between a neuron's hotkey uid and the block number
 		/// when that peer last called an emission. The last emit time is used to determin
 		/// the proportion of inflation remaining to emit during the next emit call.
-		pub LastEmit get(fn block): map hasher(blake2_128_concat) T::AccountId => T::BlockNumber;
+		pub LastEmit get(fn last_emit): map hasher(twox_64_concat) u64 => T::BlockNumber;
 		
-		/// ----  Maps between a neuron's hotkey account address and additional 
-		/// metadata associated with that neuron. Specifically, the ip,port, and coldkey address.
-		pub Neurons get(fn neuron): map hasher(blake2_128_concat) T::AccountId => NeuronMetadataOf<T>;
-
-		/// ----  Maps between a neuron's hotkey account address and the number of
+		/// ----  Maps between a neuron's hotkey uid and the number of
 		/// staked tokens under that key.
-		pub Stake get(fn stake): map hasher(blake2_128_concat) T::AccountId => u32;
+		pub Stake get(fn stake): map hasher(twox_64_concat) u64 => u64;
 
 		/// ---- Stores the amount of currently staked token.
-		TotalStake: u32;
+		TotalStake: u64;
 
 		/// ---- Stores the number of active neurons.
-		NeuronCount: u32;
+		ActiveCount: u64;
+
+		/// ---- The next uid allocated to a subscribing neuron. Or a count of how many peers
+		/// have ever subscribed.
+		NextUID: u64;
 	}
 }
 
-// Subtensor events.
+// ---- Subtensor events.
 decl_event!(
 	pub enum Event<T> where AccountId = <T as frame_system::Trait>::AccountId {
 		/// ---- Event created when a caller successfully set's their weights
@@ -107,20 +114,20 @@ decl_event!(
 
 		/// --- Event created during when stake has been transfered from 
 		/// the coldkey onto the hotkey staking account.
-		StakeAdded(AccountId, u32),
+		StakeAdded(AccountId, u64),
 
-		/// -- Event created when stake has been removed from 
+		/// --- Event created when stake has been removed from 
 		/// the staking account into the coldkey account.
-		StakeRemoved(AccountId, u32),
+		StakeRemoved(AccountId, u64),
 
-		/// ---- Event created when a transaction triggers and incentive
+		/// --- Event created when a transaction triggers and incentive
 		/// mechanism emission.
-		Emission(AccountId, u32),
+		Emission(AccountId, u64),
 		
 	}
 );
 
-// Subtensor Errors.
+// ---- Subtensor Errors.
 decl_error! {
 	pub enum Error for Module<T: Trait> {
 		/// ---- Thrown when the caller attempts to set the weight keys
@@ -147,6 +154,11 @@ decl_error! {
 		/// ---- Thrown when the caller requests removing more stake then there exists 
 		/// in the staking account. See: fn remove_stake.
 		NotEnoughStaketoWithdraw,
+
+		/// ---- Thrown when the dispatch attempts to convert between a u64 and T::balance 
+		/// but the call fails.
+		CouldNotConvertToBalance
+
 	}
 }
 
@@ -163,7 +175,7 @@ impl<T: Trait> Printable for Error<T> {
     }
 }
 
-// Subtensor Dispatchable functions.
+// ---- Subtensor Dispatchable functions.
 decl_module! {
 	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
 		// Errors must be initialized if they are used by the pallet.
@@ -172,30 +184,67 @@ decl_module! {
 		// Events must be initialized if they are used by the pallet.
 		fn deposit_event() = default;
 
+		// /// ---- Emits inflation from the calling neuron to neighbors and themselves.
+		// /// 
+		// /// # Args:
+		// ///  	* `caller` (T::Origin):
+		// /// 		- The transaction caller who wishes to emit.
+		// /// 
+		// /// # Returns
+		// /// 	* emission (u64):
+		// /// 		- The total amount emitted to the caller.
+		// /// 	
+		// #[weight = (0, DispatchClass::Operational, Pays::No)]
+		// pub fn emit( origin: T::Origin ) -> dispatch::DispatchResult {
 
-		/// --- Sets weights to public keys on the neuron
-		/// The dests parameter is a vector of public keys
-		/// The values parameter is a vector of unsigned 32 bit integers
-		/// These 32 bit integers should represent a decimal number where when all bits
-		/// are set, this represents 1.0.
-		///
-		/// The function normalizes all integers to u32_max. This means that if the sum of all
-		/// elements is larger or smaller than the amount of elements * u32_max, all elements
-		/// will be corrected for this deviation. See the unit tests on the bottom of this file
-		/// for more information.
-		///
-		/// After normalizing the weights, they are pushed on the chain and an event is issued.
+		// 	Self::do_emit( origin )
+		// }
+
+		/// --- Sets the caller weights for the incentive mechanism. The call can be
+		/// made from the hotkey account so is potentially insecure, however, the damage 
+		/// of changing weights is minimal if caught early. This function includes all the
+		/// checks that the passed weights meet the requirements. Stored as u64s they represent
+		/// rational values in the range [0,1] which sum to 1 and can be interpreted as
+		/// probabilities. The specific weights determine how inflation propagates outward 
+		/// from this peer. Because this function changes the inflation distribution it 
+		/// triggers an emit before values are changed on the chain.
+		/// 
+		/// Note: The 32 bit integers weights should represent 1.0 as the max u64.
+		/// However, the function normalizes all integers to u64_max anyway. This means that if the sum of all
+		/// elements is larger or smaller than the amount of elements * u64_max, all elements
+		/// will be corrected for this deviation. 
+		/// 
+		/// # Args:
+		/// 	* `origin`: (<T as frame_system::Trait>Origin):
+		/// 		- The caller, a hotkey who wishes to set their weights.
+		/// 
+		/// 	* `uids` (Vec<u64>):
+		/// 		- The edge endpoint for the weight, i.e. j for w_ij.
+		/// 
+		/// 	* `weights` (Vec<u64>):
+		/// 		- The u64 integer encoded weights. Interpreted as rational 
+		/// 		values in the range [0,1]. They must sum to in32::MAX.
+		/// 
+		/// # Emits:
+		/// 	`WeightsSet`:
+		/// 		- On successfully setting the weights on chain.
+		/// 
+		/// # Raises:
+		/// 	* `WeightVecNotEqualSize`:
+		/// 		- If the passed weights and uids have unequal size.
+		/// 
+		/// 	* `WeightSumToLarge`:
+		/// 		- When the calling coldkey is not associated with the hotkey account.
+		/// 
+		/// 	* `InsufficientBalance`:
+		/// 		- When the amount to stake exceeds the amount of balance in the
+		/// 		associated colkey account.
+		/// 	
 		#[weight = (0, DispatchClass::Operational, Pays::No)]
-		pub fn set_weights(origin,
-				dests: Vec<T::AccountId>,
-				values: Vec<u32>) -> dispatch::DispatchResult {
+		pub fn set_weights(origin, dests: Vec<u64>, weights: Vec<u32>) -> dispatch::DispatchResult {
 
-
-			Self::do_set_weights(origin, dests, values)
+			Self::do_set_weights(origin, dests, weights)
 		}
-
-
-
 
 		/// --- Adds stake to a neuron account. The call is made from the
 		/// coldkey account linked in the neurons's NeuronMetadata.
@@ -210,7 +259,7 @@ decl_module! {
 		/// 	* `hotkey` (T::AccountId):
 		/// 		- The hotkey account to add stake to.
 		///
-		/// 	* `ammount_staked` (u32):
+		/// 	* `ammount_staked` (u64):
 		/// 		- The ammount to transfer from the balances account of the cold key
 		/// 		into the staking account of the hotkey.
 		///
@@ -230,7 +279,7 @@ decl_module! {
 		/// 		associated colkey account.
 		///
 		#[weight = (0, DispatchClass::Operational, Pays::No)] // TODO(const): should be a normal transaction fee.
-		fn add_stake(origin, hotkey: T::AccountId, ammount_staked: u32) -> dispatch::DispatchResult {
+		fn add_stake(origin, hotkey: T::AccountId, ammount_staked: u64) -> dispatch::DispatchResult {
 			Self::do_add_stake(origin, hotkey, ammount_staked)
 		}
 
@@ -245,7 +294,7 @@ decl_module! {
 		/// 	* `hotkey` (T::AccountId):
 		/// 		- The hotkey account to withdraw stake from.
 		///
-		/// 	* `ammount_unstaked` (u32):
+		/// 	* `ammount_unstaked` (u64):
 		/// 		- The ammount to transfer from the staking account into the balance
 		/// 		of the coldkey.
 		///
@@ -262,7 +311,7 @@ decl_module! {
 		/// 		associated hotkey staking account.
 		///
 		#[weight = (0, DispatchClass::Operational, Pays::No)]
-		fn remove_stake(origin, hotkey: T::AccountId, ammount_unstaked: u32) -> dispatch::DispatchResult {
+		fn remove_stake(origin, hotkey: T::AccountId, ammount_unstaked: u64) -> dispatch::DispatchResult {
 			Self::do_remove_stake(origin, hotkey, ammount_unstaked)
 		}
 
@@ -276,7 +325,7 @@ decl_module! {
 		/// 		- The caller, a hotkey associated with the subscribing neuron.
 		///
 		/// 	* `ip` (u128):
-		/// 		- The u32 encoded IP address of type 6 or 4.
+		/// 		- The u64 encoded IP address of type 6 or 4.
 		///
 		/// 	* `port` (u16):
 		/// 		- The port number where this neuron receives RPC requests.
@@ -322,69 +371,11 @@ decl_module! {
 	}
 }
 
+// ---- Subtensor helper functions.
 impl<T: Trait> Module<T> {
 
-	/// Returns the bitcoin inflation rate at block number. We use a mapping between the bitcoin blocks and substrate.
-	/// Substrate blocks mint 100x faster and so the halving time and emission rate need to correspondingly changed.
-	/// Each block produces 0.5 x 10^12 tokens, or semantically, as 0.5 full coins every 6 seconds. The halving
-	/// is occurs every 21 million blocks. Like bitcoin, this ensures there are only every 21 million full tokens
-	/// created. In our case this ammount is furthre limited since inflation is only triggered by calling peers.
-	/// The inflation is therefore not continuous, and we lose out when peers fail to emit with their stake, or
-	/// fail to emit before a halving.
-	///
-	/// # Args:
-	///  	* `now` (&T::BlockNumber):
-	/// 		- The block number we wish to return the block reward at (tau)
-	///
-	/// # Returns
-	/// 	* block_reward (U32F32):
-	/// 		- The number of tokens to emit at this block as a fixed point.
-	///
-	fn block_reward(now: &<T as system::Trait>::BlockNumber) -> U32F32 {
-
-		// --- We convert the block number to u32 and then to a fixed point for further
-		// calculations.
-		let elapsed_blocks_u32 = TryInto::try_into(*now).ok().expect("blockchain will not exceed 2^32 blocks; QED.");
-		let elapsed_blocks_u32_f32 = U32F32::from_num(elapsed_blocks_u32);
-
-		// --- We get the initial block reward.
-		// TODO(const): shoudl be 0.5 x 10 ^ 12.
-		// Bitcoin block reward started at 50 tokens per block.
-		// The average substrate block time is 6 seconds.
-		// The equivalent halving is (50 blocks) / (10 min * 60 sec / 6 sec) =  (50) / (100) = (0.5 tokens per block)
-		let block_reward = U32F32::from_num(0.5);
-
-		// --- We calculate the number of halvings since the chain was initialized
-		// Bitcoin block halving rate was 210,000 blocks at block every 10 minutes.
-		// The average substrate block time is 6 seconds.
-		// The equivalent halving is (210,000 blocks) * (10 min * 60 sec / 6 sec) =  (210,000) * (100) = (21,000,000 blocks)
-		let block_halving = U32F32::from_num(21000000);
-		let fractional_halvings = elapsed_blocks_u32_f32 / block_halving;
-		let floored_halvings = fractional_halvings.floor().to_num::<u32>();
-		debug::info!("block_halving: {:?}", block_halving);
-		debug::info!("floored_halvings: {:?}", floored_halvings);
-
-		// --- We shit the block reward for each halving to get the actual reward at this block.
-		// NOTE: Underflow occurs in 21,000,000 * (16 + 4) blocks essentially never.
-		let block_reward_shift = block_reward.overflowing_shr(floored_halvings).0;
-
-		// --- We return the result.
-		block_reward_shift
-	}
-
-	pub fn u32_to_balance(input: u32) -> <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance
+	pub fn u64_to_balance(input: u64) -> Option<<<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance>
 	{
-		input.into()
+		input.try_into().ok()
 	}
-
-
-
-
-
-
 }
-
-
-
-
-

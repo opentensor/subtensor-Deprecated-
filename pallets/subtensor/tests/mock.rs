@@ -47,6 +47,7 @@ impl system::Trait for Test {
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
+	type Currency = ();
 }
 
 impl Trait for Test {
