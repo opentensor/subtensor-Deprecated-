@@ -14,7 +14,7 @@ impl<T: Trait> Module<T> {
 
         // Check if the hotkey is active
         ensure!(Self::is_active(&hotkey), Error::<T>::NotActive);
-        let neuron = Self::get_neuron_for_hotkey(&hotkey);
+        let neuron = Self::get_neuron_metadata_for_hotkey(&hotkey);
 
         // ---- We check that the NeuronMetadata is linked to the calling
         // cold key, otherwise throw a NonAssociatedColdKey error.
@@ -58,7 +58,7 @@ impl<T: Trait> Module<T> {
         // ---- We query the Neuron set for the NeuronMetadata stored under
         // the passed hotkey.
         ensure!(Self::is_active(&hotkey), Error::<T>::NotActive);
-        let neuron = Self::get_neuron_for_hotkey(&hotkey);
+        let neuron = Self::get_neuron_metadata_for_hotkey(&hotkey);
 
         // ---- We check that the NeuronMetadata is linked to the calling
         // cold key, otherwise throw a NonAssociatedColdKey error.
@@ -143,15 +143,7 @@ impl<T: Trait> Module<T> {
 
     // ---- We query the Neuron set for the neuron data stored under
     // the passed hotkey and retrieve it as a NeuronMetadata struct.
-    fn get_neuron_for_hotkey(hotkey: &T::AccountId) -> NeuronMetadataOf<T> {
-        let neuron: NeuronMetadataOf<T> = Neurons::<T>::get(&hotkey);
-        debug::info!("Got neuron metadata for hotkey {:?}", hotkey);
-        neuron
-    }
 
-    fn is_active(hotkey: &T::AccountId) -> bool {
-        return Neurons::<T>::contains_key(&hotkey);
-    }
 
     fn neuron_belongs_to_coldkey(neuron : &NeuronMetadataOf<T>, coldkey : &T::AccountId) -> bool {
         return neuron.coldkey == *coldkey
