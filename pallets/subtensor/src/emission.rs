@@ -53,57 +53,60 @@ impl<T: Trait> Module<T> {
         // This is needed to determine the proportion of inflation allocated to
         // the caller. Note also, that the block reward is a decreasing function
         // callers want to call emit before the block inflation decreases.
-        let last_emit: T::BlockNumber = LastEmit::<T>::get(neuron.uid);
-        let current_block = system::Module::<T>::block_number();
-        let block_reward = Self::block_reward(&current_block);
-        debug::info!("Last emit block: {:?}", last_emit);
-        debug::info!("Current block: {:?}", current_block);
-        debug::info!("Block reward: {:?}", block_reward);
+        // let last_emit: T::BlockNumber = LastEmit::<T>::get(neuron.uid);
+        // let current_block = system::Module::<T>::block_number();
+
+        // debug::info!("Last emit block: {:?}", last_emit);
+        // debug::info!("Current block: {:?}", current_block);
+        // debug::info!("Block reward: {:?}", block_reward);
 
         // --- We get the number of blocks since the last emit and
         // convert types into U64F64. The floating precision enables
         // the following calculations.
-        let elapsed_blocks = current_block - last_emit;
-        let elapsed_blocks_u64: usize = TryInto::try_into(elapsed_blocks).ok().expect("blockchain will not exceed 2^64 blocks; qed");
-        let elapsed_blocks_u64_f64 = U64F64::from_num(elapsed_blocks_u64);
-        debug::info!("elapsed_blocks_u64: {:?}", elapsed_blocks_u64);
-        debug::info!("elapsed_blocks_u64_f64: {:?}", elapsed_blocks_u64_f64);
-        if elapsed_blocks_u64_f64 == U64F64::from_num(0) {
-            // No blocks have passed, nothing to emit. Return without error.
-            return 0;
-        }
+        // let elapsed_blocks = current_block - last_emit;
+        // let elapsed_blocks_u64: usize = TryInto::try_into(elapsed_blocks).ok().expect("blockchain will not exceed 2^64 blocks; qed");
+        // let elapsed_blocks_u64_f64 = U64F64::from_num(elapsed_blocks_u64);
+        // debug::info!("elapsed_blocks_u64: {:?}", elapsed_blocks_u64);
+        // debug::info!("elapsed_blocks_u64_f64: {:?}", elapsed_blocks_u64_f64);
+
 
         // --- We get the callers stake and the total stake ammounts
         // converting them to U64F64 for the following calculations.
-        let total_stake: u64 = TotalStake::get();
-        let total_stake_u64_f64 = U64F64::from_num(total_stake);
-        let caller_stake: u64 = Stake::get(neuron.uid);
-        let caller_stake_u64_f64 = U64F64::from_num(caller_stake);
-        debug::info!("total_stake_u64_f64 {:?}", total_stake_u64_f64);
-        debug::info!("caller_stake_u64_f64 {:?}", caller_stake_u64_f64);
-        if total_stake_u64_f64 == U64F64::from_num(0) {
-            // total stake is zero, nothing to emit. Return without error.
-            return 0;
-        }
+        // let total_stake: u64 = TotalStake::get();
+        // let total_stake_u64_f64 = U64F64::from_num(total_stake);
+        // let caller_stake: u64 = Stake::get(neuron.uid);
+        // let caller_stake_u64_f64 = U64F64::from_num(caller_stake);
+        // debug::info!("total_stake_u64_f64 {:?}", total_stake_u64_f64);
+        // debug::info!("caller_stake_u64_f64 {:?}", caller_stake_u64_f64);
+        // if total_stake_u64_f64 == U64F64::from_num(0) {
+        //     // total stake is zero, nothing to emit. Return without error.
+        //     return 0;
+        // }
+        //
+        // // --- We get the fraction of total stake held by the caller.
+        // // This should only be zero if the caller has zero stake. Otherwise
+        // // it returns a floating point (a.k.a, bits in the F64 part.)
+        // let stake_fraction_u64_f64 = caller_stake_u64_f64 / total_stake_u64_f64;
+        // debug::info!("stake_fraction_u64_f64 {:?}", stake_fraction_u64_f64);
+        // if stake_fraction_u64_f64 == U64F64::from_num(0) {
+        //     // stake fraction is zero, nothing to emit. Return without error.
+        //     return 0;
+        // }
 
-        // --- We get the fraction of total stake held by the caller.
-        // This should only be zero if the caller has zero stake. Otherwise
-        // it returns a floating point (a.k.a, bits in the F64 part.)
-        let stake_fraction_u64_f64 = caller_stake_u64_f64 / total_stake_u64_f64;
-        debug::info!("stake_fraction_u64_f64 {:?}", stake_fraction_u64_f64);
-        if stake_fraction_u64_f64 == U64F64::from_num(0) {
-            // stake fraction is zero, nothing to emit. Return without error.
-            return 0;
-        }
+        // let stake_fraction = Self::stake_fraction_for_neuron(&neuron);
 
         // --- We calculate the total emission available to the caller.
         // the block reward is positive and non-zero, so are the stake_fraction and elapsed blocks.
         // this ensures the total_emission is positive non-zero. To begin the block reward is (0.5 * 10^12).
-        let callers_emission_u64_f64 = stake_fraction_u64_f64 * block_reward * elapsed_blocks_u64_f64;
-        debug::info!("callers_emission_u64_f64: {:?} = {:?} * {:?} * {:?}", callers_emission_u64_f64, stake_fraction_u64_f64, block_reward, elapsed_blocks_u64_f64);
-        if callers_emission_u64_f64 == U64F64::from_num(0) {
-            // callers emission is zero, nothing to emit. Return without error.
-            return 0;
+        // let callers_emission_u64_f64 = stake_fraction_u64_f64 * block_reward * elapsed_blocks;
+        // debug::info!("callers_emission_u64_f64: {:?} = {:?} * {:?} * {:?}", callers_emission_u64_f64, stake_fraction_u64_f64, block_reward, elapsed_blocks);
+        // if callers_emission_u64_f64 == U64F64::from_num(0) {
+        //     callers emission is zero, nothing to emit. Return without error.
+            // return 0;
+        // }
+        let emission_for_neuron = Self::calculate_emission_for_neuron(&neuron);
+        if emission_for_neuron == 0 {
+            return 0; // Nothing to emit, go home.
         }
 
         // --- We get the callers weights. The total emission will be distributed
@@ -131,7 +134,7 @@ impl<T: Trait> Module<T> {
             // --- We get the emission from neuron i to neuron j.
             // The multiplication of the weight \in [0, 1]
             // by the total_emission gives us the emission proportion.
-            let emission_u64_f64 = callers_emission_u64_f64 * wij_norm_u64_f64;
+            let emission_u64_f64 = emission_for_neuron * wij_norm_u64_f64;
             debug::info!("emission_u64_f64 {:?}", emission_u64_f64);
 
             // --- We increase the staking account. The floating
@@ -151,17 +154,48 @@ impl<T: Trait> Module<T> {
 
         // --- We add the total amount of stake emitted to the staking pool.
         // Note: This value may not perfectly match total_emission_u64_f64 after rounding.
-        let total_stake: u64 = TotalStake::get();
-        TotalStake::put(total_stake + total_new_stake_u64);
-        debug::info!("Adding new total stake {:?} to old total {:?} now {:?}", total_new_stake_u64, total_stake, TotalStake::get());
+        Self::increase_total_stake(total_new_stake_u64);
 
         // --- Finally, we update the last emission by the caller.
-        LastEmit::<T>::insert(neuron.uid, current_block);
-        debug::info!("The old last emit: {:?} the new last emit: {:?}", last_emit, current_block);
+        Self::update_last_emit_for_neuron(&neuron);
 
         // --- Return ok.
         debug::info!("--- Done emit");
         return total_new_stake_u64;
+    }
+
+    fn calculate_emission_for_neuron(neuron : &NeuronMetadataOf<T>) -> U64F64 {
+        let block_reward = Self::current_block_reward();
+        let stake_fraction = Self::stake_fraction_for_neuron(&neuron);
+        let elapsed_blocks = Self::elapsed_blocks_for_neuron(&neuron);
+
+        // @todo This algorithm will cause problems. It uses the current block reward
+        // and uses it as a multiplier for elapsed blocks. This is fine if the block
+        // reward for the elapsed blocks is the same, but since the block reward is variable
+        // as a function of elapsed blocks, this is inaccurate.
+        //
+        // The same is true for the stake fraction. This changes as well for elapsed blocks
+        // A more accurate emission function would be to integrate the block reward with respect
+        // to block number.
+        // For the stake fraction, this is harder, but it would suffice to do a lot of emissions.
+
+        let emission  = block_reward * stake_fraction * elapsed_blocks;
+
+        return emission;
+    }
+
+
+    fn elapsed_blocks_for_neuron(neuron : &NeuronMetadataOf<T>) -> U64F64{
+        let current_block = system::Module::<T>::block_number();
+        let last_emit: T::BlockNumber = LastEmit::<T>::get(neuron.uid);
+
+        let elapsed_blocks = current_block - last_emit;
+        let elapsed_blocks_u64: usize = TryInto::try_into(elapsed_blocks).ok().expect("blockchain will not exceed 2^64 blocks; qed");
+        let elapsed_blocks_u64_f64 = U64F64::from_num(elapsed_blocks_u64);
+        debug::info!("elapsed_blocks_u64: {:?}", elapsed_blocks_u64);
+        debug::info!("elapsed_blocks_u64_f64: {:?}", elapsed_blocks_u64_f64);
+
+        elapsed_blocks_u64_f64
     }
 
 

@@ -144,12 +144,6 @@ impl<T: Trait> Module<T> {
         debug::info!("Withdrew {:?} from coldkey: {:?}", amount.unwrap(), coldkey);
     }
 
-
-
-    // ---- We query the Neuron set for the neuron data stored under
-    // the passed hotkey and retrieve it as a NeuronMetadata struct.
-
-
     fn neuron_belongs_to_coldkey(neuron : &NeuronMetadataOf<T>, coldkey : &T::AccountId) -> bool {
         return neuron.coldkey == *coldkey
     }
@@ -163,6 +157,31 @@ impl<T: Trait> Module<T> {
     fn has_enough_stake(neuron : &NeuronMetadataOf<T>, amount : u64) -> bool{
         let hotkey_stake: u64 = Stake::get( neuron.uid );
         return hotkey_stake >= amount;
+    }
+
+
+    pub fn stake_fraction_for_neuron(neuron : &NeuronMetadataOf<T>) -> U64F64 {
+        let total_stake = U64F64::from_num(TotalStake::get());
+        let neuron_stake = U64F64::from_num(Stake::get(neuron.uid));
+
+        debug::info!("total stake {:?}", total_stake);
+        debug::info!("neuron stake (uid: {:?}) :  {:?}", neuron.uid, neuron_stake);
+
+        // Total stake is 0, this should virtually never happen, but is still here because it could
+        if total_stake == U64F64::from_num(0) {
+            return U64F64::from_num(0);
+        }
+
+        // Neuron stake is zero. This means there will be nothing to emit
+        if neuron_stake ==U64F64::from_num(0) {
+            return U64F64::from_num(0);
+        }
+
+        let stake_fraction = neuron_stake / total_stake;
+
+        debug::info!("Stake fraction for neuron (uid: {:?}) : {:?}", neuron.uid, stake_fraction);
+
+        return stake_fraction;
     }
 }
 
