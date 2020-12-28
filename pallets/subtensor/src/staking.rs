@@ -108,7 +108,7 @@ impl<T: Trait> Module<T> {
         debug::info!("Added {:?} to total stake, now {:?}", increment, TotalStake::get());
     }
 
-    fn reduce_total_stake(decrement: u64) {
+    pub fn reduce_total_stake(decrement: u64) {
         // --- We update the total staking pool with the removed funds.
         let total_stake: u64 = TotalStake::get();
         TotalStake::put(total_stake - decrement);
@@ -127,7 +127,12 @@ impl<T: Trait> Module<T> {
         debug::info!("Withdraw: {:?} from hotkey staking account for new ammount {:?} staked", amount, hotkey_stake - amount);
     }
 
-    fn add_stake_to_coldkey_account(coldkey: &T::AccountId, amount: &Option<<<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance>) {
+    pub fn remove_all_stake_from_neuron_hotkey_account(neuron: &NeuronMetadataOf<T>) {
+        Stake::remove(neuron.uid);
+
+    }
+
+    pub fn add_stake_to_coldkey_account(coldkey: &T::AccountId, amount: &Option<<<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance>) {
         //@todo (Parallax, 28-12-2020) implement error handling
         let _ = T::Currency::deposit_creating(&coldkey, amount.unwrap());
         debug::info!("Deposit {:?} into coldkey balance ", amount.unwrap());
@@ -138,6 +143,8 @@ impl<T: Trait> Module<T> {
         let _ = T::Currency::withdraw(&coldkey, amount.unwrap(), WithdrawReasons::except(WithdrawReason::Tip), ExistenceRequirement::KeepAlive);
         debug::info!("Withdrew {:?} from coldkey: {:?}", amount.unwrap(), coldkey);
     }
+
+
 
     // ---- We query the Neuron set for the neuron data stored under
     // the passed hotkey and retrieve it as a NeuronMetadata struct.

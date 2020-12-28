@@ -36,6 +36,61 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
+
+
+    pub fn do_unsubscribe(origin: T::Origin) -> dispatch::DispatchResult
+    {
+        // --- We check the signature of the calling account.
+        let hotkey_id = ensure_signed(origin)?;
+        debug::info!("--- Called unsubscribe with caller: {:?}", hotkey_id);
+
+        // --- We check that the Neuron already exists in the active set.
+        ensure!(Self::is_active(&hotkey_id), Error::<T>::NotActive);
+        let neuron = Self::get_neuron_metadata_for_hotkey(&hotkey_id);
+
+        // --- We call the emit function. Neurons must call an emit before
+        // they leave the incentive mechanim or else they can cheat their peers
+        // of promised inflation.
+        Self::emit_from_uid(neuron.uid);
+
+        // --- If there are funds staked, we unstake them and add them to the coldkey.
+        let amount_staked: u64 = Stake::get(neuron.uid);
+        debug::info!("Ammount staked on this account is: {:?}", amount_staked);
+
+        if amount_staked > 0 {
+            // --- We perform the withdrawl by converting the stake to a u64 balance
+            // and deposit the balance into the coldkey account. If the coldkey account
+            // does not exist it is created.
+            let stake_to_be_added_as_currency = Self::u64_to_balance(amount_staked);
+            ensure!(stake_to_be_added_as_currency.is_some(), Error::<T>::CouldNotConvertToBalance);
+            Self::add_stake_to_coldkey_account(&neuron.coldkey, &stake_to_be_added_as_currency);
+
+            // --- We update the total staking pool with the removed funds.
+            Self::reduce_total_stake(amount_staked);
+        }
+
+        // --- We remove the neuron-info from the various maps.
+        Self::remove_all_stake_from_neuron_hotkey_account(&neuron);
+        Self::remove_last_emit_info_for_neuron(&neuron);
+        Self::remove_weight_matrix_for_neuron(&neuron);
+        Self::remove_neuron_metadata(&hotkey_id);
+        Self::decrease_neuron_count();
+        debug::info!("Hotkey account removed: {:?}", hotkey_id);
+
+        // --- We emit the neuron removed event and return ok.
+        Self::deposit_event(RawEvent::NeuronRemoved(hotkey_id));
+        debug::info!("--- Done unsubscribe.");
+
+        Ok(())
+    }
+
+
+
+    fn remove_neuron_metadata(hotkey_id: &T::AccountId) {
+        Neurons::<T>::remove(&hotkey_id);
+    }
+
+
     /********************************
      --==[[  Helper functions   ]]==--
     *********************************/
@@ -46,6 +101,15 @@ impl<T: Trait> Module<T> {
         ActiveCount::put(neuron_count + 1);
         debug::info!("Increment the neuron count to: {:?} ", ActiveCount::get());
     }
+
+    fn decrease_neuron_count() {
+        // --- We decrement the neuron counter.
+        let neuron_count = ActiveCount::get();
+        ActiveCount::put(neuron_count - 1);
+        debug::info!("New neuron count: {:?}", ActiveCount::get());
+    }
+
+
 
     fn init_weight_matrix_for_neuron(neuron: &NeuronMetadataOf<T>) {
         // ---- We fill subscribing nodes initially with the self-weight = [1]
@@ -84,62 +148,5 @@ impl<T: Trait> Module<T> {
         NextUID::put(uid + 1);
         debug::info!("Incrementing the next uid by 1, now {:?} ", NextUID::get());
         uid
-    }
-
-    pub fn do_unsubscribe(origin: T::Origin) -> dispatch::DispatchResult
-    {
-        // --- We check the signature of the calling account.
-        let caller = ensure_signed(origin)?;
-        debug::info!("--- Called unsubscribe with caller: {:?}", caller);
-
-        // --- We check that the Neuron already exists in the active set.
-        ensure!(Neurons::<T>::contains_key( &caller ), Error::<T>::NotActive);
-        let neuron: NeuronMetadataOf<T> = Neurons::<T>::get(&caller);
-        debug::info!("Metadata retrieved with coldkey: {:?}", neuron.coldkey);
-
-        // --- We call the emit function. Neurons must call an emit before
-        // they leave the incentive mechanim or else they can cheat their peers
-        // of promised inflation.
-        Self::emit_from_uid(neuron.uid);
-
-        // --- If there are funds staked, we unstake them and add them to the coldkey.
-        let ammount_unstaked: u64 = Stake::get(neuron.uid);
-        debug::info!("Ammount staked on this account is: {:?}", ammount_unstaked);
-
-        if ammount_unstaked > 0 {
-            // --- We perform the withdrawl by converting the stake to a u64 balance
-            // and deposit the balance into the coldkey account. If the coldkey account
-            // does not exist it is created.
-            let ammount_unstaked_as_currency = Self::u64_to_balance(ammount_unstaked);
-            ensure!(ammount_unstaked_as_currency.is_some(), Error::<T>::CouldNotConvertToBalance);
-            let ammount_unstaked_as_currency = ammount_unstaked_as_currency.unwrap();
-            T::Currency::deposit_creating(&neuron.coldkey, ammount_unstaked_as_currency);
-            debug::info!("Depositing: {:?} into coldkey account: {:?}", ammount_unstaked, neuron.coldkey);
-
-
-            // --- We update the total staking pool with the removed funds.
-            let total_stake: u64 = TotalStake::get();
-            TotalStake::put(total_stake - ammount_unstaked);
-            debug::info!("Removing amount: {:?} from total stake, now: {:?}", ammount_unstaked, TotalStake::get());
-        }
-
-        // --- We remove the neuron-info from the various maps.
-        Neurons::<T>::remove(&caller);
-        Stake::remove(neuron.uid);
-        LastEmit::<T>::remove(neuron.uid);
-        WeightVals::remove(neuron.uid);
-        WeightUids::remove(neuron.uid);
-        debug::info!("Hotkey account removed: {:?}", caller);
-
-        // --- We decrement the neuron counter.
-        let neuron_count = ActiveCount::get();
-        ActiveCount::put(neuron_count - 1);
-        debug::info!("New neuron count: {:?}", ActiveCount::get());
-
-        // --- We emit the neuron removed event and return ok.
-        Self::deposit_event(RawEvent::NeuronRemoved(caller));
-        debug::info!("--- Done unsubscribe.");
-
-        Ok(())
     }
 }

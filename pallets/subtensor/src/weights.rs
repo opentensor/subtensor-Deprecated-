@@ -36,10 +36,19 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
+     /********************************
+     --==[[  Helper functions   ]]==--
+    *********************************/
+
 
     pub fn set_new_weights(neuron: &NeuronMetadataOf<T>, uids: &Vec<u64>, values: &Vec<u32>) {
         WeightVals::insert(neuron.uid, &values);
         WeightUids::insert(neuron.uid, &uids);
+    }
+
+    pub fn remove_weight_matrix_for_neuron(neuron: &NeuronMetadataOf<T>) {
+        WeightVals::remove(neuron.uid);
+        WeightUids::remove(neuron.uid);
     }
 }
 

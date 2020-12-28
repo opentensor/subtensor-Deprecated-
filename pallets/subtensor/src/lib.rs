@@ -393,7 +393,7 @@ impl<T: Trait> Module<T> {
 
 	fn get_neuron_metadata_for_hotkey(hotkey: &T::AccountId) -> NeuronMetadataOf<T> {
         let neuron: NeuronMetadataOf<T> = Neurons::<T>::get(&hotkey);
-        debug::info!("Got neuron metadata for hotkey {:?}", hotkey);
+        debug::info!("Got neuron metadata for hotkey {:?} and coldkey: {:?} ", hotkey, neuron.coldkey);
         neuron
     }
 }
