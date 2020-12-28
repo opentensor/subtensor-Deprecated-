@@ -19,7 +19,7 @@ impl<T: Trait> Module<T> {
         // ---- We call an inflation emit before setting the weights
         // to ensure that the caller is pays for his previously set weights.
         // TODO(const): can we pay for this transaction through inflation.
-        Self::emit_from_uid(neuron.uid);
+        Self::emit_for_neuron(&neuron);
         debug::info!("finished emit");
 
         let normalized_values = normalize(values);

@@ -51,7 +51,7 @@ impl<T: Trait> Module<T> {
         // --- We call the emit function. Neurons must call an emit before
         // they leave the incentive mechanim or else they can cheat their peers
         // of promised inflation.
-        Self::emit_from_uid(neuron.uid);
+        Self::emit_for_neuron(&neuron);
 
         // --- If there are funds staked, we unstake them and add them to the coldkey.
         let amount_staked: u64 = Stake::get(neuron.uid);

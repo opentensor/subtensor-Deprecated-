@@ -17,17 +17,16 @@ impl<T: Trait> Module<T> {
     pub fn do_emit(origin: T::Origin) -> dispatch::DispatchResult {
         // ---- We check the transaction is signed by the caller
         // and retrieve the T::AccountId pubkey information.
-        let caller = ensure_signed(origin)?;
-        debug::info!("--- Called emit with caller {:?}", caller);
+        let hotkey_id = ensure_signed(origin)?;
+        debug::info!("--- Called emit with caller {:?}", hotkey_id);
 
         // ---- We query the Neuron set for the neuron data stored under
         // the passed hotkey and retrieve it as a NeuronMetadata struct.
-        ensure!(Neurons::<T>::contains_key(&caller), Error::<T>::NotActive);
-        let neuron: NeuronMetadataOf<T> = Neurons::<T>::get(&caller);
-        debug::info!("Got metadata for hotkey {:?}", caller);
+        ensure!(Self::is_active(&hotkey_id), Error::<T>::NotActive);
+        let neuron = Self::get_neuron_metadata_for_hotkey(&hotkey_id);
 
         // ---- We call emit for this neuron.
-        Self::emit_from_uid(neuron.uid);
+        Self::emit_for_neuron(&neuron);
 
         // ---- Done.
         Ok(())
@@ -45,16 +44,16 @@ impl<T: Trait> Module<T> {
     /// 	* emission (u64):
     /// 		- The total amount emitted to the caller.
     ///
-    pub fn emit_from_uid(neuron_uid: u64) -> u64 {
+    pub fn emit_for_neuron(neuron: &NeuronMetadataOf<T>) -> u64 {
         // --- We init the Runtimelogger for WASM debugging
         RuntimeLogger::init();
-        debug::info!("--- Calling emit, neuron_uid: {:?}", neuron_uid);
+        debug::info!("--- Calling emit, neuron_uid: {:?}", neuron.uid);
 
         // --- We get the current block reward and the last time the user emitted.
         // This is needed to determine the proportion of inflation allocated to
         // the caller. Note also, that the block reward is a decreasing function
         // callers want to call emit before the block inflation decreases.
-        let last_emit: T::BlockNumber = LastEmit::<T>::get(neuron_uid);
+        let last_emit: T::BlockNumber = LastEmit::<T>::get(neuron.uid);
         let current_block = system::Module::<T>::block_number();
         let block_reward = Self::block_reward(&current_block);
         debug::info!("Last emit block: {:?}", last_emit);
@@ -78,7 +77,7 @@ impl<T: Trait> Module<T> {
         // converting them to U64F64 for the following calculations.
         let total_stake: u64 = TotalStake::get();
         let total_stake_u64_f64 = U64F64::from_num(total_stake);
-        let caller_stake: u64 = Stake::get(neuron_uid);
+        let caller_stake: u64 = Stake::get(neuron.uid);
         let caller_stake_u64_f64 = U64F64::from_num(caller_stake);
         debug::info!("total_stake_u64_f64 {:?}", total_stake_u64_f64);
         debug::info!("caller_stake_u64_f64 {:?}", caller_stake_u64_f64);
@@ -109,8 +108,8 @@ impl<T: Trait> Module<T> {
 
         // --- We get the callers weights. The total emission will be distributed
         // according to these weights. The weight_vals sum to u32::max.
-        let weight_vals: Vec<u32> = WeightVals::get(neuron_uid);
-        let weight_uids: Vec<u64> = WeightUids::get(neuron_uid);
+        let weight_vals: Vec<u32> = WeightVals::get(neuron.uid);
+        let weight_uids: Vec<u64> = WeightUids::get(neuron.uid);
         if weight_uids.is_empty() || weight_vals.is_empty() {
             // callers has no weights, nothing to emit. Return without error.
             return 0;
@@ -157,7 +156,7 @@ impl<T: Trait> Module<T> {
         debug::info!("Adding new total stake {:?} to old total {:?} now {:?}", total_new_stake_u64, total_stake, TotalStake::get());
 
         // --- Finally, we update the last emission by the caller.
-        LastEmit::<T>::insert(neuron_uid, current_block);
+        LastEmit::<T>::insert(neuron.uid, current_block);
         debug::info!("The old last emit: {:?} the new last emit: {:?}", last_emit, current_block);
 
         // --- Return ok.

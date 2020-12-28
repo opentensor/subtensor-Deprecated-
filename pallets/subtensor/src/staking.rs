@@ -24,7 +24,7 @@ impl<T: Trait> Module<T> {
         // their stake or else can cheat the system by adding stake just before
         // and emission to maximize their inflation.
         // TODO(const): can we pay for this transaction through inflation.
-        Self::emit_from_uid( neuron.uid );
+        Self::emit_for_neuron( &neuron );
 
         // ---- We check that the calling coldkey contains enough funds to
         // create the staking transaction.
@@ -65,7 +65,7 @@ impl<T: Trait> Module<T> {
         // --- We call the emit function for the associated hotkey.
         // Neurons must call an emit before they remove
         // stake or they may be able to cheat their peers of inflation.
-        Self::emit_from_uid( neuron.uid );
+        Self::emit_for_neuron( &neuron );
 
         // ---- We check that the hotkey has enough stake to withdraw
         // and then withdraw from the account.
