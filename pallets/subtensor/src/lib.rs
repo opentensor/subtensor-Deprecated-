@@ -155,6 +155,10 @@ decl_error! {
 		/// in the staking account. See: fn remove_stake.
 		NotEnoughStaketoWithdraw,
 
+		///  ---- Thrown when the caller requests adding more stake than there exists
+		/// in the cold key account. See: fn add_stake
+		NotEnoughBalanceToStake,
+
 		/// ---- Thrown when the dispatch attempts to convert between a u64 and T::balance 
 		/// but the call fails.
 		CouldNotConvertToBalance
