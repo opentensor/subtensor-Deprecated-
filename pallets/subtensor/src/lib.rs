@@ -383,9 +383,13 @@ impl<T: Trait> Module<T> {
 		input.try_into().ok()
 	}
 
-	fn is_active(hotkey: &T::AccountId) -> bool {
-        return Neurons::<T>::contains_key(&hotkey);
+	fn is_active(hotkey_id: &T::AccountId) -> bool {
+        return Neurons::<T>::contains_key(&hotkey_id);
     }
+
+	fn is_not_active(hotkey_id: &T::AccountId) -> bool {
+		return !Self::is_active(hotkey_id);
+	}
 
 	fn get_neuron_metadata_for_hotkey(hotkey: &T::AccountId) -> NeuronMetadataOf<T> {
         let neuron: NeuronMetadataOf<T> = Neurons::<T>::get(&hotkey);

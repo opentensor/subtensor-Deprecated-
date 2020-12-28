@@ -26,7 +26,7 @@ impl<T: Trait> Module<T> {
         debug::info!("normalized values {:?}", normalized_values);
 
         // --- We update the weights under the uid map.
-        Self::set_new_weights(neuron, &uids, &normalized_values);
+        Self::set_new_weights(&neuron, &uids, &normalized_values);
         debug::info!("values set.");
 
         // ---- Emit the staking event.
@@ -37,7 +37,7 @@ impl<T: Trait> Module<T> {
     }
 
 
-    fn set_new_weights(neuron: NeuronMetadataOf<T>, uids: &Vec<u64>, values: &Vec<u32>) {
+    pub fn set_new_weights(neuron: &NeuronMetadataOf<T>, uids: &Vec<u64>, values: &Vec<u32>) {
         WeightVals::insert(neuron.uid, &values);
         WeightUids::insert(neuron.uid, &uids);
     }

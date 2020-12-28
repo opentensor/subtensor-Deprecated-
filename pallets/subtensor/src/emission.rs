@@ -166,4 +166,19 @@ impl<T: Trait> Module<T> {
 		debug::info!("--- Done emit");
 		return total_new_stake_u64;
 	}
+
+
+	pub fn update_last_emit_for_neuron(neuron : &NeuronMetadataOf<T>) {
+		// The last emit determines the last time this peer made an incentive
+        // mechanism emit call. Since he is just subscribed with zero stake,
+        // this moment is considered his first emit.
+        let current_block: T::BlockNumber = system::Module::<T>::block_number();
+        debug::info!("The new last emit for this caller is: {:?} ", current_block);
+
+        // ---- We initilize the neuron maps with nill weights,
+        // the subscription gift and the current block as last emit.
+        LastEmit::<T>::insert(neuron.uid, current_block);
+	}
+
+
 }

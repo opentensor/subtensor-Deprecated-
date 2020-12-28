@@ -34,7 +34,7 @@ impl<T: Trait> Module<T> {
 
         ensure!(Self::coldkey_has_enough_balance(&coldkey, &stake_as_balance), Error::<T>::NotEnoughBalanceToStake);
         Self::remove_stake_from_coldkey_account(&coldkey, &stake_as_balance);
-        Self::add_stake_to_neuron_hotkey_account(neuron, stake_to_be_added);
+        Self::add_stake_to_neuron_hotkey_account(&neuron, stake_to_be_added);
         Self::increase_total_stake(stake_to_be_added);
 
         // ---- Emit the staking event.
@@ -45,8 +45,6 @@ impl<T: Trait> Module<T> {
         debug::info!("--- Done add_stake.");
         Ok(())
     }
-
-
 
     pub fn do_remove_stake(origin: T::Origin, hotkey: T::AccountId, stake_to_be_removed: u64) -> dispatch::DispatchResult {
         
@@ -103,7 +101,7 @@ impl<T: Trait> Module<T> {
 
 
 
-    fn increase_total_stake(increment: u64) {
+    pub fn increase_total_stake(increment: u64) {
         // --- We update the total staking pool with the new funds.
         let total_stake: u64 = TotalStake::get();
         TotalStake::put(total_stake + increment);
@@ -117,7 +115,7 @@ impl<T: Trait> Module<T> {
         debug::info!("Remove {:?} from total stake, now {:?} ", decrement, TotalStake::get());
     }
 
-    fn add_stake_to_neuron_hotkey_account(neuron: NeuronMetadataOf<T>, amount: u64) {
+    pub fn add_stake_to_neuron_hotkey_account(neuron: &NeuronMetadataOf<T>, amount: u64) {
         let hotkey_stake: u64 = Stake::get(neuron.uid);
         Stake::insert(neuron.uid, hotkey_stake + amount);
         debug::info!("Added new stake: {:?} to uid {:?}", amount, neuron.uid);
