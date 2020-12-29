@@ -33,7 +33,7 @@ impl<T: Trait> Module<T> {
         // let stake_as_balance = stake_as_balance.unwrap();
 
         ensure!(Self::coldkey_has_enough_balance(&coldkey, &stake_as_balance), Error::<T>::NotEnoughBalanceToStake);
-        Self::remove_stake_from_coldkey_account(&coldkey, &stake_as_balance);
+        Self::remove_stake_from_coldkey_account(&coldkey, stake_as_balance.unwrap());
         Self::add_stake_to_neuron_hotkey_account(neuron.uid, stake_to_be_added);
         Self::increase_total_stake(stake_to_be_added);
 
@@ -96,7 +96,7 @@ impl<T: Trait> Module<T> {
         // --- We perform the withdrawl by converting the stake to a u64 balance
         // and deposit the balance into the coldkey account. If the coldkey account
         // does not exist it is created.
-        Self::add_stake_to_coldkey_account(&coldkey, &stake_to_be_added_as_currency);
+        Self::add_stake_to_coldkey_account(&coldkey, stake_to_be_added_as_currency.unwrap());
         Self::remove_stake_from_neuron_hotkey_account(neuron.uid, stake_to_be_removed);
         Self::reduce_total_stake(stake_to_be_removed);
 
@@ -170,16 +170,19 @@ impl<T: Trait> Module<T> {
         Stake::remove(uid);
     }
 
-    pub fn add_stake_to_coldkey_account(coldkey: &T::AccountId, amount: &Option<<<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance>) {
+    /**
+    * This adds stake (balance) to a cold key account. It takes the account id of the coldkey account and wrapped Balance as parameters.
+    */
+    pub fn add_stake_to_coldkey_account(coldkey: &T::AccountId, amount: <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance) {
         //@todo (Parallax, 28-12-2020) implement error handling
-        let _ = T::Currency::deposit_creating(&coldkey, amount.unwrap());
-        debug::info!("Deposit {:?} into coldkey balance ", amount.unwrap());
+        let _ = T::Currency::deposit_creating(&coldkey, amount);
+        debug::info!("Deposit {:?} into coldkey balance ", amount);
     }
 
-    fn remove_stake_from_coldkey_account(coldkey: &T::AccountId, amount: &Option<<<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance>) {
+    fn remove_stake_from_coldkey_account(coldkey: &T::AccountId, amount: <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance) {
         // @Todo (parallax, 28-12-2020) Do error handling on this call
-        let _ = T::Currency::withdraw(&coldkey, amount.unwrap(), WithdrawReasons::except(WithdrawReason::Tip), ExistenceRequirement::KeepAlive);
-        debug::info!("Withdrew {:?} from coldkey: {:?}", amount.unwrap(), coldkey);
+        let _ = T::Currency::withdraw(&coldkey, amount, WithdrawReasons::except(WithdrawReason::Tip), ExistenceRequirement::KeepAlive);
+        debug::info!("Withdrew {:?} from coldkey: {:?}", amount, coldkey);
     }
 
     fn neuron_belongs_to_coldkey(neuron : &NeuronMetadataOf<T>, coldkey : &T::AccountId) -> bool {

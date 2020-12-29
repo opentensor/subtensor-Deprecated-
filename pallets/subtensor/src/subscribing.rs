@@ -63,7 +63,7 @@ impl<T: Trait> Module<T> {
             // does not exist it is created.
             let stake_to_be_added_as_currency = Self::u64_to_balance(amount_staked);
             ensure!(stake_to_be_added_as_currency.is_some(), Error::<T>::CouldNotConvertToBalance);
-            Self::add_stake_to_coldkey_account(&neuron.coldkey, &stake_to_be_added_as_currency);
+            Self::add_stake_to_coldkey_account(&neuron.coldkey, stake_to_be_added_as_currency.unwrap());
 
             // --- We update the total staking pool with the removed funds.
             Self::reduce_total_stake(amount_staked);
