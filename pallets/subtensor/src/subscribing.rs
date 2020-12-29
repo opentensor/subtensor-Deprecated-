@@ -70,7 +70,7 @@ impl<T: Trait> Module<T> {
         }
 
         // --- We remove the neuron-info from the various maps.
-        Self::remove_all_stake_from_neuron_hotkey_account(&neuron);
+        Self::remove_all_stake_from_neuron_hotkey_account(neuron.uid);
         Self::remove_last_emit_info_for_neuron(&neuron);
         Self::remove_weight_matrix_for_neuron(&neuron);
         Self::remove_neuron_metadata(&hotkey_id);

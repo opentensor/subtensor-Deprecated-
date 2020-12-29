@@ -46,6 +46,24 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
+    /**
+    * This function removes stake from a hotkey account and puts into a coldkey account.
+    * This function should be called through an extrinsic signed with the coldkeypair's private
+    * key. It takes a hotkey account id and an ammount as parameters.
+    *
+    * Generally, this function works as follows
+    * 1) A Check is performed to see if the hotkey is active (ie, the node using the key is subscribed)
+    * 2) The neuron metadata associated with the hotkey is retrieved, and is checked if it is subscribed with the supplied cold key
+    * 3) If these checks pass, inflation is emitted to the nodes' peers
+    * 4) If the account has enough stake, the requested amount it transferred to the coldkey account
+    * 5) The total amount of stake is reduced after transfer is complete
+    *
+    * It throws the following errors if there is something wrong
+    * - NotActive : The suplied hotkey is not in use. This ususally means a node that uses this key has not subscribed yet, or has unsubscribed
+    * - NonAssociatedColdKey : The supplied hotkey account id is not subscribed using the supplied cold key
+    * - NotEnoughStaketoWithdraw : The ammount of stake available in the hotkey account is lower than the requested amount
+    * - CouldNotConvertToBalance : A conversion error occured while converting stake from u64 to Balance
+    */
     pub fn do_remove_stake(origin: T::Origin, hotkey: T::AccountId, stake_to_be_removed: u64) -> dispatch::DispatchResult {
         
         // ---- We check the transaction is signed by the caller
@@ -79,7 +97,7 @@ impl<T: Trait> Module<T> {
         // and deposit the balance into the coldkey account. If the coldkey account
         // does not exist it is created.
         Self::add_stake_to_coldkey_account(&coldkey, &stake_to_be_added_as_currency);
-        Self::remove_stake_from_neuron_hotkey_account(neuron, stake_to_be_removed);
+        Self::remove_stake_from_neuron_hotkey_account(neuron.uid, stake_to_be_removed);
         Self::reduce_total_stake(stake_to_be_removed);
 
         // ---- Emit the unstaking event.
@@ -100,7 +118,9 @@ impl<T: Trait> Module<T> {
 
 
 
-
+    /**
+    * Increases the amount of stake of the entire stake pool by the supplied amount
+    */
     pub fn increase_total_stake(increment: u64) {
         // --- We update the total staking pool with the new funds.
         let total_stake: u64 = TotalStake::get();
@@ -108,6 +128,9 @@ impl<T: Trait> Module<T> {
         debug::info!("Added {:?} to total stake, now {:?}", increment, TotalStake::get());
     }
 
+    /**
+    * Reduces the amount of stake of the entire stake pool by the supplied amount
+    */
     pub fn reduce_total_stake(decrement: u64) {
         // --- We update the total staking pool with the removed funds.
         let total_stake: u64 = TotalStake::get();
@@ -115,6 +138,10 @@ impl<T: Trait> Module<T> {
         debug::info!("Remove {:?} from total stake, now {:?} ", decrement, TotalStake::get());
     }
 
+    /**
+    * Increases the amount of stake in a neuron's hotkey account by the amount provided
+    * The uid parameter identifies the neuron holding the hotkey account
+    */
     pub fn add_stake_to_neuron_hotkey_account(uid: u64, amount: u64) {
         let prev_stake: u64 = Stake::get(uid);
         let new_stake = prev_stake + amount;
@@ -122,14 +149,25 @@ impl<T: Trait> Module<T> {
         debug::info!("Added new stake: | uid: {:?} | prev stake: {:?} | increment: {:?} | new stake: {:?}|", uid, prev_stake, amount, new_stake);
     }
 
-    fn remove_stake_from_neuron_hotkey_account(neuron: NeuronMetadataOf<T>, amount: u64) {
-        let hotkey_stake: u64 = Stake::get(neuron.uid);
-        Stake::insert(neuron.uid, hotkey_stake - amount);
+    /**
+    * Decreases the amount of stake in a neuron's hotkey account by the amount provided
+    * The uid parameter identifies the neuron holding the hotkey account.
+    * When using this function, it is important to also increase another account by the same value,
+    * as otherwise value gets lost.
+    */
+    fn remove_stake_from_neuron_hotkey_account(uid: u64, amount: u64) {
+        let hotkey_stake: u64 = Stake::get(uid);
+        Stake::insert(uid, hotkey_stake - amount);
         debug::info!("Withdraw: {:?} from hotkey staking account for new ammount {:?} staked", amount, hotkey_stake - amount);
     }
 
-    pub fn remove_all_stake_from_neuron_hotkey_account(neuron: &NeuronMetadataOf<T>) {
-        Stake::remove(neuron.uid);
+    /**
+    * This removes a completed entry from the stake map. The stake map is a map between hotkey account -> amount of stake
+    * This function is used remove the hotkey account's stake entry from the map when unsubscribing
+    * Care needs to be taken to transfer ALL stake to a different account, lest value gets lost
+    */
+    pub fn remove_all_stake_from_neuron_hotkey_account(uid: u64) {
+        Stake::remove(uid);
     }
 
     pub fn add_stake_to_coldkey_account(coldkey: &T::AccountId, amount: &Option<<<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance>) {
