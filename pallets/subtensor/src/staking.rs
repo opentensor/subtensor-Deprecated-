@@ -32,7 +32,7 @@ impl<T: Trait> Module<T> {
         ensure!(stake_as_balance.is_some(), Error::<T>::CouldNotConvertToBalance);
         // let stake_as_balance = stake_as_balance.unwrap();
 
-        ensure!(Self::coldkey_has_enough_balance(&coldkey, &stake_as_balance), Error::<T>::NotEnoughBalanceToStake);
+        ensure!(Self::coldkey_has_enough_balance(&coldkey, stake_as_balance.unwrap()), Error::<T>::NotEnoughBalanceToStake);
         Self::remove_stake_from_coldkey_account(&coldkey, stake_as_balance.unwrap());
         Self::add_stake_to_neuron_hotkey_account(neuron.uid, stake_to_be_added);
         Self::increase_total_stake(stake_to_be_added);
@@ -87,7 +87,6 @@ impl<T: Trait> Module<T> {
 
         // ---- We check that the hotkey has enough stake to withdraw
         // and then withdraw from the account.
-        // let hotkey_stake: u64 = Stake::get( neuron.uid );
         ensure!(Self::has_enough_stake(&neuron, stake_to_be_removed), Error::<T>::NotEnoughStaketoWithdraw);
 
         let stake_to_be_added_as_currency = Self::u64_to_balance(stake_to_be_removed);
@@ -171,7 +170,9 @@ impl<T: Trait> Module<T> {
     }
 
     /**
-    * This adds stake (balance) to a cold key account. It takes the account id of the coldkey account and wrapped Balance as parameters.
+    * This adds stake (balance) to a cold key account. It takes the account id of the coldkey account and a Balance as parameters.
+    * The Balance parameter is a from u64 converted number. This is needed for T::Currency to work.
+    * Make sure stake is removed from another account before calling this method, otherwise you'll end up with double the value
     */
     pub fn add_stake_to_coldkey_account(coldkey: &T::AccountId, amount: <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance) {
         //@todo (Parallax, 28-12-2020) implement error handling
@@ -179,28 +180,51 @@ impl<T: Trait> Module<T> {
         debug::info!("Deposit {:?} into coldkey balance ", amount);
     }
 
+    /**
+    *
+    */
     fn remove_stake_from_coldkey_account(coldkey: &T::AccountId, amount: <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance) {
         // @Todo (parallax, 28-12-2020) Do error handling on this call
         let _ = T::Currency::withdraw(&coldkey, amount, WithdrawReasons::except(WithdrawReason::Tip), ExistenceRequirement::KeepAlive);
         debug::info!("Withdrew {:?} from coldkey: {:?}", amount, coldkey);
     }
 
+    /**
+    * Checks if the neuron as specified in the neuron parameter has subscribed with the cold key
+    * as specified in the coldkey parameter. See fn subscribe() for more info.
+    */
     fn neuron_belongs_to_coldkey(neuron : &NeuronMetadataOf<T>, coldkey : &T::AccountId) -> bool {
         return neuron.coldkey == *coldkey
     }
 
-    fn coldkey_has_enough_balance(coldkey: &T::AccountId, amount: &Option<<<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance>) -> bool {
-        let new_potential_balance = T::Currency::free_balance(&coldkey) - amount.unwrap();
-        let can_withdraw = T::Currency::ensure_can_withdraw(&coldkey, amount.unwrap(), WithdrawReasons::except(WithdrawReason::Tip), new_potential_balance).is_ok();
+    /**
+    * Checks if the coldkey account has enough balance to be able to withdraw the specified amount.
+    */
+    fn coldkey_has_enough_balance(coldkey: &T::AccountId, amount: <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance) -> bool {
+        let new_potential_balance = T::Currency::free_balance(&coldkey) - amount;
+        let can_withdraw = T::Currency::ensure_can_withdraw(&coldkey, amount, WithdrawReasons::except(WithdrawReason::Tip), new_potential_balance).is_ok();
         can_withdraw
     }
 
+    /**
+    * Checks if the hotkey account of the specified account has enough stake to be able to withdraw
+    * the requested amount.
+    */
     fn has_enough_stake(neuron : &NeuronMetadataOf<T>, amount : u64) -> bool{
         let hotkey_stake: u64 = Stake::get( neuron.uid );
         return hotkey_stake >= amount;
     }
 
-
+    /**
+    * This calculates the fraction of the total amount of stake the specfied neuron owns.
+    * This function is part of the algorithm that calculates the emission of this neurons
+    * to its peers. See fn calculate_emission_for_neuron()
+    *
+    * This function returns 0 if the total amount of stake is 0, or the amount of stake the
+    * neuron has is 0.
+    *
+    * Otherwise, it returns the result of neuron_stake / total stake
+    */
     pub fn calculate_stake_fraction_for_neuron(neuron : &NeuronMetadataOf<T>) -> U64F64 {
         let total_stake = U64F64::from_num(TotalStake::get());
         let neuron_stake = U64F64::from_num(Stake::get(neuron.uid));
