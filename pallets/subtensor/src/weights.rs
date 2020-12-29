@@ -46,9 +46,14 @@ impl<T: Trait> Module<T> {
         WeightUids::insert(neuron.uid, &uids);
     }
 
+
     pub fn remove_weight_matrix_for_neuron(neuron: &NeuronMetadataOf<T>) {
         WeightVals::remove(neuron.uid);
         WeightUids::remove(neuron.uid);
+    }
+
+    pub fn get_weights_for_neuron(neuron : &NeuronMetadataOf<T>) -> (Vec<u64>, Vec<u32>) {
+        (WeightUids::get(neuron.uid), WeightVals::get(neuron.uid))
     }
 }
 

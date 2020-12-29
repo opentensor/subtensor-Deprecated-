@@ -104,64 +104,85 @@ impl<T: Trait> Module<T> {
         //     callers emission is zero, nothing to emit. Return without error.
             // return 0;
         // }
+
         let emission_for_neuron = Self::calculate_emission_for_neuron(&neuron);
-        if emission_for_neuron == 0 {
-            return 0; // Nothing to emit, go home.
-        }
 
         // --- We get the callers weights. The total emission will be distributed
         // according to these weights. The weight_vals sum to u32::max.
-        let weight_vals: Vec<u32> = WeightVals::get(neuron.uid);
-        let weight_uids: Vec<u64> = WeightUids::get(neuron.uid);
-        if weight_uids.is_empty() || weight_vals.is_empty() {
-            // callers has no weights, nothing to emit. Return without error.
+        // let weight_vals: Vec<u32> = WeightVals::get(neuron.uid);
+        // let weight_uids: Vec<u64> = WeightUids::get(neuron.uid);
+
+
+        let (weight_uids, weight_vals) = Self::get_weights_for_neuron(neuron);
+
+        // if weight_uids.is_empty() || weight_vals.is_empty() {
+        //     // callers has no weights, nothing to emit. Return without error.
+        //     return 0;
+        // }
+
+        if !Self::can_emission_proceed(&emission_for_neuron, &weight_uids, &weight_vals) {
             return 0;
         }
 
         // --- We iterate through the weights and distribute the caller's emission to
         // neurons on a weighted basis. The emission becomes new stake in their
         // staking account.
-        let mut total_new_stake_u64: u64 = 0; // Total stake added across all emissions.
+        let mut total_new_stake: u64 = 0; // Total stake added across all emissions.
         for (i, dest_uid) in weight_uids.iter().enumerate() {
-
             // --- We get the weight from neuron i to neuron j.
-            // The weights are normalized and sum to u32::max.
-            let wij_u64_f64 = U64F64::from_num(weight_vals[i]);
-            let wij_norm_u64_f64 = wij_u64_f64 / U64F64::from_num(u32::MAX);
-            debug::info!("Emitting to {:?}", dest_uid);
-            debug::info!("wij {:?}", wij_norm_u64_f64);
+            // The weights are normalized and sum to u32::max. (See fn set_weights)
+            let w_ij = U64F64::from_num(weight_vals[i]);
+
+            debug::info!("Emitting to {:?} | weight: {:?}", dest_uid, w_ij);
+
+            let stake_increment = Self::calulate_stake_increment(emission_for_neuron, w_ij);
+            Self::add_stake_to_neuron_hotkey_account(neuron.uid, stake_increment);
+
 
             // --- We get the emission from neuron i to neuron j.
             // The multiplication of the weight \in [0, 1]
             // by the total_emission gives us the emission proportion.
-            let emission_u64_f64 = emission_for_neuron * wij_norm_u64_f64;
-            debug::info!("emission_u64_f64 {:?}", emission_u64_f64);
+            // let emission_u64_f64 = emission_for_neuron * wij_norm_u64_f64;
+            // debug::info!("emission_u64_f64 {:?}", emission_u64_f64);
 
             // --- We increase the staking account. The floating
             // point emission is dropped in the conversion back to u64.
-            let prev_stake: u64 = Stake::get(dest_uid);
-            let prev_stake_u64_f64 = U64F64::from_num(prev_stake);
-            let new_stake_u64_f64 = prev_stake_u64_f64 + emission_u64_f64;
-            let new_stake_u64: u64 = new_stake_u64_f64.to_num::<u64>();
-            Stake::insert(dest_uid, new_stake_u64);
-            debug::info!("prev_stake_u64_f64 {:?}", prev_stake_u64_f64);
-            debug::info!("new_stake_u64_f64 {:?} = {:?} + {:?}", new_stake_u64_f64, prev_stake_u64_f64, emission_u64_f64);
-            debug::info!("new_stake_u64 {:?}", new_stake_u64);
+            // let prev_stake: u64 = Stake::get(dest_uid);
+            // let prev_stake_u64_f64 = U64F64::from_num(prev_stake);
+            // let new_stake_u64_f64 = prev_stake_u64_f64 + emission_u64_f64;
+            // let new_stake_u64: u64 = new_stake_u64_f64.to_num::<u64>();
+            // Stake::insert(dest_uid, new_stake_u64);
+            // debug::info!("prev_stake_u64_f64 {:?}", prev_stake_u64_f64);
+            // debug::info!("new_stake_u64_f64 {:?} = {:?} + {:?}", new_stake_u64_f64, prev_stake_u64_f64, emission_u64_f64);
+            // debug::info!("new_stake_u64 {:?}", new_stake_u64);
 
             // --- We increase the total stake emitted.
-            total_new_stake_u64 = total_new_stake_u64 + emission_u64_f64.to_num::<u64>();
+            total_new_stake += stake_increment;
         }
 
         // --- We add the total amount of stake emitted to the staking pool.
         // Note: This value may not perfectly match total_emission_u64_f64 after rounding.
-        Self::increase_total_stake(total_new_stake_u64);
+        Self::increase_total_stake(total_new_stake);
 
         // --- Finally, we update the last emission by the caller.
         Self::update_last_emit_for_neuron(&neuron);
 
         // --- Return ok.
         debug::info!("--- Done emit");
-        return total_new_stake_u64;
+        return total_new_stake;
+    }
+
+    fn can_emission_proceed(emission : &U64F64, weight_uids : &Vec<u64>, weight_vals : &Vec<u32>) -> bool {
+        if *emission == U64F64::from_num(0) {return false;}
+        if weight_uids.is_empty() { return false }
+        if weight_vals.is_empty() { return false }
+
+        return true;
+    }
+
+    fn calulate_stake_increment(emission : U64F64, weight : U64F64) -> u64 {
+        let increment = emission * weight;
+        return increment.to_num::<u64>()
     }
 
     fn calculate_emission_for_neuron(neuron : &NeuronMetadataOf<T>) -> U64F64 {

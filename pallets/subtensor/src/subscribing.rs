@@ -122,7 +122,7 @@ impl<T: Trait> Module<T> {
     fn add_subscription_gift(neuron: &NeuronMetadataOf<T>, amount: u64) {
         debug::info!("Adding subscription gift to the stake {:?} ", amount);
 
-        Self::add_stake_to_neuron_hotkey_account(neuron, amount);
+        Self::add_stake_to_neuron_hotkey_account(neuron.uid, amount);
         Self::increase_total_stake(amount);
         Self::update_last_emit_for_neuron(&neuron);
     }
