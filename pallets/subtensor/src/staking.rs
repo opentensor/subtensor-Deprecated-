@@ -160,7 +160,7 @@ impl<T: Trait> Module<T> {
     }
 
 
-    pub fn stake_fraction_for_neuron(neuron : &NeuronMetadataOf<T>) -> U64F64 {
+    pub fn calculate_stake_fraction_for_neuron(neuron : &NeuronMetadataOf<T>) -> U64F64 {
         let total_stake = U64F64::from_num(TotalStake::get());
         let neuron_stake = U64F64::from_num(Stake::get(neuron.uid));
 
