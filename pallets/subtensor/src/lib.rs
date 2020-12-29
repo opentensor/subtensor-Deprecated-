@@ -246,7 +246,6 @@ decl_module! {
 		/// 	
 		#[weight = (0, DispatchClass::Operational, Pays::No)]
 		pub fn set_weights(origin, dests: Vec<u64>, weights: Vec<u32>) -> dispatch::DispatchResult {
-
 			Self::do_set_weights(origin, dests, weights)
 		}
 
