@@ -134,6 +134,10 @@ decl_error! {
 		/// and values but these vectors have different size.
 		WeightVecNotEqualSize,
 
+		/// ---- Thrown when the caller attempts to set weights with duplicate uids
+		/// in the weight matrix
+		DuplicateUids,
+
 		/// ---- Thrown when the caller triggers an emit but the computed amount
 		/// to emit is zero.
 		NothingToEmit,

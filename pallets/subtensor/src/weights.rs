@@ -1,4 +1,6 @@
 use super::*;
+use sp_std::hash::Hash;
+use std::collections::HashSet;
 
 impl<T: Trait> Module<T> {
     pub fn do_set_weights(origin: T::Origin, uids: Vec<u64>, values: Vec<u32>) -> dispatch::DispatchResult
@@ -15,6 +17,10 @@ impl<T: Trait> Module<T> {
         // --- We check that the length of these two lists are equal.
         debug::info!("uids.len= {:?}, dests.len= {:?}", uids.len(), values.len());
         ensure!(uids_match_values(&uids, &values), Error::<T>::WeightVecNotEqualSize);
+
+        // --- We check if the uids vector does not contain duplicate ids
+        ensure!(!has_duplicate_elements(&uids), Error::<T>::DuplicateUids);
+
 
         // ---- We call an inflation emit before setting the weights
         // to ensure that the caller is pays for his previously set weights.
@@ -66,6 +72,18 @@ fn uids_match_values(uids: &Vec<u64>, values: &Vec<u32>) -> bool {
     return uids.len() == values.len();
 }
 
+/**
+* This function tests if the uids half of the weight matrix contains duplicate uid's.
+* If it does, an attacker could
+*/
+fn has_duplicate_elements<T>(iter: T) -> bool where
+    T: IntoIterator,
+    T::Item: Eq + Hash,
+{
+    let mut uniq = HashSet::new();
+    !iter.into_iter().all(move |x| uniq.insert(x))
+}
+
 
 fn normalize(mut weights: Vec<u32>) -> Vec<u32> {
     let sum: u64 = weights.iter().map(|x| *x as u64).sum();
@@ -84,7 +102,7 @@ fn normalize(mut weights: Vec<u32>) -> Vec<u32> {
 
 #[cfg(test)]
 mod tests {
-    use crate::weights::normalize;
+    use crate::weights::{normalize, has_duplicate_elements};
 
     #[test]
     fn normalize_sum_smaller_than_one() {
@@ -108,5 +126,17 @@ mod tests {
     fn normalize_values_maxed() {
         let weights: Vec<u32> = vec![u32::max_value(), u32::max_value()];
         assert_eq!(normalize(weights), vec![u32::max_value() / 2, u32::max_value() / 2]);
+    }
+
+    #[test]
+    fn has_duplicate_elements_true() {
+        let weights = vec![1,2,3,4,4,4,4];
+        assert_eq!(has_duplicate_elements(weights), true);
+    }
+
+    #[test]
+    fn has_duplicate_elements_false() {
+        let weights = vec![1,2,3,4,5];
+        assert_eq!(has_duplicate_elements(weights), false);
     }
 }

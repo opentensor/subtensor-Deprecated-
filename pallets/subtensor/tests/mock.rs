@@ -16,7 +16,6 @@ pub(crate) type Balance = u128;
 use frame_system as system;
 use pallet_balances as balances;
 use frame_support::traits::{OnInitialize, OnFinalize};
-// use pallet_session as session;
 
 impl_outer_event! {
 	pub enum MetaEvent for Test {

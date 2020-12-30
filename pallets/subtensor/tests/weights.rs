@@ -3,6 +3,7 @@ use frame_support::{assert_ok};
 use frame_system::Trait;
 mod mock;
 use mock::*;
+use sp_runtime::DispatchError;
 
 
 /**********************************************
@@ -97,10 +98,46 @@ fn set_weights_ok_with_weights() {
 		assert!(stakes[1] >  initial_stakes[1]); // The stake of destination 1 should have increased
 		assert!(stakes[2] >  initial_stakes[2]); // The stake destination 2 should habe increased
 		assert_eq!(stakes[1], stakes[2]); // The stakes should have increased the same
-
 	});
 }
 
+#[test]
+fn test_weights_err_weights_vec_not_equal_size() {
+	new_test_ext().execute_with(|| {
+        let _neuron = subscribe_neuron(666, 5, 66, 4, 77);
+
+		let weights_keys: Vec<<Test as Trait>::AccountId> = vec![1, 2, 3, 4, 5, 6];
+		let weight_values: Vec<u32> = vec![1, 2, 3, 4, 5]; // Uneven sizes
+
+		let result = SubtensorModule::set_weights(<<Test as Trait>::Origin>::signed(666), weights_keys, weight_values);
+
+		assert_eq!(result, Err(Error::<Test>::WeightVecNotEqualSize.into()));
+	});
+}
+
+#[test]
+fn test_weights_err_has_duplicate_ids() {
+	new_test_ext().execute_with(|| {
+        let _neuron = subscribe_neuron(666, 5, 66, 4, 77);
+		let weights_keys: Vec<<Test as Trait>::AccountId> = vec![1, 2, 3, 4, 5, 6,6,6]; // Contains duplicates
+		let weight_values: Vec<u32> = vec![1, 2, 3, 4, 5, 6, 7, 8];
+
+		let result = SubtensorModule::set_weights(<<Test as Trait>::Origin>::signed(666), weights_keys, weight_values);
+
+		assert_eq!(result, Err(Error::<Test>::DuplicateUids.into()));
+	});
+}
+
+#[test]
+fn test_no_signature() {
+	new_test_ext().execute_with(|| {
+		let weights_keys: Vec<<Test as Trait>::AccountId> = vec![];
+		let weight_values: Vec<u32> = vec![];
+
+		let result = SubtensorModule::set_weights(<<Test as Trait>::Origin>::none(), weights_keys, weight_values);
+		assert_eq!(result, Err(DispatchError::BadOrigin.into()));
+	});
+}
 
 #[test]
 fn set_weights_err_not_active() {
