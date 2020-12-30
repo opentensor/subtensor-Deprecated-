@@ -3,6 +3,7 @@ use frame_support::{assert_ok};
 use frame_system::Trait;
 mod mock;
 use mock::*;
+use sp_runtime::DispatchError;
 
 
 /**********************************************
@@ -115,9 +116,13 @@ fn test_weights_err_weights_vec_not_equal_size() {
 }
 
 #[test]
-fn test_invalid_signature() {
+fn test_no_signature() {
 	new_test_ext().execute_with(|| {
-        
+		let weights_keys: Vec<<Test as Trait>::AccountId> = vec![];
+		let weight_values: Vec<u32> = vec![];
+
+		let result = SubtensorModule::set_weights(<<Test as Trait>::Origin>::none(), weights_keys, weight_values);
+		assert_eq!(result, Err(DispatchError::BadOrigin.into()));
 	});
 }
 
