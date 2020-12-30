@@ -1,6 +1,5 @@
 use super::*;
-use sp_std::hash::Hash;
-use std::collections::HashSet;
+
 
 impl<T: Trait> Module<T> {
     pub fn do_set_weights(origin: T::Origin, uids: Vec<u64>, values: Vec<u32>) -> dispatch::DispatchResult
@@ -19,7 +18,7 @@ impl<T: Trait> Module<T> {
         ensure!(uids_match_values(&uids, &values), Error::<T>::WeightVecNotEqualSize);
 
         // --- We check if the uids vector does not contain duplicate ids
-        ensure!(!has_duplicate_elements(&uids), Error::<T>::DuplicateUids);
+        ensure!(!has_duplicate_uids(&uids), Error::<T>::DuplicateUids);
 
 
         // ---- We call an inflation emit before setting the weights
@@ -76,12 +75,14 @@ fn uids_match_values(uids: &Vec<u64>, values: &Vec<u32>) -> bool {
 * This function tests if the uids half of the weight matrix contains duplicate uid's.
 * If it does, an attacker could
 */
-fn has_duplicate_elements<T>(iter: T) -> bool where
-    T: IntoIterator,
-    T::Item: Eq + Hash,
-{
-    let mut uniq = HashSet::new();
-    !iter.into_iter().all(move |x| uniq.insert(x))
+fn has_duplicate_uids(items: &Vec<u64>) -> bool {
+    let mut parsed : Vec<u64> = Vec::new();
+    for item in items {
+        if parsed.contains(&item) { return true }
+        parsed.push(item.clone());
+    }
+
+    return false;
 }
 
 
@@ -102,7 +103,7 @@ fn normalize(mut weights: Vec<u32>) -> Vec<u32> {
 
 #[cfg(test)]
 mod tests {
-    use crate::weights::{normalize, has_duplicate_elements};
+    use crate::weights::{normalize, has_duplicate_uids};
 
     #[test]
     fn normalize_sum_smaller_than_one() {
@@ -131,12 +132,12 @@ mod tests {
     #[test]
     fn has_duplicate_elements_true() {
         let weights = vec![1,2,3,4,4,4,4];
-        assert_eq!(has_duplicate_elements(weights), true);
+        assert_eq!(has_duplicate_uids(&weights), true);
     }
 
     #[test]
     fn has_duplicate_elements_false() {
         let weights = vec![1,2,3,4,5];
-        assert_eq!(has_duplicate_elements(weights), false);
+        assert_eq!(has_duplicate_uids(&weights), false);
     }
 }
