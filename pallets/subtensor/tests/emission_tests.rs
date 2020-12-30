@@ -1,4 +1,4 @@
-use pallet_subtensor::{Error, NeuronMetadata};
+use pallet_subtensor::{NeuronMetadata};
 use frame_support::{assert_ok};
 use frame_system::Trait;
 mod mock;

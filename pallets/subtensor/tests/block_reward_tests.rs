@@ -1,6 +1,6 @@
-use pallet_subtensor::{Error};
-use frame_support::{assert_ok};
-use frame_system::Trait;
+// use pallet_subtensor::{Error};
+// use frame_support::{assert_ok};
+// use frame_system::Trait;
 mod mock;
 use mock::*;
 
