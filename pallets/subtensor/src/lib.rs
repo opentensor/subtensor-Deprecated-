@@ -33,13 +33,13 @@ type NeuronMetadataOf<T> = NeuronMetadata<AccountIdOf<T>>;
 // ---- Neuron endpoint information
 #[derive(Encode, Decode, Default)]
 pub struct NeuronMetadata <AccountId> {
-	/// ---- The endpoint's u128 encoded ip address of type v6 or v4.  
+	/// ---- The endpoint's u128 encoded ip address of type v6 or v4.
 	ip: u128,
 
-	/// ---- The endpoint's u16 encoded port. 
+	/// ---- The endpoint's u16 encoded port.
 	port: u16,
-	
-	/// ---- The endpoint's ip type, 4 for ipv4 and 6 for ipv6. 
+
+	/// ---- The endpoint's ip type, 4 for ipv4 and 6 for ipv6.
 	ip_type: u8,
 
 	/// ---- The endpoint's unique identifier. The chain can have
@@ -48,7 +48,7 @@ pub struct NeuronMetadata <AccountId> {
 	/// alone.
 	pub uid: u64,
 
-	/// ---- The associated coldkey account. 
+	/// ---- The associated coldkey account.
 	/// Staking and unstaking transactions must be made by this account.
 	/// The hotkey account (in the Neurons map) has permission to call emit
 	/// subscribe and unsubscribe.
@@ -59,16 +59,16 @@ pub struct NeuronMetadata <AccountId> {
 decl_storage! {
 	trait Store for Module<T: Trait> as SubtensorModule {
 
-		/// ----  Maps between a neuron's hotkey account address and additional 
-		/// metadata associated with that neuron. All other maps, map between the with a uid. 
+		/// ----  Maps between a neuron's hotkey account address and additional
+		/// metadata associated with that neuron. All other maps, map between the with a uid.
 		/// The metadata contains that uid, the ip, port, and coldkey address.
 		pub Neurons get(fn neuron): map hasher(blake2_128_concat) T::AccountId => NeuronMetadataOf<T>;
-	
+
 		/// ---- List of values which map between a neuron's uid an that neuron's
 		/// weights, a.k.a is row_weights in the square matrix W. Each outward edge
 		/// is represented by a (u64, u64) tuple determining the endpoint and weight
 		/// value respectively. Each giga byte of chain storage can hold history for
-		/// 83 million weights. 
+		/// 83 million weights.
 		pub WeightUids: map hasher(twox_64_concat) u64 => Vec<u64>;
 		pub WeightVals: map hasher(twox_64_concat) u64 => Vec<u32>;
 
@@ -76,7 +76,7 @@ decl_storage! {
 		/// when that peer last called an emission. The last emit time is used to determin
 		/// the proportion of inflation remaining to emit during the next emit call.
 		pub LastEmit get(fn last_emit): map hasher(twox_64_concat) u64 => T::BlockNumber;
-		
+
 		/// ----  Maps between a neuron's hotkey uid and the number of
 		/// staked tokens under that key.
 		pub Stake get(fn stake): map hasher(twox_64_concat) u64 => u64;
@@ -100,7 +100,7 @@ decl_event!(
 		/// on the chain.
 		WeightsSet(AccountId),
 
-		/// --- Event created when a new neuron account has been added to the 
+		/// --- Event created when a new neuron account has been added to the
 		/// active set.
 		NeuronAdded(AccountId),
 
@@ -112,18 +112,18 @@ decl_event!(
 		/// active set.
 		NeuronRemoved(AccountId),
 
-		/// --- Event created during when stake has been transfered from 
+		/// --- Event created during when stake has been transfered from
 		/// the coldkey onto the hotkey staking account.
 		StakeAdded(AccountId, u64),
 
-		/// --- Event created when stake has been removed from 
+		/// --- Event created when stake has been removed from
 		/// the staking account into the coldkey account.
 		StakeRemoved(AccountId, u64),
 
 		/// --- Event created when a transaction triggers and incentive
 		/// mechanism emission.
 		Emission(AccountId, u64),
-		
+
 	}
 );
 
@@ -146,16 +146,16 @@ decl_error! {
 		/// a neuron which does not exist in the active set.
 		NotActive,
 
-		/// ---- Thrown when the caller requests subscribing a neuron which 
+		/// ---- Thrown when the caller requests subscribing a neuron which
 		/// already exists in the active set.
 		AlreadyActive,
 
 		/// ---- Thrown when a stake or unstake request is made by a coldkey
-		/// which is not associated with the hotkey account. 
-		/// See: fn add_stake and fn remove_stake 
+		/// which is not associated with the hotkey account.
+		/// See: fn add_stake and fn remove_stake
 		NonAssociatedColdKey,
 
-		/// ---- Thrown when the caller requests removing more stake then there exists 
+		/// ---- Thrown when the caller requests removing more stake then there exists
 		/// in the staking account. See: fn remove_stake.
 		NotEnoughStaketoWithdraw,
 
@@ -163,7 +163,7 @@ decl_error! {
 		/// in the cold key account. See: fn add_stake
 		NotEnoughBalanceToStake,
 
-		/// ---- Thrown when the dispatch attempts to convert between a u64 and T::balance 
+		/// ---- Thrown when the dispatch attempts to convert between a u64 and T::balance
 		/// but the call fails.
 		CouldNotConvertToBalance
 
@@ -192,62 +192,46 @@ decl_module! {
 		// Events must be initialized if they are used by the pallet.
 		fn deposit_event() = default;
 
-		// /// ---- Emits inflation from the calling neuron to neighbors and themselves.
-		// /// 
-		// /// # Args:
-		// ///  	* `caller` (T::Origin):
-		// /// 		- The transaction caller who wishes to emit.
-		// /// 
-		// /// # Returns
-		// /// 	* emission (u64):f
-		// /// 		- The total amount emitted to the caller.
-		// /// 	
-		// #[weight = (0, DispatchClass::Operational, Pays::No)]
-		// pub fn emit( origin: T::Origin ) -> dispatch::DispatchResult {
-
-		// 	Self::do_emit( origin )
-		// }
-
 		/// --- Sets the caller weights for the incentive mechanism. The call can be
-		/// made from the hotkey account so is potentially insecure, however, the damage 
+		/// made from the hotkey account so is potentially insecure, however, the damage
 		/// of changing weights is minimal if caught early. This function includes all the
 		/// checks that the passed weights meet the requirements. Stored as u64s they represent
 		/// rational values in the range [0,1] which sum to 1 and can be interpreted as
-		/// probabilities. The specific weights determine how inflation propagates outward 
-		/// from this peer. Because this function changes the inflation distribution it 
+		/// probabilities. The specific weights determine how inflation propagates outward
+		/// from this peer. Because this function changes the inflation distribution it
 		/// triggers an emit before values are changed on the chain.
-		/// 
+		///
 		/// Note: The 32 bit integers weights should represent 1.0 as the max u64.
 		/// However, the function normalizes all integers to u64_max anyway. This means that if the sum of all
 		/// elements is larger or smaller than the amount of elements * u64_max, all elements
-		/// will be corrected for this deviation. 
-		/// 
+		/// will be corrected for this deviation.
+		///
 		/// # Args:
-		/// 	* `origin`: (<T as frame_system::Trait>Origin):
+		/// 	* 'origin': (<T as frame_system::Trait>Origin):
 		/// 		- The caller, a hotkey who wishes to set their weights.
-		/// 
-		/// 	* `uids` (Vec<u64>):
+		///
+		/// 	* 'uids' (Vec<u64>):
 		/// 		- The edge endpoint for the weight, i.e. j for w_ij.
-		/// 
-		/// 	* `weights` (Vec<u64>):
-		/// 		- The u64 integer encoded weights. Interpreted as rational 
+		///
+		/// 	* 'weights' (Vec<u64>):
+		/// 		- The u64 integer encoded weights. Interpreted as rational
 		/// 		values in the range [0,1]. They must sum to in32::MAX.
-		/// 
+		///
 		/// # Emits:
-		/// 	`WeightsSet`:
+		/// 	* WeightsSet;
 		/// 		- On successfully setting the weights on chain.
-		/// 
+		///
 		/// # Raises:
-		/// 	* `WeightVecNotEqualSize`:
+		/// 	* 'WeightVecNotEqualSize':
 		/// 		- If the passed weights and uids have unequal size.
-		/// 
-		/// 	* `WeightSumToLarge`:
+		///
+		/// 	* 'WeightSumToLarge':
 		/// 		- When the calling coldkey is not associated with the hotkey account.
-		/// 
-		/// 	* `InsufficientBalance`:
+		///
+		/// 	* 'InsufficientBalance':
 		/// 		- When the amount to stake exceeds the amount of balance in the
 		/// 		associated colkey account.
-		/// 	
+		///
 		#[weight = (0, DispatchClass::Operational, Pays::No)]
 		pub fn set_weights(origin, dests: Vec<u64>, weights: Vec<u32>) -> dispatch::DispatchResult {
 			Self::do_set_weights(origin, dests, weights)
@@ -260,28 +244,28 @@ decl_module! {
 		/// attacks on its hotkey running in production code.
 		///
 		/// # Args:
-		/// 	* `origin`: (<T as frame_system::Trait>Origin):
+		/// 	* 'origin': (<T as frame_system::Trait>Origin):
 		/// 		- The caller, a coldkey signature associated with the hotkey account.
 		///
-		/// 	* `hotkey` (T::AccountId):
+		/// 	* 'hotkey' (T::AccountId):
 		/// 		- The hotkey account to add stake to.
 		///
-		/// 	* `ammount_staked` (u64):
+		/// 	* 'ammount_staked' (u64):
 		/// 		- The ammount to transfer from the balances account of the cold key
 		/// 		into the staking account of the hotkey.
 		///
 		/// # Emits:
-		/// 	`StakeAdded`:
+		/// 	* 'StakeAdded':
 		/// 		- On the successful staking of funds.
 		///
 		/// # Raises:
-		/// 	* `NotActive`:
+		/// 	* 'NotActive':
 		/// 		- If the hotkey account is not active (has not subscribed)
 		///
-		/// 	* `NonAssociatedColdKey`:
+		/// 	* 'NonAssociatedColdKey':
 		/// 		- When the calling coldkey is not associated with the hotkey account.
 		///
-		/// 	* `InsufficientBalance`:
+		/// 	* 'InsufficientBalance':
 		/// 		- When the amount to stake exceeds the amount of balance in the
 		/// 		associated colkey account.
 		///
@@ -295,25 +279,25 @@ decl_module! {
 		/// has permission to make staking and unstaking requests.
 		///
 		/// # Args:
-		/// 	* `origin``: (<T as frame_system::Trait>Origin):
+		/// 	* 'origin': (<T as frame_system::Trait>Origin):
 		/// 		- The caller, a coldkey signature associated with the hotkey account.
 		///
-		/// 	* `hotkey` (T::AccountId):
+		/// 	* 'hotkey' (T::AccountId):
 		/// 		- The hotkey account to withdraw stake from.
 		///
-		/// 	* `ammount_unstaked` (u64):
+		/// 	* 'ammount_unstaked' (u64):
 		/// 		- The ammount to transfer from the staking account into the balance
 		/// 		of the coldkey.
 		///
 		/// # Emits:
-		/// 	* `StakeRemoved`:
+		/// 	* 'StakeRemoved':
 		/// 		- On successful withdrawl.
 		///
 		/// # Raises:
-		/// 	* `NonAssociatedColdKey`:
+		/// 	* 'NonAssociatedColdKey':
 		/// 		- When the calling coldkey is not associated with the hotkey account.
 		///
-		/// 	* `NotEnoughStaketoWithdraw`:
+		/// 	* 'NotEnoughStaketoWithdraw':
 		/// 		- When the amount to unstake exceeds the quantity staked in the
 		/// 		associated hotkey staking account.
 		///
@@ -328,26 +312,26 @@ decl_module! {
 		/// and the passed coldkey account. Only the cold key has permission to make add_stake/remove_stake calls.
 		///
 		/// # Args:
-		/// 	* `origin`: (<T as frame_system::Trait>Origin):
+		/// 	* 'origin': (<T as frame_system::Trait>Origin):
 		/// 		- The caller, a hotkey associated with the subscribing neuron.
 		///
-		/// 	* `ip` (u128):
+		/// 	* 'ip' (u128):
 		/// 		- The u64 encoded IP address of type 6 or 4.
 		///
-		/// 	* `port` (u16):
+		/// 	* 'port' (u16):
 		/// 		- The port number where this neuron receives RPC requests.
 		///
-		/// 	* `ip_type` (u8):
+		/// 	* 'ip_type' (u8):
 		/// 		- The ip type one of (4,6).
 		///
-		/// 	* `coldkey` (T::AccountId):
+		/// 	* 'coldkey' (T::AccountId):
 		/// 		- The associated coldkey to be attached to the account.
 		///
 		/// # Emits:
-		/// 	* `NeuronAdded`:
+		/// 	* 'NeuronAdded':
 		/// 		- On subscription of a new neuron to the active set.
 		///
-		/// 	* `NeuronUpdated`:
+		/// 	* 'NeuronUpdated':
 		/// 		- On subscription of new metadata attached to the calling hotkey.
 		#[weight = (0, DispatchClass::Operational, Pays::No)]
 		pub fn subscribe(origin, ip: u128, port: u16, ip_type: u8, coldkey: T::AccountId) -> dispatch::DispatchResult {
@@ -358,18 +342,18 @@ decl_module! {
 		/// an emit call before unstaking the current stake balance into the coldkey account.
 		///
 		/// # Args:
-		/// 	* `origin`: (<T as frame_system::Trait>Origin):
+		/// 	* 'origin': (<T as frame_system::Trait>Origin):
 		/// 		- The caller, a hotkey associated with the subscribing neuron.
 		///
 		/// # Emits:
-		/// 	* `NeuronRemoved`:
+		/// 	* 'NeuronRemoved':
 		/// 		- On subscription of a new neuron to the active set.
 		///
-		/// 	* `NeuronUpdated`:
+		/// 	* 'NeuronUpdated':
 		/// 		- On subscription of new metadata attached to the calling hotkey.
 		///
 		/// # Raises:
-		/// 	* `NotActive`:
+		/// 	* 'NotActive':
 		/// 		- Raised if the unsubscriber does not exist.
 		#[weight = (0, DispatchClass::Operational, Pays::No)]
 		pub fn unsubscribe(origin) -> dispatch::DispatchResult {
