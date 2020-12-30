@@ -58,7 +58,7 @@ impl<T: Trait> Module<T> {
         // --- We get the callers weights. The total emission will be distributed
         // according to these weights. The weight_vals sum to u32::max. ie. They have been normalized
         // to u32:max. This normalization takes places when weights are set. See fn set_weights
-        let (weight_uids, weight_vals) = Self::get_weights_for_neuron(neuron);
+        let (weight_uids,  weight_vals) = Self::get_weights_for_neuron(neuron);
 
         // --- Before the the inflation can be emitted to the stake account of the destination neurons
         // we perform some sanity checks. This means:
@@ -74,21 +74,27 @@ impl<T: Trait> Module<T> {
         // staking account.
         let mut total_new_stake: u64 = 0; // Total stake added across all emissions.
         for (i, dest_uid) in weight_uids.iter().enumerate() {
-            // --- We get the weight from neuron i to neuron j, where neuron i is the calling neuron
-            // and j is the destination neuron.
-            // The weights are normalized and sum to u32::max. (See fn set_weights)
-            // This means we have to normalize the weights with respect to one.
-            let w_ij = normalize(weight_vals[i]);
-            debug::info!("Emitting to {:?} | weight: {:?}", dest_uid, w_ij);
 
-            // ---The stake increment is calculated by multiplying the emission for the calling neuron, as
-            // as calculated above, and the weight which is now a value between 0 and 1. The stake
-            // increment is thus a proportion of the total emission the source neuron gets to emit.
-            let stake_increment = Self::calulate_stake_increment(emission_for_neuron, w_ij);
-            Self::add_stake_to_neuron_hotkey_account(*dest_uid, stake_increment);
+			// --- We check that the staking account exists. We do not emit to non-existing nodes.
+			// This emission is burned if the user does not exist.
+			let is_existent_neuron = Stake::contains_key(dest_uid);
+			if is_existent_neuron {
+				// --- We get the weight from neuron i to neuron j, where neuron i is the calling neuron
+				// and j is the destination neuron.
+				// The weights are normalized and sum to u32::max. (See fn set_weights)
+				// This means we have to normalize the weights with respect to one.
+				let w_ij = normalize(weight_vals[i]);
+				debug::info!("Emitting to {:?} | weight: {:?}", dest_uid, w_ij);
 
-            // --- We increase the total stake emitted.
-            total_new_stake += stake_increment;
+				// ---The stake increment is calculated by multiplying the emission for the calling neuron, as
+				// as calculated above, and the weight which is now a value between 0 and 1. The stake
+				// increment is thus a proportion of the total emission the source neuron gets to emit.
+				let stake_increment = Self::calulate_stake_increment(emission_for_neuron, w_ij);
+				Self::add_stake_to_neuron_hotkey_account(*dest_uid, stake_increment);
+
+				// --- We increase the total stake emitted.
+				total_new_stake += stake_increment;
+			}
         }
 
         // --- Finally, we update the last emission by the caller.
