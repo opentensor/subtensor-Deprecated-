@@ -87,15 +87,11 @@ impl<T: Trait> Module<T> {
             // as calculated above, and the weight which is now a value between 0 and 1. The stake
             // increment is thus a proportion of the total emission the source neuron gets to emit.
             let stake_increment = Self::calulate_stake_increment(emission_for_neuron, w_ij);
-            Self::add_stake_to_neuron_hotkey_account(neuron.uid, stake_increment);
+            Self::add_stake_to_neuron_hotkey_account(*dest_uid, stake_increment);
 
             // --- We increase the total stake emitted.
             total_new_stake += stake_increment;
         }
-
-        // --- We add the total amount of stake emitted to the staking pool.
-        // Note: This value may not perfectly match total_emission_u64_f64 after rounding.
-        Self::increase_total_stake(total_new_stake);
 
         // --- Finally, we update the last emission by the caller.
         Self::update_last_emit_for_neuron(&neuron);

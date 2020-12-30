@@ -64,9 +64,6 @@ impl<T: Trait> Module<T> {
             let stake_to_be_added_as_currency = Self::u64_to_balance(amount_staked);
             ensure!(stake_to_be_added_as_currency.is_some(), Error::<T>::CouldNotConvertToBalance);
             Self::add_stake_to_coldkey_account(&neuron.coldkey, stake_to_be_added_as_currency.unwrap());
-
-            // --- We update the total staking pool with the removed funds.
-            Self::reduce_total_stake(amount_staked);
         }
 
         // --- We remove the neuron-info from the various maps.
@@ -119,13 +116,12 @@ impl<T: Trait> Module<T> {
         Self::set_new_weights(neuron, &uids, &weights);
     }
 
-    fn add_subscription_gift(neuron: &NeuronMetadataOf<T>, amount: u64) {
-        debug::info!("Adding subscription gift to the stake {:?} ", amount);
-
-        Self::add_stake_to_neuron_hotkey_account(neuron.uid, amount);
-        Self::increase_total_stake(amount);
-        Self::update_last_emit_for_neuron(&neuron);
-    }
+    // fn add_subscription_gift(neuron: &NeuronMetadataOf<T>, amount: u64) {
+    //     debug::info!("Adding subscription gift to the stake {:?} ", amount);
+    //
+    //     Self::add_stake_to_neuron_hotkey_account(neuron.uid, amount);
+    //     Self::update_last_emit_for_neuron(&neuron);
+    // }
 
     fn add_neuron_to_block_chain(ip: u128, port: u16, ip_type: u8, coldkey: T::AccountId, hotkey_id: &T::AccountId, uid: u64) -> NeuronMetadataOf<T> {
         debug::info!("Insert new metadata with ip: {:?}, port: {:?}, ip_type: {:?}, uid: {:?}, coldkey: {:?}", ip, port, ip_type, uid, coldkey);

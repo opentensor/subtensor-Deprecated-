@@ -35,7 +35,6 @@ impl<T: Trait> Module<T> {
         ensure!(Self::coldkey_has_enough_balance(&coldkey, stake_as_balance.unwrap()), Error::<T>::NotEnoughBalanceToStake);
         Self::remove_stake_from_coldkey_account(&coldkey, stake_as_balance.unwrap());
         Self::add_stake_to_neuron_hotkey_account(neuron.uid, stake_to_be_added);
-        Self::increase_total_stake(stake_to_be_added);
 
         // ---- Emit the staking event.
         Self::deposit_event(RawEvent::StakeAdded(hotkey, stake_to_be_added));
@@ -97,7 +96,6 @@ impl<T: Trait> Module<T> {
         // does not exist it is created.
         Self::add_stake_to_coldkey_account(&coldkey, stake_to_be_added_as_currency.unwrap());
         Self::remove_stake_from_neuron_hotkey_account(neuron.uid, stake_to_be_removed);
-        Self::reduce_total_stake(stake_to_be_removed);
 
         // ---- Emit the unstaking event.
         Self::deposit_event(RawEvent::StakeRemoved(hotkey, stake_to_be_removed));
@@ -114,7 +112,7 @@ impl<T: Trait> Module<T> {
     --==[[  Helper functions   ]]==--
     *********************************/
 
-    pub fn get_stake_of_neuron_hotkey_account(uid : u64) -> u64 {
+    pub fn get_stake_of_neuron_hotkey_account_by_uid(uid : u64) -> u64 {
         return Stake::get(uid);
     }
 
@@ -151,6 +149,8 @@ impl<T: Trait> Module<T> {
         let new_stake = prev_stake + amount;
         Stake::insert(uid, new_stake);
         debug::info!("Added new stake: | uid: {:?} | prev stake: {:?} | increment: {:?} | new stake: {:?}|", uid, prev_stake, amount, new_stake);
+
+        Self::increase_total_stake(amount);
     }
 
     /**
@@ -163,6 +163,8 @@ impl<T: Trait> Module<T> {
         let hotkey_stake: u64 = Stake::get(uid);
         Stake::insert(uid, hotkey_stake - amount);
         debug::info!("Withdraw: {:?} from hotkey staking account for new ammount {:?} staked", amount, hotkey_stake - amount);
+
+        Self::reduce_total_stake(amount);
     }
 
     /**

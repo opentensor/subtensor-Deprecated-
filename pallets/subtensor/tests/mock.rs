@@ -1,4 +1,4 @@
-use pallet_subtensor::{Module, Trait};
+use pallet_subtensor::{Module, Trait, NeuronMetadata};
 use sp_core::H256;
 use frame_support::{impl_outer_origin, impl_outer_event, parameter_types, weights::Weight};
 use sp_runtime::{
@@ -15,6 +15,7 @@ pub(crate) type Balance = u128;
 
 use frame_system as system;
 use pallet_balances as balances;
+use frame_support::traits::{OnInitialize, OnFinalize};
 // use pallet_session as session;
 
 impl_outer_event! {
@@ -98,6 +99,8 @@ impl pallet_balances::Trait for Test {
 // }
 
 pub type SubtensorModule = Module<Test>;
+// type AccountIdOf<Test> = <Test as system::Trait>::AccountId;
+// type NeuronMetadataOf<Test> = <pallet_subtensor::Module<Test> as Trait>::NeuronMetadata;
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
@@ -106,4 +109,18 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 
 
 
+pub fn subscribe_neuron(hotkey_account_id : u64, ip: u128, port: u16, ip_type : u8, coldkey_acount_id : u64) -> NeuronMetadata<u64> {
+	let _ = SubtensorModule::subscribe(<<Test as system::Trait>::Origin>::signed(hotkey_account_id), ip, port, ip_type, coldkey_acount_id);
+	let neuron = SubtensorModule::get_neuron_metadata_for_hotkey(&hotkey_account_id);
+	neuron
+}
 
+pub fn run_to_block(n: u64) {
+    while System::block_number() < n {
+        SubtensorModule::on_finalize(System::block_number());
+        System::on_finalize(System::block_number());
+        System::set_block_number(System::block_number() + 1);
+        System::on_initialize(System::block_number());
+        SubtensorModule::on_initialize(System::block_number());
+    }
+}
