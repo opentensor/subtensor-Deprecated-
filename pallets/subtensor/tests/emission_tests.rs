@@ -18,6 +18,24 @@ fn random_neuron_with_stake(hotkey:u64, stake_to_init: u64, ip:u128, port:u16, i
 
 // Tests that the self emission returns the correct values with a single node.
 #[test]
+fn test_emit_does_not_exist() {
+	new_test_ext().execute_with(|| {
+        // Let's subscribe a new neuron to the chain.
+        let neuron = NeuronMetadata::<u64> {
+            ip: 0,
+            port: 0,
+            ip_type: 0,
+            uid: 0,
+            coldkey: 0,
+        };
+        // Let's call an emit.
+        let total_emission:u64 = SubtensorModule::emit_for_neuron(&neuron);
+        assert_eq!(total_emission, 0);
+	});
+}
+
+// Tests that the self emission returns the correct values with a single node.
+#[test]
 fn test_self_emission() {
 	new_test_ext().execute_with(|| {
         // Let's subscribe a new neuron to the chain.
