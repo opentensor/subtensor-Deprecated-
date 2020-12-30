@@ -116,6 +116,19 @@ fn test_weights_err_weights_vec_not_equal_size() {
 }
 
 #[test]
+fn test_weights_err_has_duplicate_ids() {
+	new_test_ext().execute_with(|| {
+        let _neuron = subscribe_neuron(666, 5, 66, 4, 77);
+		let weights_keys: Vec<<Test as Trait>::AccountId> = vec![1, 2, 3, 4, 5, 6,6,6]; // Contains duplicates
+		let weight_values: Vec<u32> = vec![1, 2, 3, 4, 5, 6, 7, 8];
+
+		let result = SubtensorModule::set_weights(<<Test as Trait>::Origin>::signed(666), weights_keys, weight_values);
+
+		assert_eq!(result, Err(Error::<Test>::DuplicateUids.into()));
+	});
+}
+
+#[test]
 fn test_no_signature() {
 	new_test_ext().execute_with(|| {
 		let weights_keys: Vec<<Test as Trait>::AccountId> = vec![];
