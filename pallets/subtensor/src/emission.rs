@@ -60,7 +60,6 @@ impl<T: Trait> Module<T> {
         // to u32:max. This normalization takes places when weights are set. See fn set_weights
         let (weight_uids, weight_vals) = Self::get_weights_for_neuron(neuron);
 
-
         // --- Before the the inflation can be emitted to the stake account of the destination neurons
         // we perform some sanity checks. This means:
         // - The emission for the neuron calling this function must be greater than zero
@@ -80,7 +79,6 @@ impl<T: Trait> Module<T> {
             // The weights are normalized and sum to u32::max. (See fn set_weights)
             // This means we have to normalize the weights with respect to one.
             let w_ij = normalize(weight_vals[i]);
-
             debug::info!("Emitting to {:?} | weight: {:?}", dest_uid, w_ij);
 
             // ---The stake increment is calculated by multiplying the emission for the calling neuron, as
@@ -105,7 +103,6 @@ impl<T: Trait> Module<T> {
         if *emission == U64F64::from_num(0) {return false;}
         if weight_uids.is_empty() { return false }
         if weight_vals.is_empty() { return false }
-
         return true;
     }
 
@@ -137,6 +134,8 @@ impl<T: Trait> Module<T> {
 
 
     fn elapsed_blocks_for_neuron(neuron : &NeuronMetadataOf<T>) -> U64F64{
+		// --- We compute the delta time (in blocks) since the user made an 
+		// emission.
         let current_block = system::Module::<T>::block_number();
         let last_emit: T::BlockNumber = LastEmit::<T>::get(neuron.uid);
 

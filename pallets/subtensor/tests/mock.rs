@@ -107,8 +107,6 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
 }
 
-
-
 pub fn subscribe_neuron(hotkey_account_id : u64, ip: u128, port: u16, ip_type : u8, coldkey_acount_id : u64) -> NeuronMetadata<u64> {
 	let _ = SubtensorModule::subscribe(<<Test as system::Trait>::Origin>::signed(hotkey_account_id), ip, port, ip_type, coldkey_acount_id);
 	let neuron = SubtensorModule::get_neuron_metadata_for_hotkey(&hotkey_account_id);

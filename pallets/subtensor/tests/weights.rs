@@ -16,8 +16,6 @@ use mock::*;
 *****************************/
 
 
-
-
 /**
 * This test the situation where user tries to set weights, but the vecs are empty.
 * After setting the weights, the wi
