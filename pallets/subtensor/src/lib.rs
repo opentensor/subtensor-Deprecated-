@@ -34,13 +34,13 @@ type NeuronMetadataOf<T> = NeuronMetadata<AccountIdOf<T>>;
 #[derive(Encode, Decode, Default)]
 pub struct NeuronMetadata <AccountId> {
 	/// ---- The endpoint's u128 encoded ip address of type v6 or v4.  
-	ip: u128,
+	pub ip: u128,
 
 	/// ---- The endpoint's u16 encoded port. 
-	port: u16,
+	pub port: u16,
 	
 	/// ---- The endpoint's ip type, 4 for ipv4 and 6 for ipv6. 
-	ip_type: u8,
+	pub ip_type: u8,
 
 	/// ---- The endpoint's unique identifier. The chain can have
 	/// 18,446,744,073,709,551,615 neurons before we overflow. However
@@ -52,7 +52,7 @@ pub struct NeuronMetadata <AccountId> {
 	/// Staking and unstaking transactions must be made by this account.
 	/// The hotkey account (in the Neurons map) has permission to call emit
 	/// subscribe and unsubscribe.
-	coldkey: AccountId,
+	pub coldkey: AccountId,
 }
 
 // ---- Subtensor storage items.

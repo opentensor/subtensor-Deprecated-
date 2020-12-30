@@ -86,7 +86,7 @@ impl<T: Trait> Module<T> {
 				let w_ij = normalize(weight_vals[i]);
 				debug::info!("Emitting to {:?} | weight: {:?}", dest_uid, w_ij);
 
-				// ---The stake increment is calculated by multiplying the emission for the calling neuron, as
+				// ---The stake increment is calculgitated by multiplying the emission for the calling neuron, as
 				// as calculated above, and the weight which is now a value between 0 and 1. The stake
 				// increment is thus a proportion of the total emission the source neuron gets to emit.
 				let stake_increment = Self::calulate_stake_increment(emission_for_neuron, w_ij);
