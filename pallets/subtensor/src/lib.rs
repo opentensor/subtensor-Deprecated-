@@ -46,7 +46,7 @@ pub struct NeuronMetadata <AccountId> {
 	/// 18,446,744,073,709,551,615 neurons before we overflow. However
 	/// by this point the chain would be 10 terabytes just from metadata
 	/// alone.
-	uid: u64, 
+	pub uid: u64,
 
 	/// ---- The associated coldkey account. 
 	/// Staking and unstaking transactions must be made by this account.
@@ -195,7 +195,7 @@ decl_module! {
 		// /// 		- The transaction caller who wishes to emit.
 		// /// 
 		// /// # Returns
-		// /// 	* emission (u64):
+		// /// 	* emission (u64):f
 		// /// 		- The total amount emitted to the caller.
 		// /// 	
 		// #[weight = (0, DispatchClass::Operational, Pays::No)]
@@ -346,7 +346,7 @@ decl_module! {
 		/// 	* `NeuronUpdated`:
 		/// 		- On subscription of new metadata attached to the calling hotkey.
 		#[weight = (0, DispatchClass::Operational, Pays::No)]
-		fn subscribe(origin, ip: u128, port: u16, ip_type: u8, coldkey: T::AccountId) -> dispatch::DispatchResult {
+		pub fn subscribe(origin, ip: u128, port: u16, ip_type: u8, coldkey: T::AccountId) -> dispatch::DispatchResult {
 			Self::do_subscribe(origin, ip, port, ip_type, coldkey)
 		}
 
@@ -368,7 +368,7 @@ decl_module! {
 		/// 	* `NotActive`:
 		/// 		- Raised if the unsubscriber does not exist.
 		#[weight = (0, DispatchClass::Operational, Pays::No)]
-		fn unsubscribe(origin) -> dispatch::DispatchResult {
+		pub fn unsubscribe(origin) -> dispatch::DispatchResult {
 			Self::do_unsubscribe(origin)
 		}
 	}
@@ -390,7 +390,7 @@ impl<T: Trait> Module<T> {
 		return !Self::is_active(hotkey_id);
 	}
 
-	fn get_neuron_metadata_for_hotkey(hotkey: &T::AccountId) -> NeuronMetadataOf<T> {
+	pub fn get_neuron_metadata_for_hotkey(hotkey: &T::AccountId) -> NeuronMetadataOf<T> {
         let neuron: NeuronMetadataOf<T> = Neurons::<T>::get(&hotkey);
         debug::info!("Got neuron metadata for hotkey {:?} and coldkey: {:?} ", hotkey, neuron.coldkey);
         neuron

@@ -23,7 +23,7 @@ impl<T: Trait> Module<T> {
 
         // ---- We provide the subscriber with and initial subscription gift.
         // NOTE: THIS IS FOR TESTING, NEEDS TO BE REMOVED FROM PRODUCTION
-        Self::add_subscription_gift(&neuron, 1000000000);
+        // Self::add_subscription_gift(&neuron, 1000000000);
         Self::init_weight_matrix_for_neuron(&neuron);
 
         // ---- We increment the active count for the additional member.

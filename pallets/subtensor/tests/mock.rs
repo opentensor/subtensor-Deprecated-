@@ -5,6 +5,7 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup}, testing::Header, Perbill,
 };
 
+
 /// The AccountId alias in this test module.
 pub(crate) type AccountId = u64;
 pub(crate) type AccountIndex = u64;
@@ -74,7 +75,6 @@ impl system::Trait for Test {
 impl Trait for Test {
 	type Event = ();
 	type Currency = Balances;
-
 }
 
 impl pallet_balances::Trait for Test {
@@ -103,3 +103,7 @@ pub type SubtensorModule = Module<Test>;
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
 }
+
+
+
+

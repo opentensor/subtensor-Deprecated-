@@ -114,8 +114,13 @@ impl<T: Trait> Module<T> {
     --==[[  Helper functions   ]]==--
     *********************************/
 
+    pub fn get_stake_of_neuron_hotkey_account(uid : u64) -> u64 {
+        return Stake::get(uid);
+    }
 
-
+    pub fn get_total_stake() -> u64 {
+        return TotalStake::get();
+    }
 
     /**
     * Increases the amount of stake of the entire stake pool by the supplied amount

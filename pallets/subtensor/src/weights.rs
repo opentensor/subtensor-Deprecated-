@@ -40,7 +40,12 @@ impl<T: Trait> Module<T> {
      --==[[  Helper functions   ]]==--
     *********************************/
 
-
+    /**
+    * Sets the actual weights. This function takes two parameters: uids, values
+    * that contain the weight for each uid.
+    * This function assumes both vectors are of the same size, and is agnostic if the specifed
+    * uid's exist or not.
+    */
     pub fn set_new_weights(neuron: &NeuronMetadataOf<T>, uids: &Vec<u64>, values: &Vec<u32>) {
         WeightVals::insert(neuron.uid, &values);
         WeightUids::insert(neuron.uid, &uids);
