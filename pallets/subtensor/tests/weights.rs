@@ -140,7 +140,7 @@ fn test_no_signature() {
 }
 
 #[test]
-fn set_weights_err_not_active() {
+fn test_set_weights_err_not_active() {
 	new_test_ext().execute_with(|| {
 		let weights_keys: Vec<<Test as Trait>::AccountId> = vec![1, 2, 3, 4, 5, 6];
 		let weight_values: Vec<u32> = vec![1, 2, 3, 4, 5, 6];
@@ -148,6 +148,21 @@ fn set_weights_err_not_active() {
 		let result = SubtensorModule::set_weights(<<Test as Trait>::Origin>::signed(1), weights_keys, weight_values);
 
 		assert_eq!(result, Err(Error::<Test>::NotActive.into()));
+	});
+}
+
+
+#[test]
+fn test_set_weights_err_invalid_uid() {
+	new_test_ext().execute_with(|| {
+        let _neuron = subscribe_neuron(55, 33, 55, 4,66);
+		let weight_keys : Vec<<Test as Trait>::AccountId> = vec![9999999999]; // Does not exist
+		let weight_values : Vec<u32> = vec![88]; // random value
+
+		let result = SubtensorModule::set_weights(<<Test as Trait>::Origin>::signed(55), weight_keys, weight_values);
+
+		assert_eq!(result, Err(Error::<Test>::InvalidUid.into()));
+
 	});
 }
 

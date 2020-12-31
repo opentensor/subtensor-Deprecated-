@@ -19,11 +19,14 @@ impl<T: Trait> Module<T> {
 
         // ---- If the neuron is not-already subscribed, we create a 
         // new entry in the table with the new metadata.
-        let neuron = Self::add_neuron_to_block_chain(ip, port, ip_type, coldkey, &hotkey_id, uid);
+        let neuron = Self::add_neuron_to_metagraph(ip, port, ip_type, coldkey, &hotkey_id, uid);
 
         // ---- We provide the subscriber with and initial subscription gift.
         // NOTE: THIS IS FOR TESTING, NEEDS TO BE REMOVED FROM PRODUCTION
         // Self::add_subscription_gift(&neuron, 1000000000);
+
+        // Create hotkey account where the neuron can receive stake
+        Self::create_hotkey_account(neuron.uid);
         Self::init_weight_matrix_for_neuron(&neuron);
 
         // ---- We increment the active count for the additional member.
@@ -45,7 +48,7 @@ impl<T: Trait> Module<T> {
         debug::info!("--- Called unsubscribe with caller: {:?}", hotkey_id);
 
         // --- We check that the Neuron already exists in the active set.
-        ensure!(Self::is_active(&hotkey_id), Error::<T>::NotActive);
+        ensure!(Self::is_hotkey_active(&hotkey_id), Error::<T>::NotActive);
         let neuron = Self::get_neuron_metadata_for_hotkey(&hotkey_id);
 
         // --- We call the emit function. Neurons must call an emit before
@@ -123,7 +126,7 @@ impl<T: Trait> Module<T> {
     //     Self::update_last_emit_for_neuron(&neuron);
     // }
 
-    fn add_neuron_to_block_chain(ip: u128, port: u16, ip_type: u8, coldkey: T::AccountId, hotkey_id: &T::AccountId, uid: u64) -> NeuronMetadataOf<T> {
+    fn add_neuron_to_metagraph(ip: u128, port: u16, ip_type: u8, coldkey: T::AccountId, hotkey_id: &T::AccountId, uid: u64) -> NeuronMetadataOf<T> {
         debug::info!("Insert new metadata with ip: {:?}, port: {:?}, ip_type: {:?}, uid: {:?}, coldkey: {:?}", ip, port, ip_type, uid, coldkey);
 
         let metadata = NeuronMetadataOf::<T> {

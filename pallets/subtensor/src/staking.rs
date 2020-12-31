@@ -13,7 +13,7 @@ impl<T: Trait> Module<T> {
         debug::info!("--- Called add_stake with coldkey id {:?}, hotkey {:?} and ammount_staked {:?}", coldkey, hotkey, stake_to_be_added);
 
         // Check if the hotkey is active
-        ensure!(Self::is_active(&hotkey), Error::<T>::NotActive);
+        ensure!(Self::is_hotkey_active(&hotkey), Error::<T>::NotActive);
         let neuron = Self::get_neuron_metadata_for_hotkey(&hotkey);
 
         // ---- We check that the NeuronMetadata is linked to the calling
@@ -72,7 +72,7 @@ impl<T: Trait> Module<T> {
 
         // ---- We query the Neuron set for the NeuronMetadata stored under
         // the passed hotkey.
-        ensure!(Self::is_active(&hotkey), Error::<T>::NotActive);
+        ensure!(Self::is_hotkey_active(&hotkey), Error::<T>::NotActive);
         let neuron = Self::get_neuron_metadata_for_hotkey(&hotkey);
 
         // ---- We check that the NeuronMetadata is linked to the calling
@@ -220,6 +220,23 @@ impl<T: Trait> Module<T> {
     fn has_enough_stake(neuron : &NeuronMetadataOf<T>, amount : u64) -> bool {
         let hotkey_stake: u64 = Stake::get( neuron.uid );
         return hotkey_stake >= amount;
+    }
+
+    /**
+    * Creates a hotkey account to which stake can be added.
+    * This needs to be done on subsribed, as its presence is used for
+    * uid validity checking
+    */
+    pub fn create_hotkey_account(uid : u64) {
+        Stake::insert(uid, 0);
+    }
+
+    /**
+    * Returns true if there is an entry for uid in the Stake map,
+    * false otherwise
+    */
+    pub fn has_hotkey_account(uid : &u64) -> bool {
+        return Stake::contains_key(*uid);
     }
 
     /**

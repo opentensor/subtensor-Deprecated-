@@ -138,6 +138,10 @@ decl_error! {
 		/// in the weight matrix
 		DuplicateUids,
 
+		/// ---- Thrown when a caller attempts to set weight to at least one uid that
+		/// does not exist in the metagraph
+		InvalidUid,
+
 		/// ---- Thrown when the caller triggers an emit but the computed amount
 		/// to emit is zero.
 		NothingToEmit,
@@ -370,12 +374,12 @@ impl<T: Trait> Module<T> {
 		input.try_into().ok()
 	}
 
-	fn is_active(hotkey_id: &T::AccountId) -> bool {
+	fn is_hotkey_active(hotkey_id: &T::AccountId) -> bool {
         return Neurons::<T>::contains_key(&hotkey_id);
     }
 
 	fn is_not_active(hotkey_id: &T::AccountId) -> bool {
-		return !Self::is_active(hotkey_id);
+		return !Self::is_hotkey_active(hotkey_id);
 	}
 
 	pub fn get_neuron_metadata_for_hotkey(hotkey: &T::AccountId) -> NeuronMetadataOf<T> {
@@ -383,4 +387,9 @@ impl<T: Trait> Module<T> {
         debug::info!("Got neuron metadata for hotkey {:?} and coldkey: {:?} ", hotkey, neuron.coldkey);
         neuron
     }
+
+
+	pub fn is_uid_active(uid : &u64) -> bool{
+		return Self::has_hotkey_account(uid);
+	}
 }

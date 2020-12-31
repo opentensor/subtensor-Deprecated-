@@ -9,7 +9,7 @@ impl<T: Trait> Module<T> {
         debug::info!("--- Called set_weights key {:?}, with uids: {:?} and weights: {:?}", hotkey_id, uids, values);
 
         // ---- We check to see that the calling neuron is in the active set.
-        ensure!(Self::is_active(&hotkey_id), Error::<T>::NotActive);
+        ensure!(Self::is_hotkey_active(&hotkey_id), Error::<T>::NotActive);
         let neuron = Self::get_neuron_metadata_for_hotkey(&hotkey_id);
         debug::info!("Got metadata with uid {:?}", neuron.uid);
 
@@ -19,6 +19,9 @@ impl<T: Trait> Module<T> {
 
         // --- We check if the uids vector does not contain duplicate ids
         ensure!(!has_duplicate_uids(&uids), Error::<T>::DuplicateUids);
+
+        // --- We check if the weight uids are valid
+        ensure!(!Self::contains_invalid_uids(&uids), Error::<T>::InvalidUid);
 
 
         // ---- We call an inflation emit before setting the weights
@@ -64,6 +67,16 @@ impl<T: Trait> Module<T> {
 
     pub fn get_weights_for_neuron(neuron : &NeuronMetadataOf<T>) -> (Vec<u64>, Vec<u32>) {
         (WeightUids::get(neuron.uid), WeightVals::get(neuron.uid))
+    }
+
+    pub fn contains_invalid_uids(uids : &Vec<u64>) -> bool {
+        for uid in uids {
+            if !Self::is_uid_active(uid) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
 
