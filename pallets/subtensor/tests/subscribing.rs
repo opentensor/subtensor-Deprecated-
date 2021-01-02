@@ -122,3 +122,23 @@ fn test_decrease_neuron_count_ok() {
 		assert_eq!(SubtensorModule::get_neuron_count(), 3);
 	});
 }
+
+
+/********************************************
+	subscribing::increase_neuron_count() tests
+*********************************************/
+#[test]
+fn test_init_weight_matrix_for_neuron() {
+	new_test_ext().execute_with(|| {
+		let account_id = 55;
+		let ip = ipv4(8,8,8,8);
+		let port = 55;
+		let ip_type = 4;
+		let coldkey = 66;
+
+        let neuron = subscribe_neuron(account_id, ip, port, ip_type,coldkey);
+		SubtensorModule::init_weight_matrix_for_neuron(&neuron);
+		assert_eq!(SubtensorModule::get_weights_for_neuron(&neuron), (vec![neuron.uid], vec![u32::MAX]));
+	});
+}
+

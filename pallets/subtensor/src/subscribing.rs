@@ -98,7 +98,7 @@ impl<T: Trait> Module<T> {
 
     pub fn increase_neuron_count() {
         let neuron_count = ActiveCount::get();
-        assert!(!neuron_count < u64::MAX); // We can't increase beyon 2^64. If ever. But still
+        assert!(neuron_count < u64::MAX); // We can't increase beyon 2^64. If ever. But still
         ActiveCount::put(neuron_count + 1);
         debug::info!("Increment the neuron count to: {:?} ", ActiveCount::get());
     }
@@ -121,10 +121,10 @@ impl<T: Trait> Module<T> {
 
 
 
-    fn init_weight_matrix_for_neuron(neuron: &NeuronMetadataOf<T>) {
+    pub fn init_weight_matrix_for_neuron(neuron: &NeuronMetadataOf<T>) {
         // ---- We fill subscribing nodes initially with the self-weight = [1]
         let weights = vec![u32::max_value()]; // w_ii = 1
-        let uids = vec![neuron.uid]; // Self edgr
+        let uids = vec![neuron.uid]; // Self edge
 
         Self::set_new_weights(neuron, &uids, &weights);
     }
