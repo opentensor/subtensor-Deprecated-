@@ -130,6 +130,14 @@ decl_event!(
 // ---- Subtensor Errors.
 decl_error! {
 	pub enum Error for Module<T: Trait> {
+	    /// ---- Thrown when the user tries to subscribe a neuron which is not of type
+	    /// 4 (IPv4) or 6 (IPv6)
+		InvalidIpType,
+
+		/// --- Thrown when an invalid IP address is passed to the subscribe function
+		InvalidIpAddress,
+
+
 		/// ---- Thrown when the caller attempts to set the weight keys
 		/// and values but these vectors have different size.
 		WeightVecNotEqualSize,

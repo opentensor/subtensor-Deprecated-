@@ -181,28 +181,30 @@ fn test_empty_weights() {
 	});
 }
 
+// Note: parallax (02-01-2020) This test has been commented out, as the logic that this test tests
+// for has has been implement in the set_weights() function.
 // Tests that emitting to non-existent node causes no emit.
-#[test]
-fn test_non_existent_weights() {
-	new_test_ext().execute_with(|| {
-        // Let's subscribe a new neuron to the chain.
-        let hotkey:u64 = 1;
-        let stake:u64 = 1000000000;
-        let neuron = random_neuron_with_stake(hotkey, stake, 1, 1, 1, 1);
-
-        // Let's set this neuron's weights. (0,0) = 1
-        let weight_uids = vec![2]; // does not exist
-        let weight_values = vec![u32::MAX]; 
-        assert_ok!(SubtensorModule::set_weights(<<Test as Trait>::Origin>::signed(hotkey), weight_uids.clone(), weight_values.clone()));
-        assert_eq!(SubtensorModule::get_weights_for_neuron(&neuron), (weight_uids, weight_values)); // Check the weights are set.
-
-        // Increase the block number by 1
-        run_to_block(1);
-  
-        // Let's call emit again.
-        let total_emission:u64 = SubtensorModule::emit_for_neuron(&neuron);
-        assert_eq!(total_emission, 0);
-        assert_eq!(1000000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that the stake is there.
-
-	});
-}
+// #[test]
+// fn test_non_existent_weights() {
+// 	new_test_ext().execute_with(|| {
+//         // Let's subscribe a new neuron to the chain.
+//         let hotkey:u64 = 1;
+//         let stake:u64 = 1000000000;
+//         let neuron = random_neuron_with_stake(hotkey, stake, 1, 1, 1, 1);
+//
+//         // Let's set this neuron's weights. (0,0) = 1
+//         let weight_uids = vec![2]; // does not exist
+//         let weight_values = vec![u32::MAX];
+//         assert_ok!(SubtensorModule::set_weights(<<Test as Trait>::Origin>::signed(hotkey), weight_uids.clone(), weight_values.clone()));
+//         assert_eq!(SubtensorModule::get_weights_for_neuron(&neuron), (weight_uids, weight_values)); // Check the weights are set.
+//
+//         // Increase the block number by 1
+//         run_to_block(1);
+//
+//         // Let's call emit again.
+//         let total_emission:u64 = SubtensorModule::emit_for_neuron(&neuron);
+//         assert_eq!(total_emission, 0);
+//         assert_eq!(1000000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that the stake is there.
+//
+// 	});
+// }

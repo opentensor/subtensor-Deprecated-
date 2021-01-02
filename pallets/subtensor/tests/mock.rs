@@ -16,6 +16,7 @@ pub(crate) type Balance = u128;
 use frame_system as system;
 use pallet_balances as balances;
 use frame_support::traits::{OnInitialize, OnFinalize};
+use std::net::{Ipv6Addr, Ipv4Addr};
 
 impl_outer_event! {
 	pub enum MetaEvent for Test {
@@ -113,6 +114,7 @@ pub fn subscribe_neuron(hotkey_account_id : u64, ip: u128, port: u16, ip_type : 
 	neuron
 }
 
+#[allow(dead_code)]
 pub fn run_to_block(n: u64) {
     while System::block_number() < n {
         SubtensorModule::on_finalize(System::block_number());
@@ -121,4 +123,17 @@ pub fn run_to_block(n: u64) {
         System::on_initialize(System::block_number());
         SubtensorModule::on_initialize(System::block_number());
     }
+}
+
+// Generates an ipv6 address based on 8 ipv6 words and returns it as u128
+pub fn ipv6(a: u16, b : u16, c : u16, d : u16, e : u16 ,f: u16, g: u16,h :u16) -> u128 {
+	return Ipv6Addr::new(a,b,c,d,e,f,g,h).into();
+}
+
+// Generate an ipv4 address based on 4 bytes and returns the corresponding u128, so it can be fed
+// to the module::subscribe() function
+pub fn ipv4(a: u8 ,b: u8,c : u8,d : u8) -> u128 {
+	let ipv4 : Ipv4Addr =  Ipv4Addr::new(a, b, c, d);
+	let integer : u32 = ipv4.into();
+	return u128::from(integer);
 }
