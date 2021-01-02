@@ -208,9 +208,16 @@ impl<T: Trait> Module<T> {
     * Checks if the coldkey account has enough balance to be able to withdraw the specified amount.
     */
     fn coldkey_has_enough_balance(coldkey: &T::AccountId, amount: <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance) -> bool {
-        let new_potential_balance = T::Currency::free_balance(&coldkey) - amount;
+        let new_potential_balance = Self::get_coldkey_balance(coldkey) - amount;
         let can_withdraw = T::Currency::ensure_can_withdraw(&coldkey, amount, WithdrawReasons::except(WithdrawReason::Tip), new_potential_balance).is_ok();
         can_withdraw
+    }
+
+    /**
+    * Returns the current balance in the cold key account
+    */
+    pub fn get_coldkey_balance(coldkey: &T::AccountId) -> <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance {
+        return T::Currency::free_balance(&coldkey);
     }
 
     /**

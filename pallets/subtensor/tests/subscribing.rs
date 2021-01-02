@@ -113,29 +113,31 @@ fn test_subscribe_failed_no_signature() {
 /********************************************
 	subscribing::get_next_uid() tests
 *********************************************/
-// #[test]
-// fn test_unsubscribe_ok() {
-// 	new_test_ext().execute_with(|| {
-//         let hotkey_account_id = 1;
-// 		let ip = ipv6(0,0,0,0,0,0,0,1); // Ipv6 localhost, invalid
-// 		let ip_type = 6;
-// 		let port = 1337;
-// 		let coldkey_account_id = 667;
-//
-//
-// 		// Setup neuron
-// 		let neuron = subscribe_neuron(hotkey_account_id, ip,port,ip_type,coldkey_account_id);
-//
-// 		// Give him some stake
-// 		SubtensorModule::add_stake_to_neuron_hotkey_account(hotkey_account_id, 10000);
-//
-// 		// Make sure cold key has zero balance
-// 		SubtensorModule::get(&coldkey_account_id, 0);
-//
-//
-//
-// 	});
-// }
+#[test]
+fn test_unsubscribe_ok() {
+	new_test_ext().execute_with(|| {
+        let hotkey_account_id = 1;
+		let ip = ipv6(0,0,0,0,0,0,0,8); // Ipv6 localhost, invalid
+		let ip_type = 6;
+		let port = 1337;
+		let coldkey_account_id = 667;
+
+
+		// Setup neuron
+		let _ = subscribe_neuron(hotkey_account_id, ip, port, ip_type, coldkey_account_id);
+
+		assert_ok!(SubtensorModule::unsubscribe(<<Test as Trait>::Origin>::signed(hotkey_account_id)));
+	});
+}
+
+#[test]
+fn test_unsubscribe_err_not_active() {
+	new_test_ext().execute_with(|| {
+		let hotkey_account_id = 777; // Not existing
+		let result = SubtensorModule::unsubscribe(<<Test as Trait>::Origin>::signed(hotkey_account_id));
+		assert_eq!(result, Err(Error::<Test>::NotActive.into()));
+	});
+}
 
 
 

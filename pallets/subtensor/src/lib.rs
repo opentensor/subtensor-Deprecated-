@@ -390,12 +390,15 @@ impl<T: Trait> Module<T> {
 		return !Self::is_hotkey_active(hotkey_id);
 	}
 
+	pub fn has_neuron_metadata_for_hotkey(hotkey: &T::AccountId) -> bool {
+		return Neurons::<T>::contains_key(hotkey);
+	}
+
 	pub fn get_neuron_metadata_for_hotkey(hotkey: &T::AccountId) -> NeuronMetadataOf<T> {
         let neuron: NeuronMetadataOf<T> = Neurons::<T>::get(&hotkey);
         debug::info!("Got neuron metadata for hotkey {:?} and coldkey: {:?} ", hotkey, neuron.coldkey);
         neuron
     }
-
 
 	pub fn is_uid_active(uid : &u64) -> bool{
 		return Self::has_hotkey_account(uid);
