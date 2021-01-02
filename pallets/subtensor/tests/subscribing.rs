@@ -3,7 +3,6 @@ use frame_support::{assert_ok};
 use frame_system::Trait;
 mod mock;
 use mock::*;
-use sp_runtime::DispatchError;
 
 #[test]
 fn test_subscribe_ok() {
@@ -125,7 +124,7 @@ fn test_decrease_neuron_count_ok() {
 
 
 /********************************************
-	subscribing::increase_neuron_count() tests
+	subscribing::init_weight_matrix_for_neuron() tests
 *********************************************/
 #[test]
 fn test_init_weight_matrix_for_neuron() {
@@ -142,3 +141,45 @@ fn test_init_weight_matrix_for_neuron() {
 	});
 }
 
+
+/********************************************
+	subscribing::add_neuron_to_metagraph() tests
+*********************************************/
+#[test]
+fn test_add_neuron_to_metagraph_ok() {
+	new_test_ext().execute_with(|| {
+        let account_id = 55;
+		let ip = ipv4(8,8,8,8);
+		let port = 55;
+		let ip_type = 4;
+		let coldkey = 66;
+		let uid = 666;
+
+		let neuron = SubtensorModule::add_neuron_to_metagraph(ip,port, ip_type, coldkey, &account_id, uid);
+
+		assert_eq!(neuron.ip, ip);
+		assert_eq!(neuron.port, port);
+		assert_eq!(neuron.ip_type, ip_type);
+		assert_eq!(neuron.coldkey, coldkey);
+		assert_eq!(neuron.uid, 666);
+
+		let neuron_in_storage = SubtensorModule::get_neuron_metadata_for_hotkey(&55);
+		assert_eq!(neuron_in_storage.ip, ip);
+		assert_eq!(neuron_in_storage.port, port);
+		assert_eq!(neuron_in_storage.ip_type, ip_type);
+		assert_eq!(neuron_in_storage.coldkey, coldkey);
+		assert_eq!(neuron_in_storage.uid, 666);
+	});
+}
+
+/********************************************
+	subscribing::get_next_uid() tests
+*********************************************/
+#[test]
+fn test_get_next_uid() {
+	new_test_ext().execute_with(|| {
+        assert_eq!(SubtensorModule::get_next_uid(), 0); // We start with id 0
+		assert_eq!(SubtensorModule::get_next_uid(), 1); // One up
+		assert_eq!(SubtensorModule::get_next_uid(), 2) // One more
+	});
+}

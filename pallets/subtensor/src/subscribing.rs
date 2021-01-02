@@ -14,18 +14,14 @@ impl<T: Trait> Module<T> {
         ensure!(is_valid_ip_address(ip_type, ip), Error::<T>::InvalidIpAddress);
 
         // --- We get the next available subscription uid.
-        // uids increment by one up u64:MAX, this allows the chain to 
+        // uids increment by one up u64:MAX, this allows the chain to
         // have over 18,446,744,073,709,551,615 peers before and overflow
-        // one per ipv6 address without an memory overflow. 
+        // one per ipv6 address without an memory overflow.
         let uid = Self::get_next_uid();
 
         // ---- If the neuron is not-already subscribed, we create a 
         // new entry in the table with the new metadata.
         let neuron = Self::add_neuron_to_metagraph(ip, port, ip_type, coldkey, &hotkey_id, uid);
-
-        // ---- We provide the subscriber with and initial subscription gift.
-        // NOTE: THIS IS FOR TESTING, NEEDS TO BE REMOVED FROM PRODUCTION
-        // Self::add_subscription_gift(&neuron, 1000000000);
 
         // Create hotkey account where the neuron can receive stake
         Self::create_hotkey_account(neuron.uid);
@@ -129,14 +125,12 @@ impl<T: Trait> Module<T> {
         Self::set_new_weights(neuron, &uids, &weights);
     }
 
-    // fn add_subscription_gift(neuron: &NeuronMetadataOf<T>, amount: u64) {
-    //     debug::info!("Adding subscription gift to the stake {:?} ", amount);
-    //
-    //     Self::add_stake_to_neuron_hotkey_account(neuron.uid, amount);
-    //     Self::update_last_emit_for_neuron(&neuron);
-    // }
+    pub fn add_neuron_to_metagraph(ip: u128, port: u16, ip_type: u8, coldkey: T::AccountId, hotkey_id: &T::AccountId, uid: u64) -> NeuronMetadataOf<T> {
+        // Before calling this function, a check should be made to see if
+        // the account_id is already used. If this is omitted, this assert breaks.
+        assert_eq!(Neurons::<T>::contains_key(hotkey_id), false);
 
-    fn add_neuron_to_metagraph(ip: u128, port: u16, ip_type: u8, coldkey: T::AccountId, hotkey_id: &T::AccountId, uid: u64) -> NeuronMetadataOf<T> {
+
         debug::info!("Insert new metadata with ip: {:?}, port: {:?}, ip_type: {:?}, uid: {:?}, coldkey: {:?}", ip, port, ip_type, uid, coldkey);
 
         let metadata = NeuronMetadataOf::<T> {
@@ -152,12 +146,14 @@ impl<T: Trait> Module<T> {
         return metadata;
     }
 
-    fn get_next_uid() -> u64 {
-        let uid: u64 = NextUID::get();
+    pub fn get_next_uid() -> u64 {
+        let uid = NextUID::get();
+        assert!(uid < u64::MAX);  // System should fail when this ever is reached
         NextUID::put(uid + 1);
         debug::info!("Incrementing the next uid by 1, now {:?} ", NextUID::get());
         uid
     }
+
 }
 
 fn is_valid_ip_type(ip_type : u8) -> bool {
