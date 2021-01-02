@@ -3,6 +3,7 @@ use frame_support::{assert_ok};
 use frame_system::Trait;
 mod mock;
 use mock::*;
+use frame_support::sp_runtime::DispatchError;
 
 #[test]
 fn test_subscribe_ok() {
@@ -97,7 +98,15 @@ fn test_subscribe_failed_invalid_ip_address() {
 #[test]
 fn test_subscribe_failed_no_signature() {
 	new_test_ext().execute_with(|| {
-        assert_eq!(true,false);
+
+		let ip = ipv6(0,0,0,0,0,0,0,1); // Ipv6 localhost, invalid
+		let ip_type = 6;
+		let port = 1337;
+		let coldkey_account_id = 667;
+
+
+        let result = SubtensorModule::subscribe(<<Test as Trait>::Origin>::none(), ip, port, ip_type, coldkey_account_id);
+		assert_eq!(result, Err(DispatchError::BadOrigin.into()));
 	});
 }
 
