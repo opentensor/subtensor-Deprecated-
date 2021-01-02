@@ -48,6 +48,22 @@ pub struct NeuronMetadata <AccountId> {
 	/// alone.
 	uid: u64, 
 
+	/// ---- The neuron modality. Modalities specify which datatype
+	/// the neuron endpoint can process. This information is non 
+	/// verifiable. However, neurons should set this correctly
+	/// in order to be detected by others with this datatype.
+	/// The initial modality codes are:
+	/// TEXT: 0
+	/// IMAGE: 1
+	/// TENSOR: 2
+	modality: u16, 
+
+	/// ---- The associated hotkey account. 
+	/// Subscribing, emitting and changing weights can be made by this 
+	/// account. Subscription can never change the associated coldkey
+	/// account.
+	hotkey: AccountId,
+
 	/// ---- The associated coldkey account. 
 	/// Staking and unstaking transactions must be made by this account.
 	/// The hotkey account (in the Neurons map) has permission to call emit
