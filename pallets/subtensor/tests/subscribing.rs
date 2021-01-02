@@ -99,7 +99,7 @@ fn test_subscribe_failed_invalid_ip_address() {
 fn test_subscribe_failed_no_signature() {
 	new_test_ext().execute_with(|| {
 
-		let ip = ipv6(0,0,0,0,0,0,0,1); // Ipv6 localhost, invalid
+		let ip = ipv6(0,0,0,0,0,0,1,1); // Ipv6 localhost, invalid
 		let ip_type = 6;
 		let port = 1337;
 		let coldkey_account_id = 667;
@@ -109,6 +109,36 @@ fn test_subscribe_failed_no_signature() {
 		assert_eq!(result, Err(DispatchError::BadOrigin.into()));
 	});
 }
+
+/********************************************
+	subscribing::get_next_uid() tests
+*********************************************/
+// #[test]
+// fn test_unsubscribe_ok() {
+// 	new_test_ext().execute_with(|| {
+//         let hotkey_account_id = 1;
+// 		let ip = ipv6(0,0,0,0,0,0,0,1); // Ipv6 localhost, invalid
+// 		let ip_type = 6;
+// 		let port = 1337;
+// 		let coldkey_account_id = 667;
+//
+//
+// 		// Setup neuron
+// 		let neuron = subscribe_neuron(hotkey_account_id, ip,port,ip_type,coldkey_account_id);
+//
+// 		// Give him some stake
+// 		SubtensorModule::add_stake_to_neuron_hotkey_account(hotkey_account_id, 10000);
+//
+// 		// Make sure cold key has zero balance
+// 		SubtensorModule::get(&coldkey_account_id, 0);
+//
+//
+//
+// 	});
+// }
+
+
+
 
 /********************************************
 	subscribing::increase_neuron_count() tests
