@@ -41,7 +41,6 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
-
     pub fn do_unsubscribe(origin: T::Origin) -> dispatch::DispatchResult
     {
         // --- We check the signature of the calling account.
@@ -97,21 +96,27 @@ impl<T: Trait> Module<T> {
     *********************************/
 
 
-    fn increase_neuron_count() {
+    pub fn increase_neuron_count() {
         let neuron_count = ActiveCount::get();
+        assert!(!neuron_count < u64::MAX); // We can't increase beyon 2^64. If ever. But still
         ActiveCount::put(neuron_count + 1);
         debug::info!("Increment the neuron count to: {:?} ", ActiveCount::get());
     }
 
-    fn decrease_neuron_count() {
+    pub fn decrease_neuron_count() {
         // --- We decrement the neuron counter.
         let neuron_count = ActiveCount::get();
+        assert!(neuron_count > 0); // We can't reduce beyond zero. This would be a serious problem
         ActiveCount::put(neuron_count - 1);
         debug::info!("New neuron count: {:?}", ActiveCount::get());
     }
 
     pub fn get_neuron_count() -> u64 {
         return ActiveCount::get();
+    }
+
+    pub fn set_neuron_count(count : u64) {
+        ActiveCount::set(count);
     }
 
 

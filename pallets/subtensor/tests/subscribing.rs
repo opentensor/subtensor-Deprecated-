@@ -42,6 +42,10 @@ fn test_subscribe_ok() {
 }
 
 
+/********************************************
+	subscribing::subscribe() tests
+*********************************************/
+
 #[test]
 fn test_subscribe_failed_already_active() {
 	new_test_ext().execute_with(|| {
@@ -94,6 +98,27 @@ fn test_subscribe_failed_invalid_ip_address() {
 #[test]
 fn test_subscribe_failed_no_signature() {
 	new_test_ext().execute_with(|| {
-        
+        assert_eq!(true,false);
+	});
+}
+
+/********************************************
+	subscribing::increase_neuron_count() tests
+*********************************************/
+#[test]
+fn test_incease_neuron_count_ok() {
+	new_test_ext().execute_with(|| {
+        assert_eq!(SubtensorModule::get_neuron_count(), 0); // Neuron count should be zero at first
+		SubtensorModule::increase_neuron_count();
+		assert_eq!(SubtensorModule::get_neuron_count(), 1);
+	});
+}
+
+#[test]
+fn test_decrease_neuron_count_ok() {
+	new_test_ext().execute_with(|| {
+        SubtensorModule::set_neuron_count(4);
+		SubtensorModule::decrease_neuron_count();
+		assert_eq!(SubtensorModule::get_neuron_count(), 3);
 	});
 }
