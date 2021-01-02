@@ -127,12 +127,14 @@ pub fn run_to_block(n: u64) {
 }
 
 // Generates an ipv6 address based on 8 ipv6 words and returns it as u128
+#[allow(dead_code)]
 pub fn ipv6(a: u16, b : u16, c : u16, d : u16, e : u16 ,f: u16, g: u16,h :u16) -> u128 {
 	return Ipv6Addr::new(a,b,c,d,e,f,g,h).into();
 }
 
 // Generate an ipv4 address based on 4 bytes and returns the corresponding u128, so it can be fed
 // to the module::subscribe() function
+#[allow(dead_code)]
 pub fn ipv4(a: u8 ,b: u8,c : u8,d : u8) -> u128 {
 	let ipv4 : Ipv4Addr =  Ipv4Addr::new(a, b, c, d);
 	let integer : u32 = ipv4.into();
