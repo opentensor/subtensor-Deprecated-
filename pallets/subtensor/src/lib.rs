@@ -318,7 +318,7 @@ decl_module! {
 		/// 		associated hotkey staking account.
 		///
 		#[weight = (0, DispatchClass::Operational, Pays::No)]
-		fn remove_stake(origin, hotkey: T::AccountId, ammount_unstaked: u64) -> dispatch::DispatchResult {
+		pub fn remove_stake(origin, hotkey: T::AccountId, ammount_unstaked: u64) -> dispatch::DispatchResult {
 			Self::do_remove_stake(origin, hotkey, ammount_unstaked)
 		}
 
