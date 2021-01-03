@@ -137,22 +137,26 @@ fn test_add_stake_err_not_enough_belance() {
 
 
 /********************************************
-	subscribing::increase_neuron_count() tests
+	subscribing::remove_stake_from_coldkey_account() tests
 *********************************************/
 
 
-// #[test]
-// fn test_remove_stake_from_coldkey_account_ok() {
-// 	new_test_ext().execute_with(|| {
-// 		let coldkey_account_id = 434324; // Random
-// 		let ammount = 10000; // Arbitrary
-//
-// 		// Put some $$ on the bank
-// 		SubtensorModule::add_stake_to_coldkey_account(c&oldkey_account_id, )
-//
-//
-// 	});
-// }
+#[test]
+fn test_remove_stake_from_coldkey_account_ok() {
+	new_test_ext().execute_with(|| {
+		let coldkey_account_id = 434324; // Random
+		let ammount = 10000; // Arbitrary
+
+		// Put some $$ on the bank
+		SubtensorModule::add_stake_to_coldkey_account(&coldkey_account_id, ammount);
+
+		let result = SubtensorModule::remove_stake_from_coldkey_account(&coldkey_account_id,ammount);
+		assert_eq!(result, true);
+
+
+
+	});
+}
 
 #[test]
 fn test_remove_stake_from_coldkey_account_failed() {
