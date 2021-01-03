@@ -146,7 +146,13 @@ impl<T: Trait> Module<T> {
     */
     pub fn add_stake_to_neuron_hotkey_account(uid: u64, amount: u64) {
         let prev_stake: u64 = Stake::get(uid);
+
+        // This should never happen. If a user has this ridiculous amount of stake,
+        // we need to come up with a better solution
+        assert!(u64::MAX - amount > prev_stake);
+
         let new_stake = prev_stake + amount;
+
         Stake::insert(uid, new_stake);
         debug::info!("Added new stake: | uid: {:?} | prev stake: {:?} | increment: {:?} | new stake: {:?}|", uid, prev_stake, amount, new_stake);
 
@@ -158,9 +164,16 @@ impl<T: Trait> Module<T> {
     * The uid parameter identifies the neuron holding the hotkey account.
     * When using this function, it is important to also increase another account by the same value,
     * as otherwise value gets lost.
+    *
+    * A check if there is enough stake in the hotkey account should have been performed
+    * before this function is called. If not, the node will crap out.
     */
-    fn remove_stake_from_neuron_hotkey_account(uid: u64, amount: u64) {
+    pub fn remove_stake_from_neuron_hotkey_account(uid: u64, amount: u64) {
         let hotkey_stake: u64 = Stake::get(uid);
+
+        // By this point, there should be enough stake in the hotkey account for this to work.
+        assert!(hotkey_stake >= amount);
+
         Stake::insert(uid, hotkey_stake - amount);
         debug::info!("Withdraw: {:?} from hotkey staking account for new ammount {:?} staked", amount, hotkey_stake - amount);
 
@@ -183,10 +196,14 @@ impl<T: Trait> Module<T> {
     */
     pub fn add_stake_to_coldkey_account(coldkey: &T::AccountId, amount: <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance) {
         T::Currency::deposit_creating(&coldkey, amount);
-        debug::info!("Deposit {:?} into coldkey balance ", amount);
+        debug::info!("Deposited {:?} into coldkey balance ", amount);
     }
 
     /**
+    * This removes stake from the hotkey. This should be used together with the function to store the stake
+    * in the hot key account.
+    * The internal mechanics can fail. When this happens, this function returns false, otherwise true
+    * The output of this function MUST be checked before writing the amount to the hotkey account
     *
     */
     pub fn remove_stake_from_coldkey_account(coldkey: &T::AccountId, amount: <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance) -> bool {
