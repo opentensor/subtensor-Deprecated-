@@ -175,6 +175,10 @@ decl_error! {
 		/// in the cold key account. See: fn add_stake
 		NotEnoughBalanceToStake,
 
+		/// ---- Thrown when the caller tries to add stake, but for some reason the requested
+		/// amount could not be withdrawn from the coldkey account
+		BalanceWithdrawalError,
+
 		/// ---- Thrown when the dispatch attempts to convert between a u64 and T::balance 
 		/// but the call fails.
 		CouldNotConvertToBalance
@@ -282,7 +286,7 @@ decl_module! {
 		/// 		associated colkey account.
 		///
 		#[weight = (0, DispatchClass::Operational, Pays::No)] // TODO(const): should be a normal transaction fee.
-		fn add_stake(origin, hotkey: T::AccountId, ammount_staked: u64) -> dispatch::DispatchResult {
+		pub fn add_stake(origin, hotkey: T::AccountId, ammount_staked: u64) -> dispatch::DispatchResult {
 			Self::do_add_stake(origin, hotkey, ammount_staked)
 		}
 

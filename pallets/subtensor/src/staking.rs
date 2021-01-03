@@ -1,5 +1,6 @@
 use super::*;
 
+
 impl<T: Trait> Module<T> {
 
     /***********************************************************
@@ -30,10 +31,9 @@ impl<T: Trait> Module<T> {
         // create the staking transaction.
         let stake_as_balance = Self::u64_to_balance( stake_to_be_added );
         ensure!(stake_as_balance.is_some(), Error::<T>::CouldNotConvertToBalance);
-        // let stake_as_balance = stake_as_balance.unwrap();
 
         ensure!(Self::coldkey_has_enough_balance(&coldkey, stake_as_balance.unwrap()), Error::<T>::NotEnoughBalanceToStake);
-        Self::remove_stake_from_coldkey_account(&coldkey, stake_as_balance.unwrap());
+        ensure!(Self::remove_stake_from_coldkey_account(&coldkey, stake_as_balance.unwrap()) == true, Error::<T>::BalanceWithdrawalError);
         Self::add_stake_to_neuron_hotkey_account(neuron.uid, stake_to_be_added);
 
         // ---- Emit the staking event.
@@ -182,18 +182,24 @@ impl<T: Trait> Module<T> {
     * Make sure stake is removed from another account before calling this method, otherwise you'll end up with double the value
     */
     pub fn add_stake_to_coldkey_account(coldkey: &T::AccountId, amount: <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance) {
-        //@todo (Parallax, 28-12-2020) implement error handling
-        let _ = T::Currency::deposit_creating(&coldkey, amount);
+        T::Currency::deposit_creating(&coldkey, amount);
         debug::info!("Deposit {:?} into coldkey balance ", amount);
     }
 
     /**
     *
     */
-    fn remove_stake_from_coldkey_account(coldkey: &T::AccountId, amount: <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance) {
-        // @Todo (parallax, 28-12-2020) Do error handling on this call
-        let _ = T::Currency::withdraw(&coldkey, amount, WithdrawReasons::except(WithdrawReason::Tip), ExistenceRequirement::KeepAlive);
-        debug::info!("Withdrew {:?} from coldkey: {:?}", amount, coldkey);
+    pub fn remove_stake_from_coldkey_account(coldkey: &T::AccountId, amount: <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance) -> bool {
+        return match T::Currency::withdraw(&coldkey, amount, WithdrawReasons::except(WithdrawReason::Tip), ExistenceRequirement::KeepAlive) {
+            Ok(_result) => {
+                debug::info!("Withdrew {:?} from coldkey: {:?}", amount, coldkey);
+                true
+            },
+            Err(error) => {
+                debug::info!("Could NOT withdraw {:?} from coldkey: {:?} for reason {:?}", amount, coldkey, error);
+                false
+            }
+        };
     }
 
     /**
@@ -208,7 +214,13 @@ impl<T: Trait> Module<T> {
     * Checks if the coldkey account has enough balance to be able to withdraw the specified amount.
     */
     fn coldkey_has_enough_balance(coldkey: &T::AccountId, amount: <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance) -> bool {
-        let new_potential_balance = Self::get_coldkey_balance(coldkey) - amount;
+        let current_balance = Self::get_coldkey_balance(coldkey);
+        if amount > current_balance {
+            return false;
+        }
+
+        // @todo (Parallax, 02-01-2021) // Split this function up in two
+        let new_potential_balance =  current_balance - amount;
         let can_withdraw = T::Currency::ensure_can_withdraw(&coldkey, amount, WithdrawReasons::except(WithdrawReason::Tip), new_potential_balance).is_ok();
         can_withdraw
     }
