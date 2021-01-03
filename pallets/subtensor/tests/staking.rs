@@ -136,9 +136,9 @@ fn test_add_stake_err_not_enough_belance() {
 }
 
 
-/********************************************
+/***********************************************************
 	subscribing::remove_stake_from_coldkey_account() tests
-*********************************************/
+************************************************************/
 
 
 #[test]
@@ -149,12 +149,11 @@ fn test_remove_stake_from_coldkey_account_ok() {
 
 		// Put some $$ on the bank
 		SubtensorModule::add_stake_to_coldkey_account(&coldkey_account_id, ammount);
+		assert_eq!(SubtensorModule::get_coldkey_balance(&coldkey_account_id), ammount);
 
+		// Should be able to withdraw without hassle
 		let result = SubtensorModule::remove_stake_from_coldkey_account(&coldkey_account_id,ammount);
 		assert_eq!(result, true);
-
-
-
 	});
 }
 
@@ -171,4 +170,35 @@ fn test_remove_stake_from_coldkey_account_failed() {
 	});
 }
 
+/***********************************************************
+	subscribing::remove_stake_from_coldkey_account() tests
+************************************************************/
+#[test]
+fn test_get_coldkey_balance_no_balance() {
+	new_test_ext().execute_with(|| {
+		let coldkey_account_id = 5454; // arbitrary
+		let result = SubtensorModule::get_coldkey_balance(&coldkey_account_id);
 
+		// Arbitrary account should have 0 balance
+		assert_eq!(result, 0);
+
+	});
+}
+
+
+#[test]
+fn test_test_get_coldkey_balance_with_balance() {
+	new_test_ext().execute_with(|| {
+		let coldkey_account_id = 5454; // arbitrary
+		let amount = 1337;
+
+		// Put the balance on the account
+		SubtensorModule::add_stake_to_coldkey_account(&coldkey_account_id, amount);
+
+		let result = SubtensorModule::get_coldkey_balance(&coldkey_account_id);
+
+		// Arbitrary account should have 0 balance
+		assert_eq!(result, amount);
+
+	});
+}
