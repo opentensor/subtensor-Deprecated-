@@ -5,6 +5,11 @@ mod mock;
 use mock::*;
 use frame_support::sp_runtime::DispatchError;
 
+/***********************************************************
+	staking::add_stake() tests
+************************************************************/
+
+
 #[test]
 fn test_add_stake_ok_no_emission() {
 	new_test_ext().execute_with(|| {
@@ -13,7 +18,6 @@ fn test_add_stake_ok_no_emission() {
 		let port = 66;
 		let ip_type = 4;
 		let coldkey_account_id = 55453;
-
 
 		// Subscribe neuron
 		let neuron = subscribe_neuron(hotkey_account_id, ip,port,ip_type, coldkey_account_id);
@@ -28,7 +32,7 @@ fn test_add_stake_ok_no_emission() {
 		assert_eq!(SubtensorModule::get_total_stake(), 0);
 
 		// Transfer to hotkey account, and check if the result is ok
-		assert_ok!(SubtensorModule::do_add_stake(<<Test as Trait>::Origin>::signed(coldkey_account_id), hotkey_account_id, 10000));
+		assert_ok!(SubtensorModule::add_stake(<<Test as Trait>::Origin>::signed(coldkey_account_id), hotkey_account_id, 10000));
 
 		// Check if stake has increased
 		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid), 10000);
@@ -135,9 +139,72 @@ fn test_add_stake_err_not_enough_belance() {
 	});
 }
 
+/***********************************************************
+	staking::remove_stake() tests
+************************************************************/
+#[test]
+fn test_remove_stake_ok_no_emission() {
+	new_test_ext().execute_with(|| {
+		let coldkey_account_id = 4343;
+		let hotkey_account_id = 4968585;
+		let amount = 10000;
+
+		// Let's spin up a neuron
+		let neuron = subscribe_neuron(hotkey_account_id, ipv4(8,8,8,8), 66, 4, coldkey_account_id);
+
+		// Some basic assertions
+		assert_eq!(SubtensorModule::get_total_stake(), 0);
+		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid), 0);
+		assert_eq!(SubtensorModule::get_coldkey_balance(&coldkey_account_id), 0);
+
+		// Give the neuron some stake to remove
+		SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, amount);
+
+		// Do the magic
+		assert_ok!(SubtensorModule::remove_stake(<<Test as Trait>::Origin>::signed(coldkey_account_id), hotkey_account_id, amount));
+
+		assert_eq!(SubtensorModule::get_coldkey_balance(&coldkey_account_id), amount as u128);
+		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid), 0);
+	});
+}
+
+#[test]
+fn test_remove_stake_ok_with_emission() {
+	new_test_ext().execute_with(|| {
+        assert!(true == false);
+	});
+}
+
+#[test]
+fn test_remove_stake_err_signature() {
+	new_test_ext().execute_with(|| {
+        assert!(true == false);
+	});
+}
+
+#[test]
+fn test_remove_stake_err_not_active() {
+	new_test_ext().execute_with(|| {
+        assert!(true == false);
+	});
+}
+
+#[test]
+fn test_remove_stake_err_neuron_does_not_belong_to_coldkey() {
+	new_test_ext().execute_with(|| {
+        assert!(true == false);
+	});
+}
+
+#[test]
+fn test_remove_stake_no_enough_stake() {
+	new_test_ext().execute_with(|| {
+        assert!(true == false);
+	});
+}
 
 /***********************************************************
-	subscribing::remove_stake_from_coldkey_account() tests
+	staking::remove_stake_from_coldkey_account() tests
 ************************************************************/
 
 
@@ -171,7 +238,7 @@ fn test_remove_stake_from_coldkey_account_failed() {
 }
 
 /***********************************************************
-	subscribing::remove_stake_from_coldkey_account() tests
+	staking::get_coldkey_balance() tests
 ************************************************************/
 #[test]
 fn test_get_coldkey_balance_no_balance() {
@@ -202,3 +269,59 @@ fn test_test_get_coldkey_balance_with_balance() {
 
 	});
 }
+
+
+/***********************************************************
+	staking::add_stake_to_neuron_hotkey_account() tests
+************************************************************/
+#[test]
+fn test_add_stake_to_neuron_hotkey_account_ok() {
+	new_test_ext().execute_with(|| {
+		let hotkey_id = 5445;
+		let coldkey_id = 5443433;
+		let amount: u64 = 10000;
+
+		let neuron = subscribe_ok_neuron(hotkey_id, coldkey_id);
+
+		// There is not stake in the system at first, so result should be 0;
+		assert_eq!(SubtensorModule::get_total_stake(), 0);
+
+		// Gogogo
+		SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, amount);
+
+		// The stake that is now in the account, should equal the amount
+		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid), amount);
+
+		// The total stake should have been increased by the amount -> 0 + amount = amount
+		assert_eq!(SubtensorModule::get_total_stake(), amount);
+	});
+}
+
+
+#[test]
+fn test_remove_stake_from_hotkey_account() {
+	new_test_ext().execute_with(|| {
+        let hotkey_id = 5445;
+		let coldkey_id = 5443433;
+		let amount: u64 = 10000;
+
+		let neuron = subscribe_ok_neuron(hotkey_id, coldkey_id);
+
+		// Add some stake that can be removed
+		SubtensorModule::add_stake_to_neuron_hotkey_account(hotkey_id, amount);
+
+		// Prelimiary checks
+		assert_eq!(SubtensorModule::get_total_stake(), amount);
+		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid), amount);
+
+		// Remove stake
+		SubtensorModule::remove_stake_from_neuron_hotkey_account(neuron.uid, amount);
+
+		// The stake on the hotkey account should be 0
+		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid), 0);
+
+		// The total amount of stake should be 0
+		assert_eq!(SubtensorModule::get_total_stake(), 0);
+	});
+}
+
