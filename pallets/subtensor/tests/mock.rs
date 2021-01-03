@@ -116,6 +116,11 @@ pub fn subscribe_neuron(hotkey_account_id : u64, ip: u128, port: u16, ip_type : 
 }
 
 #[allow(dead_code)]
+pub fn subscribe_ok_neuron(hotkey_account_id : u64,  coldkey_account_id : u64) -> NeuronMetadata<u64> {
+	return subscribe_neuron(hotkey_account_id, ipv4(8,8,8,8), 66, 4, coldkey_account_id );
+}
+
+#[allow(dead_code)]
 pub fn run_to_block(n: u64) {
     while System::block_number() < n {
         SubtensorModule::on_finalize(System::block_number());
@@ -140,3 +145,4 @@ pub fn ipv4(a: u8 ,b: u8,c : u8,d : u8) -> u128 {
 	let integer : u32 = ipv4.into();
 	return u128::from(integer);
 }
+
