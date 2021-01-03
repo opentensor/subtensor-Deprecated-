@@ -12,11 +12,12 @@ fn test_add_stake_ok_no_emission() {
 		let ip = ipv4(8,8,8,8);
 		let port = 66;
 		let ip_type = 4;
+		let modality = 0;
 		let coldkey_account_id = 55453;
 
 
 		// Subscribe neuron
-		let neuron = subscribe_neuron(hotkey_account_id, ip,port,ip_type, coldkey_account_id);
+		let neuron = subscribe_neuron(hotkey_account_id, ip,port, ip_type, modality,  coldkey_account_id);
 
 		// Give it some $$$ in his coldkey balance
 		SubtensorModule::add_stake_to_coldkey_account(&coldkey_account_id, 10000);
@@ -48,13 +49,14 @@ fn test_add_stake_err_with_emission() {
 		let ip = ipv4(8,8,8,8);
 		let port = 66;
 		let ip_type = 4;
+		let modality = 0;
 		let coldkey_account_id = 55453;
 
 		let transfer_amount:u64 = 10000;
 		let initial_stake:u64 = 5000;
 
 		// Subscribe neuron
-		let neuron = subscribe_neuron(hotkey_account_id, ip,port,ip_type, coldkey_account_id);
+		let neuron = subscribe_neuron(hotkey_account_id, ip,port,ip_type, modality, coldkey_account_id);
 
 		// Give it some $$$ in his coldkey balance
 		SubtensorModule::add_stake_to_coldkey_account(&coldkey_account_id, transfer_amount.into());
@@ -110,7 +112,7 @@ fn test_add_stake_err_neuron_does_not_belong_to_coldkey() {
 		let hotkey_id = 54544;
 		let other_cold_key = 99498;
 
-		let _neuron = subscribe_neuron(hotkey_id, ipv4(8, 8, 8, 8), 66, 4, coldkey_id);
+		let _neuron = subscribe_neuron(hotkey_id, ipv4(8, 8, 8, 8), 66, 4, 0, coldkey_id);
 
 		// Perform the request which is signed by a different cold key
 		let result = SubtensorModule::add_stake(<<Test as Trait>::Origin>::signed(other_cold_key), hotkey_id, 1000);
@@ -125,7 +127,7 @@ fn test_add_stake_err_not_enough_belance() {
 		let hotkey_id = 54544;
 
 
-		let _neuron = subscribe_neuron(hotkey_id, ipv4(8, 8, 8, 8), 66, 4, coldkey_id);
+		let _neuron = subscribe_neuron(hotkey_id, ipv4(8, 8, 8, 8), 66, 4, 0, coldkey_id);
 
 		// Lets try to stake with 0 balance in cold key account
 		assert_eq!(SubtensorModule::get_coldkey_balance(&coldkey_id), 0);
