@@ -143,9 +143,13 @@ impl<T: Trait> Module<T> {
     /**
     * Reduces the amount of stake of the entire stake pool by the supplied amount
     */
-    pub fn reduce_total_stake(decrement: u64) {
+    pub fn decrease_total_stake(decrement: u64) {
         // --- We update the total staking pool with the removed funds.
         let total_stake: u64 = TotalStake::get();
+
+        // Sanity check so that total stake does not underflow past 0
+        assert!(decrement <= total_stake);
+
         TotalStake::put(total_stake - decrement);
         debug::info!("Remove {:?} from total stake, now {:?} ", decrement, TotalStake::get());
     }
@@ -195,7 +199,7 @@ impl<T: Trait> Module<T> {
         Stake::insert(uid, hotkey_stake - amount);
         debug::info!("Withdraw: {:?} from hotkey staking account for new ammount {:?} staked", amount, hotkey_stake - amount);
 
-        Self::reduce_total_stake(amount);
+        Self::decrease_total_stake(amount);
     }
 
     /**

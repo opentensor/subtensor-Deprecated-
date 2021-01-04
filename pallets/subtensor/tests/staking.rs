@@ -431,17 +431,44 @@ fn test_increase_total_stake_ok() {
 
 #[test]
 #[should_panic]
-fn test_increase_total_stake_panic_too_much() {
+fn test_increase_total_stake_panic_overflow() {
 	new_test_ext().execute_with(|| {
         let initial_total_stake = u64::MAX;
 		let increment : u64 = 1;
 
 		// Setup initial total stake
 		SubtensorModule::increase_total_stake(initial_total_stake);
-		SubtensorModule::increase_total_stake(increment);
+		SubtensorModule::increase_total_stake(increment); // Should trigger panic
 	});
 }
 
+/************************************************************
+	staking::decrease_total_stake() tests
+************************************************************/
+#[test]
+fn test_decrease_total_stake_ok() {
+	new_test_ext().execute_with(|| {
+        let initial_total_stake = 10000;
+		let decrement = 5000;
 
+		SubtensorModule::increase_total_stake(initial_total_stake);
+		SubtensorModule::decrease_total_stake(decrement);
+
+		// The total stake remaining should be the difference between the initial stake and the decrement
+		assert_eq!(SubtensorModule::get_total_stake(), initial_total_stake - decrement);
+	});
+}
+
+#[test]
+#[should_panic]
+fn test_decrease_total_stake_panic_underflow() {
+	new_test_ext().execute_with(|| {
+        let initial_total_stake = 10000;
+		let decrement = 20000;
+
+		SubtensorModule::increase_total_stake(initial_total_stake);
+		SubtensorModule::decrease_total_stake(decrement); // Should trigger panic
+	});
+}
 
 
