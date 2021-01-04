@@ -117,7 +117,7 @@ pub fn subscribe_neuron(hotkey_account_id : u64, ip: u128, port: u16, ip_type : 
 
 #[allow(dead_code)]
 pub fn subscribe_ok_neuron(hotkey_account_id : u64,  coldkey_account_id : u64) -> NeuronMetadata<u64> {
-	return subscribe_neuron(hotkey_account_id, ipv4(8,8,8,8), 66, 4, coldkey_account_id );
+	return subscribe_neuron(hotkey_account_id, ipv4(8,8,8,8), 66, 4, 0, coldkey_account_id );
 }
 
 #[allow(dead_code)]

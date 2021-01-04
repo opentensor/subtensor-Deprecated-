@@ -152,7 +152,7 @@ fn test_remove_stake_ok_no_emission() {
 		let amount = 10000;
 
 		// Let's spin up a neuron
-		let neuron = subscribe_neuron(hotkey_account_id, ipv4(8,8,8,8), 66, 4, coldkey_account_id);
+		let neuron = subscribe_neuron(hotkey_account_id, ipv4(8,8,8,8), 66, 4, 0, coldkey_account_id);
 
 		// Some basic assertions
 		assert_eq!(SubtensorModule::get_total_stake(), 0);
