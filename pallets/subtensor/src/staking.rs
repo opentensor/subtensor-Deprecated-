@@ -142,8 +142,11 @@ impl<T: Trait> Module<T> {
     /**
     * Increases the amount of stake in a neuron's hotkey account by the amount provided
     * The uid parameter identifies the neuron holding the hotkey account
+    * Calling function should make sure the uid exists within the system
     */
     pub fn add_stake_to_neuron_hotkey_account(uid: u64, amount: u64) {
+        assert!(Self::is_uid_active(uid));
+
         let prev_stake: u64 = Stake::get(uid);
 
         // This should never happen. If a user has this ridiculous amount of stake,

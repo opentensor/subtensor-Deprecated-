@@ -173,7 +173,36 @@ fn test_remove_stake_ok_no_emission() {
 #[test]
 fn test_remove_stake_ok_with_emission() {
 	new_test_ext().execute_with(|| {
-        assert!(true == false);
+        let coldkey_account_id = 4343;
+		let hotkey_account_id : u64 = 4968585;
+		let amount = 10000; // Amount to be removed
+		let initial_amount = 20000; // This will be added before the function UT is called, to trigger an emit
+
+		// Add neuron
+		let neuron = subscribe_ok_neuron(hotkey_account_id, coldkey_account_id);
+
+		// Add the stake to the hotkey account
+		SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, initial_amount);
+
+		// Some basic assertions
+		assert_eq!(SubtensorModule::get_total_stake(), initial_amount);
+		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid), initial_amount);
+		assert_eq!(SubtensorModule::get_coldkey_balance(&coldkey_account_id), 0);
+
+		// Run a couple of blocks
+		run_to_block(100);
+
+		// Perform the remove_stake operation
+		assert_ok!(SubtensorModule::remove_stake(<<Test as Trait>::Origin>::signed(coldkey_account_id), hotkey_account_id, amount));
+
+		// The amount of stake left should be more than the difference between the inital amount and the removed amount
+		assert!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid) > initial_amount - amount);
+
+		// The same goes for the total stake
+		assert!(SubtensorModule::get_total_stake() > initial_amount - amount);
+
+		// The coldkey balance should be equal to the removed stake
+		assert_eq!(SubtensorModule::get_coldkey_balance(&coldkey_account_id), amount as u128);
 	});
 }
 
