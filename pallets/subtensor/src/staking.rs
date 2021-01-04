@@ -266,7 +266,7 @@ impl<T: Trait> Module<T> {
     * Checks if the hotkey account of the specified account has enough stake to be able to withdraw
     * the requested amount.
     */
-    fn has_enough_stake(neuron : &NeuronMetadataOf<T>, amount : u64) -> bool {
+    pub fn has_enough_stake(neuron : &NeuronMetadataOf<T>, amount : u64) -> bool {
         let hotkey_stake: u64 = Stake::get( neuron.uid );
         return hotkey_stake >= amount;
     }
