@@ -36,7 +36,7 @@ impl<T: Trait> Module<T> {
         ensure!(stake_as_balance.is_some(), Error::<T>::CouldNotConvertToBalance);
 
         ensure!(Self::coldkey_has_enough_balance(&coldkey, stake_as_balance.unwrap()), Error::<T>::NotEnoughBalanceToStake);
-        ensure!(Self::remove_stake_from_coldkey_account(&coldkey, stake_as_balance.unwrap()) == true, Error::<T>::BalanceWithdrawalError);
+        ensure!(Self::remove_balance_from_coldkey_account(&coldkey, stake_as_balance.unwrap()) == true, Error::<T>::BalanceWithdrawalError);
         Self::add_stake_to_neuron_hotkey_account(neuron.uid, stake_to_be_added);
 
         // ---- Emit the staking event.
@@ -100,7 +100,7 @@ impl<T: Trait> Module<T> {
         // --- We perform the withdrawl by converting the stake to a u64 balance
         // and deposit the balance into the coldkey account. If the coldkey account
         // does not exist it is created.
-        Self::add_stake_to_coldkey_account(&coldkey, stake_to_be_added_as_currency.unwrap());
+        Self::add_balance_to_coldkey_account(&coldkey, stake_to_be_added_as_currency.unwrap());
         Self::remove_stake_from_neuron_hotkey_account(neuron.uid, stake_to_be_removed);
 
         // ---- Emit the unstaking event.
@@ -203,21 +203,12 @@ impl<T: Trait> Module<T> {
     }
 
     /**
-    * This removes a completed entry from the stake map. The stake map is a map between hotkey account -> amount of stake
-    * This function is used remove the hotkey account's stake entry from the map when unsubscribing
-    * Care needs to be taken to transfer ALL stake to a different account, lest value gets lost
-    */
-    pub fn remove_all_stake_from_neuron_hotkey_account(uid: u64) {
-        Stake::remove(uid);
-    }
-
-    /**
     * This adds stake (balance) to a cold key account. It takes the account id of the coldkey account and a Balance as parameters.
     * The Balance parameter is a from u64 converted number. This is needed for T::Currency to work.
     * Make sure stake is removed from another account before calling this method, otherwise you'll end up with double the value
     */
-    pub fn add_stake_to_coldkey_account(coldkey: &T::AccountId, amount: <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance) {
-        T::Currency::deposit_creating(&coldkey, amount);
+    pub fn add_balance_to_coldkey_account(coldkey: &T::AccountId, amount: <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance) {
+        T::Currency::deposit_creating(&coldkey, amount); // Infallibe
         debug::info!("Deposited {:?} into coldkey balance ", amount);
     }
 
@@ -228,7 +219,7 @@ impl<T: Trait> Module<T> {
     * The output of this function MUST be checked before writing the amount to the hotkey account
     *
     */
-    pub fn remove_stake_from_coldkey_account(coldkey: &T::AccountId, amount: <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance) -> bool {
+    pub fn remove_balance_from_coldkey_account(coldkey: &T::AccountId, amount: <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance) -> bool {
         return match T::Currency::withdraw(&coldkey, amount, WithdrawReasons::except(WithdrawReason::Tip), ExistenceRequirement::KeepAlive) {
             Ok(_result) => {
                 debug::info!("Withdrew {:?} from coldkey: {:?}", amount, coldkey);
