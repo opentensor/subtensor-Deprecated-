@@ -442,7 +442,7 @@ fn test_decrease_total_stake_panic_underflow() {
 	staking::add_balance_to_coldkey_account() tests
 ************************************************************/
 #[test]
-fn test_add_balance_to_coldkey_account() {
+fn test_add_balance_to_coldkey_account_ok() {
 	new_test_ext().execute_with(|| {
         let coldkey_id = 4444322;
 		let amount = 50000;
@@ -454,7 +454,7 @@ fn test_add_balance_to_coldkey_account() {
 }
 
 /***********************************************************
-	staking::remove_stake_from_coldkey_account() tests
+	staking::remove_balance_from_coldkey_account() tests
 ************************************************************/
 
 
@@ -484,5 +484,31 @@ fn test_remove_balance_from_coldkey_account_failed() {
 		// as there is no balance, nor does the account exist
 		let result = SubtensorModule::remove_balance_from_coldkey_account(&coldkey_account_id, ammount);
 		assert_eq!(result, false);
+	});
+}
+
+/************************************************************
+	staking::neuron_belongs_to_coldkey() tests
+************************************************************/
+#[test]
+fn test_neuron_belongs_to_coldkey_ok() {
+	new_test_ext().execute_with(|| {
+        let hotkey_id = 4434334;
+		let coldkey_id = 34333;
+
+		let neuron = subscribe_ok_neuron(hotkey_id, coldkey_id);
+		assert_eq!(SubtensorModule::neuron_belongs_to_coldkey(&neuron, &coldkey_id), true);
+	});
+}
+
+#[test]
+fn test_neurong_belongs_to_coldkey_err() {
+	new_test_ext().execute_with(|| {
+        let hotkey_id = 4434334;
+		let coldkey_id = 34333;
+		let other_coldkey_id = 8979879;
+
+		let neuron = subscribe_ok_neuron(hotkey_id, other_coldkey_id);
+		assert_eq!(SubtensorModule::neuron_belongs_to_coldkey(&neuron, &coldkey_id), false);
 	});
 }

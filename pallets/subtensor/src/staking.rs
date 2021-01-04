@@ -236,7 +236,7 @@ impl<T: Trait> Module<T> {
     * Checks if the neuron as specified in the neuron parameter has subscribed with the cold key
     * as specified in the coldkey parameter. See fn subscribe() for more info.
     */
-    fn neuron_belongs_to_coldkey(neuron : &NeuronMetadataOf<T>, coldkey : &T::AccountId) -> bool {
+    pub fn neuron_belongs_to_coldkey(neuron : &NeuronMetadataOf<T>, coldkey : &T::AccountId) -> bool {
         return neuron.coldkey == *coldkey
     }
 
