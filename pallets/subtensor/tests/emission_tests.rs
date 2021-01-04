@@ -6,9 +6,9 @@ use mock::*;
 
 use frame_system as system;
 
-fn random_neuron_with_stake(hotkey:u64, stake_to_init: u64, ip:u128, port:u16, ip_type:u8, coldkey:u64) -> NeuronMetadata<u64> {
-    let _ = SubtensorModule::subscribe(<<Test as system::Trait>::Origin>::signed(hotkey), ip, port, ip_type, coldkey);
-    let neuron = SubtensorModule::get_neuron_metadata_for_hotkey(&hotkey);
+fn random_neuron_with_stake(hotkey:u64, stake_to_init: u64, ip:u128, port:u16, ip_type:u8, modality: u8, coldkey:u64) -> NeuronMetadata<u64> {
+    let _ = SubtensorModule::subscribe(<<Test as system::Trait>::Origin>::signed(hotkey), ip, port, ip_type, modality, coldkey);
+    let neuron = SubtensorModule::get_neuron_for_hotkey(&hotkey);
 
     // Let's give this neuron an initial stake.
     SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, stake_to_init); // Add the stake.
@@ -26,6 +26,8 @@ fn test_emit_does_not_exist() {
             port: 0,
             ip_type: 0,
             uid: 0,
+            modality: 0,
+            hotkey: 0,
             coldkey: 0,
         };
         // Let's call an emit.
@@ -41,7 +43,7 @@ fn test_self_emission() {
         // Let's subscribe a new neuron to the chain.
         let hotkey:u64 = 1;
         let stake:u64 = 1000000000;
-        let neuron = random_neuron_with_stake(hotkey, stake, ipv4(8,8,8,8), 1, 4, 1);
+        let neuron = random_neuron_with_stake(hotkey, stake, ipv4(8,8,8,8), 1, 4, 1, 1);
 
         // Let's set this neuron's weights. (0,0) = 1
 		let weight_uids = vec![neuron.uid];
@@ -72,7 +74,7 @@ fn test_multiemit_per_block() {
         // Let's subscribe a new neuron to the chain.
         let hotkey:u64 = 1;
         let stake:u64 = 1000000000;
-        let neuron = random_neuron_with_stake(hotkey, stake, ipv4(8,8,8,8), 1, 4, 1);
+        let neuron = random_neuron_with_stake(hotkey, stake, ipv4(8,8,8,8), 1, 4, 1, 1);
 
         // Let's set this neuron's weights. (0,0) = 1
 		let weight_uids = vec![neuron.uid];
@@ -104,8 +106,8 @@ fn test_emission_to_other() {
         let hotkey_one:u64 = 1;
         let hotkey_two:u64 = 2;
         let stake:u64 = 1000000000;
-        let neuron_one = random_neuron_with_stake(hotkey_one, stake, ipv4(8,8,8,8), 1, 4, 1);
-        let neuron_two = random_neuron_with_stake(hotkey_two, 0, ipv4(8,8,8,9), 1, 4, 1);
+        let neuron_one = random_neuron_with_stake(hotkey_one, stake, ipv4(8,8,8,8), 1, 4, 1, 1);
+        let neuron_two = random_neuron_with_stake(hotkey_two, 0, ipv4(8,8,8,9), 1, 4, 1, 1);
 
         // Let's set this neuron's weights. (0,0) = 1
 		let weight_uids = vec![neuron_two.uid];
@@ -143,7 +145,7 @@ fn test_empty_weights() {
         // Let's subscribe a new neuron to the chain.
         let hotkey:u64 = 1;
         let stake:u64 = 1000000000;
-        let neuron = random_neuron_with_stake(hotkey, stake, ipv4(8,8,8,8), 1, 4, 1);
+        let neuron = random_neuron_with_stake(hotkey, stake, ipv4(8,8,8,8), 1, 4, 0, 1);
 
         // Let's set this neuron's weights. (0,0) = 1
         let weight_uids = vec![neuron.uid];

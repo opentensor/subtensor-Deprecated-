@@ -108,10 +108,10 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 }
 
 #[allow(dead_code)]
-pub fn subscribe_neuron(hotkey_account_id : u64, ip: u128, port: u16, ip_type : u8, coldkey_acount_id : u64) -> NeuronMetadata<u64> {
-	let result = SubtensorModule::subscribe(<<Test as system::Trait>::Origin>::signed(hotkey_account_id), ip, port, ip_type, coldkey_acount_id);
+pub fn subscribe_neuron(hotkey_account_id : u64, ip: u128, port: u16, ip_type : u8, modality: u8, coldkey_acount_id : u64) -> NeuronMetadata<u64> {
+	let result = SubtensorModule::subscribe(<<Test as system::Trait>::Origin>::signed(hotkey_account_id), ip, port, ip_type, modality, coldkey_acount_id);
 	assert_ok!(result);
-	let neuron = SubtensorModule::get_neuron_metadata_for_hotkey(&hotkey_account_id);
+	let neuron = SubtensorModule::get_neuron_for_hotkey(&hotkey_account_id);
 	neuron
 }
 

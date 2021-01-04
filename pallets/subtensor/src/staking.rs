@@ -15,7 +15,7 @@ impl<T: Trait> Module<T> {
 
         // Check if the hotkey is active
         ensure!(Self::is_hotkey_active(&hotkey), Error::<T>::NotActive);
-        let neuron = Self::get_neuron_metadata_for_hotkey(&hotkey);
+        let neuron = Self::get_neuron_for_hotkey(&hotkey);
 
         // ---- We check that the NeuronMetadata is linked to the calling
         // cold key, otherwise throw a NonAssociatedColdKey error.
@@ -73,7 +73,7 @@ impl<T: Trait> Module<T> {
         // ---- We query the Neuron set for the NeuronMetadata stored under
         // the passed hotkey.
         ensure!(Self::is_hotkey_active(&hotkey), Error::<T>::NotActive);
-        let neuron = Self::get_neuron_metadata_for_hotkey(&hotkey);
+        let neuron = Self::get_neuron_for_hotkey(&hotkey);
 
         // ---- We check that the NeuronMetadata is linked to the calling
         // cold key, otherwise throw a NonAssociatedColdKey error.
@@ -87,7 +87,6 @@ impl<T: Trait> Module<T> {
         // ---- We check that the hotkey has enough stake to withdraw
         // and then withdraw from the account.
         ensure!(Self::has_enough_stake(&neuron, stake_to_be_removed), Error::<T>::NotEnoughStaketoWithdraw);
-
         let stake_to_be_added_as_currency = Self::u64_to_balance(stake_to_be_removed);
         ensure!(stake_to_be_added_as_currency.is_some(), Error::<T>::CouldNotConvertToBalance);
 

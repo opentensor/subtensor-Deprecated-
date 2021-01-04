@@ -10,7 +10,7 @@ impl<T: Trait> Module<T> {
 
         // ---- We check to see that the calling neuron is in the active set.
         ensure!(Self::is_hotkey_active(&hotkey_id), Error::<T>::NotActive);
-        let neuron = Self::get_neuron_metadata_for_hotkey(&hotkey_id);
+        let neuron = Self::get_neuron_for_hotkey(&hotkey_id);
         debug::info!("Got metadata with uid {:?}", neuron.uid);
 
         // --- We check that the length of these two lists are equal.
@@ -49,6 +49,17 @@ impl<T: Trait> Module<T> {
     *********************************/
 
     /**
+    * Inits new weights for the neuron.
+    * We fill the initialized weights with a self loop. 
+    */
+    pub fn init_weight_matrix_for_neuron(neuron: &NeuronMetadataOf<T>) {
+        // ---- We fill subscribing nodes initially with the self-weight = [1]
+        let weights = vec![u32::max_value()]; // w_ii = 1
+        let uids = vec![neuron.uid]; // Self edge
+        Self::set_new_weights(neuron, &uids, &weights);
+    }
+
+    /**
     * Sets the actual weights. This function takes two parameters: uids, values
     * that contain the weight for each uid.
     * This function assumes both vectors are of the same size, and is agnostic if the specifed
@@ -71,7 +82,7 @@ impl<T: Trait> Module<T> {
 
     pub fn contains_invalid_uids(uids : &Vec<u64>) -> bool {
         for uid in uids {
-            if !Self::is_uid_active(uid) {
+            if !Self::is_uid_active( *uid ) {
                 return true;
             }
         }

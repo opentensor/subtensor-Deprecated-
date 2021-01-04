@@ -23,7 +23,7 @@ impl<T: Trait> Module<T> {
         // ---- We query the Neuron set for the neuron data stored under
         // the passed hotkey and retrieve it as a NeuronMetadata struct.
         ensure!(Self::is_hotkey_active(&hotkey_id), Error::<T>::NotActive);
-        let neuron = Self::get_neuron_metadata_for_hotkey(&hotkey_id);
+        let neuron = Self::get_neuron_for_hotkey(&hotkey_id);
 
         // ---- We call emit for this neuron.
         Self::emit_for_neuron(&neuron);
