@@ -1,133 +1,186 @@
 use super::*;
 
 impl<T: Trait> Module<T> {
-    pub fn do_subscribe(origin : T::Origin, ip: u128, port: u16, ip_type: u8, coldkey: T::AccountId) -> dispatch::DispatchResult {
-        
+    
+    pub fn do_subscribe(origin: T::Origin, ip: u128, port: u16, ip_type: u8, modality: u8, coldkey: T::AccountId) -> dispatch::DispatchResult {
+
         // --- We check the callers (hotkey) signature.
-        let caller = ensure_signed(origin)?;
-        debug::info!("--- Called subscribe with caller {:?}", caller);
+        let hotkey_id = ensure_signed(origin)?;
+        debug::info!("--- Called subscribe with caller {:?}", hotkey_id);
 
-        // --- We check to see if the Neuron already exists.
-        // We do not allow peers to re-subscribe with the same key.
-        ensure!( !Neurons::<T>::contains_key(&caller), Error::<T>::AlreadyActive );
+        // --- We make validy checks on the passed data.
+        ensure!(is_valid_ip_type(ip_type), Error::<T>::InvalidIpType);
+        ensure!(is_valid_ip_address(ip_type, ip), Error::<T>::InvalidIpAddress);
 
-        // --- We get the next available subscription uid.
-        // uids increment by one up u64:MAX, this allows the chain to 
-        // have over 18,446,744,073,709,551,615 peers before and overflow
-        // one per ipv6 address without an memory overflow. 
-        let uid: u64 = NextUID::get();
-        NextUID::put(uid + 1);
-        debug::info!("Incrementing the next uid by 1, now {:?} ", NextUID::get());
+        // --- We switch here between an update and a subscribe.
+        if !Self::is_hotkey_active(&hotkey_id) {
+            // --- We get the next available subscription uid.
+            let uid = Self::get_next_uid();
 
-        // ---- If the neuron is not-already subscribed, we create a 
-        // new entry in the table with the new metadata.
-        debug::info!("Insert new metadata with ip: {:?}, port: {:?}, ip_type: {:?}, uid: {:?}, coldkey: {:?}", ip, port, ip_type, uid, coldkey);
-        Neurons::<T>::insert( &caller,
-            NeuronMetadataOf::<T> {
-                ip: ip,
-                port: port,
-                ip_type: ip_type,
-                uid: uid,
-                coldkey: coldkey,
-            }
-        );
+            // -- We add this hotkey to the active set.
+            Self::add_hotkey_to_active_set(&hotkey_id, uid);
 
-        // ---- We provide the subscriber with and initial subscription gift.
-        // NOTE: THIS IS FOR TESTING, NEEDS TO BE REMOVED FROM PRODUCTION
-        let subscription_gift: u64 = 1000000000;
-        debug::info!("Adding subscription gift to the stake {:?} ", subscription_gift);
+            // ---- If the neuron is not-already subscribed, we create a 
+            // new entry in the table with the new metadata.
+            let neuron = Self::add_neuron_to_metagraph(ip, port, ip_type, modality, coldkey, hotkey_id.clone(), uid);
 
-        // --- We update the total staking pool with the subscription.
-        let total_stake: u64 = TotalStake::get();
-        TotalStake::put(total_stake + subscription_gift);
-        debug::info!("Adding amount: {:?} to total stake, now: {:?}", subscription_gift, TotalStake::get());
+            // -- We initialize table values for this peer.
+            Self::create_hotkey_account(neuron.uid);
+            Self::update_last_emit_for_neuron(&neuron);
+            Self::init_weight_matrix_for_neuron(&neuron);
 
-        // The last emit determines the last time this peer made an incentive 
-        // mechanism emit call. Since he is just subscribed with zero stake,
-        // this moment is considered his first emit.
-        let current_block: T::BlockNumber = system::Module::<T>::block_number();
-        debug::info!("The new last emit for this caller is: {:?} ", current_block);
+            // --- We deposit the neuron added event.
+            Self::deposit_event(RawEvent::NeuronAdded(uid)); 
 
-        // ---- We initilize the neuron maps with nill weights, 
-        // the subscription gift and the current block as last emit.
-        LastEmit::<T>::insert(uid, current_block);
-        Stake::insert(uid, subscription_gift);
+        } else {
+            // --- We get the uid associated with this hotkey account.
+            let uid = Self::get_uid_for_hotkey(&hotkey_id);
 
-        // ---- We fill subscribing nodes initially with the self-weight = [1]
-        let mut _weights = Vec::new();
-        let mut _uids = Vec::new();
-        _weights.push(u32::max_value()); // w_ii = 1
-        _uids.push(uid); // Self edge
-        WeightVals::insert(uid, _weights);
-        WeightUids::insert(uid, _uids);
+            // --- If the neuron is already subscribed, we allow an update to their
+            // modality and ip.
+            let neuron = Self::update_neuron_in_metagraph(uid, ip, port, ip_type, modality);
 
-        // ---- We increment the active count for the additional member.
-        let neuron_count = ActiveCount::get();
-        ActiveCount::put(neuron_count + 1);
-        debug::info!("Increment the neuron count to: {:?} ", ActiveCount::get());
+            // --- We update their last emit
+            Self::update_last_emit_for_neuron(&neuron);
 
-        // --- We deposit the neuron added event.
-        Self::deposit_event(RawEvent::NeuronAdded(caller));
-        debug::info!("--- Done subscribe");
-
-        Ok(())
-    }
-
-    pub fn do_unsubscribe(origin : T::Origin) -> dispatch::DispatchResult
-    {
-        // --- We check the signature of the calling account.
-        let caller = ensure_signed(origin)?;
-        debug::info!("--- Called unsubscribe with caller: {:?}", caller);
-
-        // --- We check that the Neuron already exists in the active set.
-        ensure!(Neurons::<T>::contains_key( &caller ), Error::<T>::NotActive);
-        let neuron: NeuronMetadataOf<T> = Neurons::<T>::get( &caller );
-        debug::info!("Metadata retrieved with coldkey: {:?}", neuron.coldkey);
-
-        // --- We call the emit function. Neurons must call an emit before
-        // they leave the incentive mechanim or else they can cheat their peers
-        // of promised inflation.
-        Self::emit_from_uid( neuron.uid );
-
-        // --- If there are funds staked, we unstake them and add them to the coldkey.
-        let ammount_unstaked: u64 = Stake::get( neuron.uid );
-        debug::info!("Ammount staked on this account is: {:?}", ammount_unstaked);
-
-        if ammount_unstaked > 0 {
-            // --- We perform the withdrawl by converting the stake to a u64 balance
-            // and deposit the balance into the coldkey account. If the coldkey account
-            // does not exist it is created.
-            let ammount_unstaked_as_currency = Self::u64_to_balance( ammount_unstaked );
-            ensure!(ammount_unstaked_as_currency.is_some(), Error::<T>::CouldNotConvertToBalance);
-            let ammount_unstaked_as_currency = ammount_unstaked_as_currency.unwrap();
-            T::Currency::deposit_creating( &neuron.coldkey, ammount_unstaked_as_currency);
-            debug::info!("Depositing: {:?} into coldkey account: {:?}", ammount_unstaked, neuron.coldkey);
-
-
-            // --- We update the total staking pool with the removed funds.
-            let total_stake: u64 = TotalStake::get();
-            TotalStake::put(total_stake - ammount_unstaked);
-            debug::info!("Removing amount: {:?} from total stake, now: {:?}", ammount_unstaked, TotalStake::get());
+            // --- We deposit the neuron updated event
+            Self::deposit_event(RawEvent::NeuronUpdated(uid));
         }
-
-        // --- We remove the neuron-info from the various maps.
-        Neurons::<T>::remove( &caller );
-        Stake::remove( neuron.uid );
-        LastEmit::<T>::remove( neuron.uid );
-        WeightVals::remove( neuron.uid );
-        WeightUids::remove( neuron.uid );
-        debug::info!("Hotkey account removed: {:?}", caller);
-
-        // --- We decrement the neuron counter.
-        let neuron_count = ActiveCount::get();
-        ActiveCount::put(neuron_count - 1);
-        debug::info!("New neuron count: {:?}", ActiveCount::get());
-
-        // --- We emit the neuron removed event and return ok.
-        Self::deposit_event(RawEvent::NeuronRemoved(caller));
-        debug::info!("--- Done unsubscribe.");
-
         Ok(())
-		
     }
+
+    /********************************
+     --==[[  Helper functions   ]]==--
+    *********************************/
+
+    pub fn add_neuron_to_metagraph(ip: u128, port: u16, ip_type: u8, modality: u8, coldkey: T::AccountId, hotkey: T::AccountId, uid: u64) -> NeuronMetadataOf<T> {
+        // Before calling this function, a check should be made to see if
+        // the account_id is already used. If this is omitted, this assert breaks.
+        assert_eq!(Self::is_uid_active(uid), false);
+        debug::info!("Insert new metadata with ip: {:?}, port: {:?}, ip_type: {:?}, uid: {:?}, modality: {:?}, hotkey {:?}, coldkey: {:?}", ip, port, ip_type, uid, modality, hotkey, coldkey);
+        let metadata = NeuronMetadataOf::<T> {
+            ip: ip,
+            port: port,
+            ip_type: ip_type,
+            uid: uid,
+            modality: modality,
+            hotkey: hotkey,
+            coldkey: coldkey,
+        };
+        Neurons::<T>::insert(uid, &metadata);
+        return metadata;
+    }
+
+    pub fn update_neuron_in_metagraph(uid: u64, ip: u128, port: u16, ip_type: u8, modality: u8) -> NeuronMetadataOf<T> {
+        // Before calling this function, a check should be made to see if
+        // the account_id is already used. If this is omitted, this assert breaks.
+        assert_eq!(Self::is_uid_active(uid), true);
+        debug::info!("Updated neuron metadata ip: {:?}, port: {:?}, ip_type: {:?}, uid: {:?}, modality: {:?}", ip, port, ip_type, uid, modality);
+        let old_metadata = Self::get_neuron_for_uid(uid);
+        let new_metadata = NeuronMetadataOf::<T> {
+            ip: ip,
+            port: port,
+            ip_type: ip_type,
+            modality: modality,
+            uid: old_metadata.uid,
+            hotkey: old_metadata.hotkey,
+            coldkey: old_metadata.coldkey,
+        };
+        Neurons::<T>::insert(uid, &new_metadata);
+        return new_metadata;
+    }
+
+}
+
+fn is_valid_ip_type(ip_type : u8) -> bool {
+    let allowed_values: Vec<u8> = vec![4,6];
+    return allowed_values.contains(&ip_type);
+}
+
+
+// @todo (Parallax 2-1-2021) : Implement exclusion of private IP ranges
+fn is_valid_ip_address(ip_type : u8, addr : u128) -> bool {
+    if !is_valid_ip_type(ip_type) {
+        return false;
+    }
+
+    if addr == 0 {
+        return false;
+    }
+
+    if ip_type == 4 {
+        if addr == 0 { return false; }
+        if addr >= u32::MAX as u128 { return false; }
+        if addr == 0x7f000001 { return false; } // Localhost
+    }
+
+    if ip_type == 6 {
+        if addr == 0x0 {return false }
+        if addr == u128::MAX { return false; }
+        if addr == 1 { return false; } // IPv6 localhost
+    }
+
+    return true;
+}
+
+#[cfg(test)]
+mod test {
+    use crate::subscribing::{is_valid_ip_type, is_valid_ip_address};
+    use std::net::{Ipv6Addr, Ipv4Addr};
+
+    // Generates an ipv6 address based on 8 ipv6 words and returns it as u128
+    pub fn ipv6(a: u16, b : u16, c : u16, d : u16, e : u16 ,f: u16, g: u16,h :u16) -> u128 {
+        return Ipv6Addr::new(a,b,c,d,e,f,g,h).into();
+    }
+
+    // Generate an ipv4 address based on 4 bytes and returns the corresponding u128, so it can be fed
+    // to the module::subscribe() function
+    pub fn ipv4(a: u8 ,b: u8,c : u8,d : u8) -> u128 {
+        let ipv4 : Ipv4Addr =  Ipv4Addr::new(a, b, c, d);
+        let integer : u32 = ipv4.into();
+        return u128::from(integer);
+    }
+
+    #[test]
+    fn test_is_valid_ip_type_ok_ipv4() {
+        assert_eq!(is_valid_ip_type(4), true);
+    }
+
+    #[test]
+    fn test_is_valid_ip_type_ok_ipv6() {
+        assert_eq!(is_valid_ip_type(6), true);
+    }
+
+    #[test]
+    fn test_is_valid_ip_type_nok() {
+        assert_eq!(is_valid_ip_type(10), false);
+    }
+    
+    #[test]
+    fn test_is_valid_ip_address_ipv4() {
+        assert_eq!(is_valid_ip_address(4,ipv4(8,8,8,8)), true);
+    }
+
+    #[test]
+    fn test_is_valid_ip_address_ipv6() {
+        assert_eq!(is_valid_ip_address(6,ipv6(1,2,3,4,5,6,7,8)), true);
+        assert_eq!(is_valid_ip_address(6,ipv6(1,2,3,4,5,6,7,8)), true);
+    }
+
+    #[test]
+    fn test_is_invalid_ipv4_address() {
+        assert_eq!(is_valid_ip_address(4, ipv4(0,0,0,0)), false);
+        assert_eq!(is_valid_ip_address(4, ipv4(255,255,255,255)), false);
+        assert_eq!(is_valid_ip_address(4, ipv4(127,0,0,1)), false);
+        assert_eq!(is_valid_ip_address(4,ipv6(0xffff,2,3,4,5,6,7,8)), false);
+    }
+
+    #[test]
+    fn test_is_invalid_ipv6_addres() {
+        assert_eq!(is_valid_ip_address(6, ipv6(0,0,0,0,0,0,0,0)), false);
+        assert_eq!(is_valid_ip_address(4, ipv6(0xffff,0xffff,0xffff,0xffff,0xffff,0xffff,0xffff,0xffff)), false);
+    }
+
+
+
 }
