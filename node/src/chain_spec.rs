@@ -66,7 +66,7 @@ pub fn development_config() -> Result<ChainSpec, String> {
 		// ID
 		"dev",
 		ChainType::Development,
-		move || testnet_genesis(
+		move || network_genesis(
 			wasm_binary,
 			// Initial PoA authorities
 			vec![
@@ -109,7 +109,7 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 		// ID
 		"local_testnet",
 		ChainType::Local,
-		move || testnet_genesis(
+		move || network_genesis(
 			wasm_binary,
 			// Initial PoA authorities
 			vec![
@@ -150,16 +150,54 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 }
 
 /// *************************************
-/// KUSANAGI TESTNET CONFIGURATION
+/// KUSANAGI MAIN NET CONFIGURATION
 /// *************************************
-pub fn kusanagi_testnet_config() -> Result<ChainSpec, String> {
+pub fn kusanagi_mainnet_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
 
 	Ok(ChainSpec::from_genesis(
-		"Kusanagi bittensor testnet",
-		"kusanagi_testnet",
+		"Kusanagi bittensor main net",
+		"kusanagi_mainnet",
+		ChainType::Live,
+		move || network_genesis(
+			wasm_binary,
+			vec![
+				authority_keys_from_ss58("5CJEfuCe7QEztdnHJEBiXsfGynEAmnTfa5DDdiXxP7zPSqQG","5F7ia4UqyimKaJuvTQnFsRNJhSX2UiM5sFXcWmGjAPtDnwpc"), // jarvis
+				authority_keys_from_ss58("5HgnTqtdTaAjjVPg2VRaHiytDJzG3Tr9bmEi46sk3pCxuKPo", "5FLdFNe3SnHCZxgRGJKQoBroeXWKPC48AkgHwH7rNoTEX5L4"), // genisys
+				authority_keys_from_ss58("5Fsrw5m78ckJ2v5KqPo7QE6Axrmt5TatB2E16eD2ruAh3CCn", "5DQVooh4NVUpQdFkrv58myP5F7TTjMkMAF1YKxKJFJQE7FQc"), // hal
+				authority_keys_from_ss58("5DRU4az6QWpBmNkAtsYMjaV5qRx1X9jLcZYKq7EKgM4noWn8", "5Do8YhJpniwzzDZchtNNynn5gzp32Syv7DHjVekpDdwtcUik"), // wopr
+				authority_keys_from_ss58("5HdtW1gDZorC89Un8PzPpMXtYPTp4Fybst6mzLg1TDpL8hBm", "5H3jUpgQ5nJXszJxStR9LgRMf1qCyfn417pxh5pYzwwRukAo"), // gibson
+				authority_keys_from_ss58("5Cz9opG7WReFPxu6EdvWaxDTQy5Lk8A4idLMYidijjhUq4sh", "5GgZ8yNBc5vWFJPUgEuDW3Q7vVEoBBwo2RFA8A2gJ6TKoeMs"), // glados
+			],
+			AccountId::from_ss58check("5GbSmaoza9rzDViaLTmFS2vhjobEQdv93cekXYAJ6XPstMej").unwrap(),
+			vec![
+				AccountId::from_ss58check("5FCJNwo2MSnHBEgoydnXt1aLGdFL6pCmpte476nFQ4X5vmxe").unwrap(), // Adam
+			],
+			true,
+		),
+		vec![
+			MultiaddrWithPeerId::from_str("/dns4/anton.kusanagi.bittensor.com/tcp/30333/p2p/12D3KooWLUkry8sLj2zCVaNYbTsHW2EkKzh3AwKVocABAnaJGmSe").unwrap(),
+			MultiaddrWithPeerId::from_str("/dns4/skynet.kusanagi.bittensor.com/tcp/30333/p2p/12D3KooWCo8hhxLKeitiWvsdYwVdw2UCRQi64JtZWFB8Bcp4E8RZ").unwrap()
+	    ],
+		None,
+		None,
+		None,
+		None,
+	))
+}
+
+
+/// *************************************
+/// AKIRA TESTNET CONFIGURATION
+/// *************************************
+pub fn akira_testnet_config() -> Result<ChainSpec, String> {
+	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
+
+	Ok(ChainSpec::from_genesis(
+		"Akira bittensor testnet",
+		"akira_testnet",
 		ChainType::Local,
-		move || testnet_genesis(
+		move || network_genesis(
 			wasm_binary,
 			vec![
 				authority_keys_from_ss58("5H9cxPkm15NEwUCS8rXKAQuq3z6hDDaBQfVneDme8tLP2NnR", "5EcstGNGzbZ8kLhpAdVSjT3So99hYCtV4ur8PPcdVaBQDpmR"), //Jarvis
@@ -176,8 +214,8 @@ pub fn kusanagi_testnet_config() -> Result<ChainSpec, String> {
 			true,
 		),
 		vec![
-			MultiaddrWithPeerId::from_str("/dns4/anton.kusanagi.bittensor.com/tcp/30333/p2p/12D3KooWAcwbhijTx8NB5P9sLGcWyf4QrhScZrqkqWsh418Nuczd").unwrap(),
-			MultiaddrWithPeerId::from_str("/dns4/skynet.kusanagi.bittensor.com/tcp/30333/p2p/12D3KooWEr7Dq9oFJRSXZrZspibBLRySnGCDV7598xrGF8iT5DHD").unwrap()
+			MultiaddrWithPeerId::from_str("/dns4/anton.akira.bittensor.com/tcp/30333/p2p/12D3KooWAcwbhijTx8NB5P9sLGcWyf4QrhScZrqkqWsh418Nuczd").unwrap(),
+			MultiaddrWithPeerId::from_str("/dns4/skynet.akira.bittensor.com/tcp/30333/p2p/12D3KooWEr7Dq9oFJRSXZrZspibBLRySnGCDV7598xrGF8iT5DHD").unwrap()
 	    ],
 		None,
 		None,
@@ -188,7 +226,7 @@ pub fn kusanagi_testnet_config() -> Result<ChainSpec, String> {
 
 
 /// Configure initial storage state for FRAME modules.
-fn testnet_genesis(
+fn network_genesis(
 	wasm_binary: &[u8],
 	initial_authorities: Vec<(AuraId, GrandpaId)>,
 	root_key: AccountId,
