@@ -86,6 +86,7 @@ impl<T: Trait> Module<T> {
             hotkey: old_metadata.hotkey,
             coldkey: old_metadata.coldkey,
         };
+
         Neurons::<T>::insert(uid, &new_metadata);
         return new_metadata;
     }
