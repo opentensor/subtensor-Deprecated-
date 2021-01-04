@@ -308,7 +308,7 @@ fn test_get_coldkey_balance_no_balance() {
 
 
 #[test]
-fn test_test_get_coldkey_balance_with_balance() {
+fn test_get_coldkey_balance_with_balance() {
 	new_test_ext().execute_with(|| {
 		let coldkey_account_id = 5454; // arbitrary
 		let amount = 1337;
@@ -512,3 +512,32 @@ fn test_neurong_belongs_to_coldkey_err() {
 		assert_eq!(SubtensorModule::neuron_belongs_to_coldkey(&neuron, &coldkey_id), false);
 	});
 }
+
+/************************************************************
+	staking::can_remove_balance_from_coldkey_account() tests
+************************************************************/
+#[test]
+fn test_can_remove_balane_from_coldkey_account_ok() {
+	new_test_ext().execute_with(|| {
+        let coldkey_id = 87987984;
+		let initial_amount = 10000;
+		let remove_amount = 5000;
+
+		SubtensorModule::add_balance_to_coldkey_account(&coldkey_id, initial_amount);
+		assert_eq!(SubtensorModule::can_remove_balance_from_coldkey_account(&coldkey_id, remove_amount), true);
+	});
+}
+
+
+#[test]
+fn test_can_remove_balance_from_coldkey_account_err_insufficient_balance() {
+	new_test_ext().execute_with(|| {
+		let coldkey_id = 87987984;
+		let initial_amount = 10000;
+		let remove_amount = 20000;
+
+		SubtensorModule::add_balance_to_coldkey_account(&coldkey_id, initial_amount);
+		assert_eq!(SubtensorModule::can_remove_balance_from_coldkey_account(&coldkey_id, remove_amount), false);
+	});
+}
+
