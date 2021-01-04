@@ -17,6 +17,9 @@ impl<T: Trait> Module<T> {
         ensure!(Self::is_hotkey_active(&hotkey), Error::<T>::NotActive);
         let neuron = Self::get_neuron_for_hotkey(&hotkey);
 
+        // Check if uid is active
+        ensure!(Self::is_uid_active(neuron.uid), Error::<T>::NotActive);
+
         // ---- We check that the NeuronMetadata is linked to the calling
         // cold key, otherwise throw a NonAssociatedColdKey error.
         ensure!(Self::neuron_belongs_to_coldkey(&neuron, &coldkey), Error::<T>::NonAssociatedColdKey);
@@ -74,6 +77,10 @@ impl<T: Trait> Module<T> {
         // the passed hotkey.
         ensure!(Self::is_hotkey_active(&hotkey), Error::<T>::NotActive);
         let neuron = Self::get_neuron_for_hotkey(&hotkey);
+
+        // Check if uid is active
+        ensure!(Self::is_uid_active(neuron.uid), Error::<T>::NotActive);
+
 
         // ---- We check that the NeuronMetadata is linked to the calling
         // cold key, otherwise throw a NonAssociatedColdKey error.
@@ -142,6 +149,7 @@ impl<T: Trait> Module<T> {
     /**
     * Increases the amount of stake in a neuron's hotkey account by the amount provided
     * The uid parameter identifies the neuron holding the hotkey account
+    *
     * Calling function should make sure the uid exists within the system
     */
     pub fn add_stake_to_neuron_hotkey_account(uid: u64, amount: u64) {
@@ -169,8 +177,12 @@ impl<T: Trait> Module<T> {
     *
     * A check if there is enough stake in the hotkey account should have been performed
     * before this function is called. If not, the node will crap out.
+    *
+    * Furthermore, a check to see if the uid is active before this method is called is also required
     */
     pub fn remove_stake_from_neuron_hotkey_account(uid: u64, amount: u64) {
+        assert!(Self::is_uid_active(uid));
+
         let hotkey_stake: u64 = Stake::get(uid);
 
         // By this point, there should be enough stake in the hotkey account for this to work.
