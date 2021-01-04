@@ -132,6 +132,10 @@ impl<T: Trait> Module<T> {
     pub fn increase_total_stake(increment: u64) {
         // --- We update the total staking pool with the new funds.
         let total_stake: u64 = TotalStake::get();
+
+        // Sanity check
+        assert!(increment <= u64::MAX - total_stake);
+
         TotalStake::put(total_stake + increment);
         debug::info!("Added {:?} to total stake, now {:?}", increment, TotalStake::get());
     }

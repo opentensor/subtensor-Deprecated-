@@ -414,3 +414,34 @@ fn test_remove_stake_from_hotkey_account() {
 	});
 }
 
+
+/************************************************************
+	staking::increase_total_stake() tests
+************************************************************/
+#[test]
+fn test_increase_total_stake_ok() {
+	new_test_ext().execute_with(|| {
+		let increment = 10000;
+
+        assert_eq!(SubtensorModule::get_total_stake(), 0);
+		SubtensorModule::increase_total_stake(increment);
+		assert_eq!(SubtensorModule::get_total_stake(), increment);
+	});
+}
+
+#[test]
+#[should_panic]
+fn test_increase_total_stake_panic_too_much() {
+	new_test_ext().execute_with(|| {
+        let initial_total_stake = u64::MAX;
+		let increment : u64 = 1;
+
+		// Setup initial total stake
+		SubtensorModule::increase_total_stake(initial_total_stake);
+		SubtensorModule::increase_total_stake(increment);
+	});
+}
+
+
+
+
