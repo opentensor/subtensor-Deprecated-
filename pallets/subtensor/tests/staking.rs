@@ -209,28 +209,84 @@ fn test_remove_stake_ok_with_emission() {
 #[test]
 fn test_remove_stake_err_signature() {
 	new_test_ext().execute_with(|| {
-        assert!(true == false);
+		let hotkey_account_id : u64 = 4968585;
+		let amount = 10000; // Amount to be removed
+
+		let result = SubtensorModule::remove_stake(<<Test as Trait>::Origin>::none(), hotkey_account_id, amount);
+		assert_eq!(result, DispatchError::BadOrigin.into());
 	});
 }
 
+/*
+#[test]
+fn test_add_stake_err_not_active() {
+	new_test_ext().execute_with(|| {
+		let coldkey_account_id = 435445; // Not active id
+		let hotkey_account_id = 54544;
+		let amount = 1337;
+
+		let result = SubtensorModule::add_stake(<<Test as Trait>::Origin>::signed(coldkey_account_id), hotkey_account_id, amount);
+		assert_eq!(result, Err(Error::<Test>::NotActive.into()));
+	});
+}
+
+
+#[test]
+fn test_add_stake_err_neuron_does_not_belong_to_coldkey() {
+	new_test_ext().execute_with(|| {
+		let coldkey_id = 544;
+		let hotkey_id = 54544;
+		let other_cold_key = 99498;
+
+		let _neuron = subscribe_neuron(hotkey_id, ipv4(8, 8, 8, 8), 66, 4, 0, coldkey_id);
+
+		// Perform the request which is signed by a different cold key
+		let result = SubtensorModule::add_stake(<<Test as Trait>::Origin>::signed(other_cold_key), hotkey_id, 1000);
+		assert_eq!(result, Err(Error::<Test>::NonAssociatedColdKey.into()));
+	});
+}
+
+ */
 #[test]
 fn test_remove_stake_err_not_active() {
 	new_test_ext().execute_with(|| {
-        assert!(true == false);
+        let coldkey_account_id = 435445;
+		let hotkey_account_id = 54544; // Not active id
+		let amount = 1337;
+
+		let result = SubtensorModule::add_stake(<<Test as Trait>::Origin>::signed(coldkey_account_id), hotkey_account_id, amount);
+		assert_eq!(result, Err(Error::<Test>::NotActive.into()));
 	});
 }
 
 #[test]
 fn test_remove_stake_err_neuron_does_not_belong_to_coldkey() {
 	new_test_ext().execute_with(|| {
-        assert!(true == false);
+        let coldkey_id = 544;
+		let hotkey_id = 54544;
+		let other_cold_key = 99498;
+
+		let _neuron = subscribe_ok_neuron(hotkey_id,coldkey_id);
+
+		// Perform the request which is signed by a different cold key
+		let result = SubtensorModule::remove_stake(<<Test as Trait>::Origin>::signed(other_cold_key), hotkey_id, 1000);
+		assert_eq!(result, Err(Error::<Test>::NonAssociatedColdKey.into()));
 	});
 }
 
 #[test]
 fn test_remove_stake_no_enough_stake() {
 	new_test_ext().execute_with(|| {
-        assert!(true == false);
+        let coldkey_id = 544;
+		let hotkey_id = 54544;
+		let amount = 10000;
+
+		let neuron = subscribe_ok_neuron(hotkey_id, coldkey_id);
+
+		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid), 0);
+
+		let result = SubtensorModule::remove_stake(<<Test as Trait>::Origin>::signed(coldkey_id), hotkey_id, amount);
+		assert_eq!(result, Err(Error::<Test>::NotEnoughStaketoWithdraw.into()));
 	});
 }
 
@@ -328,7 +384,9 @@ fn test_add_stake_to_neuron_hotkey_account_ok() {
 	});
 }
 
-
+/************************************************************
+	staking::remove_stake_from_hotkey_account() tests
+************************************************************/
 #[test]
 fn test_remove_stake_from_hotkey_account() {
 	new_test_ext().execute_with(|| {
@@ -339,7 +397,7 @@ fn test_remove_stake_from_hotkey_account() {
 		let neuron = subscribe_ok_neuron(hotkey_id, coldkey_id);
 
 		// Add some stake that can be removed
-		SubtensorModule::add_stake_to_neuron_hotkey_account(hotkey_id, amount);
+		SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, amount);
 
 		// Prelimiary checks
 		assert_eq!(SubtensorModule::get_total_stake(), amount);

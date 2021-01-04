@@ -28,6 +28,9 @@ fn test_subscribe_ok() {
 		assert_eq!(neuron.port, port);
 		assert_eq!(neuron.coldkey, coldkey_account_id);
 
+		// Check if this function works
+		assert_eq!(SubtensorModule::is_uid_active(neuron.uid));
+
 		// Check neuron count increment functionality
         assert_eq!(SubtensorModule::get_neuron_count(), 1);
 
