@@ -43,7 +43,7 @@ fn test_self_emission() {
         // Let's subscribe a new neuron to the chain.
         let hotkey:u64 = 1;
         let stake:u64 = 1000000000;
-        let neuron = random_neuron_with_stake(hotkey, stake, ipv4(8,8,8,8), 1, 4, 1, 1);
+        let neuron = random_neuron_with_stake(hotkey, stake, ipv4(8,8,8,8), 1, 4, 0, 1);
 
         // Let's set this neuron's weights. (0,0) = 1
 		let weight_uids = vec![neuron.uid];
@@ -74,7 +74,7 @@ fn test_multiemit_per_block() {
         // Let's subscribe a new neuron to the chain.
         let hotkey:u64 = 1;
         let stake:u64 = 1000000000;
-        let neuron = random_neuron_with_stake(hotkey, stake, ipv4(8,8,8,8), 1, 4, 1, 1);
+        let neuron = random_neuron_with_stake(hotkey, stake, ipv4(8,8,8,8), 1, 4, 0, 1);
 
         // Let's set this neuron's weights. (0,0) = 1
 		let weight_uids = vec![neuron.uid];
@@ -106,8 +106,8 @@ fn test_emission_to_other() {
         let hotkey_one:u64 = 1;
         let hotkey_two:u64 = 2;
         let stake:u64 = 1000000000;
-        let neuron_one = random_neuron_with_stake(hotkey_one, stake, ipv4(8,8,8,8), 1, 4, 1, 1);
-        let neuron_two = random_neuron_with_stake(hotkey_two, 0, ipv4(8,8,8,9), 1, 4, 1, 1);
+        let neuron_one = random_neuron_with_stake(hotkey_one, stake, ipv4(8,8,8,8), 1, 4, 0, 1);
+        let neuron_two = random_neuron_with_stake(hotkey_two, 0, ipv4(8,8,8,9), 1, 4, 0, 1);
 
         // Let's set this neuron's weights. (0,0) = 1
 		let weight_uids = vec![neuron_two.uid];

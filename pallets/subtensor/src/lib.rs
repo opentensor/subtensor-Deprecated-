@@ -109,6 +109,10 @@ decl_storage! {
 		/// ---- The next uid allocated to a subscribing neuron. Or a count of how many peers
 		/// have ever subscribed.
 		NextUID: u64;
+
+		/// ---- The number of subscriptions this block, used in conjunction with 
+		SubscriptionsThisBlock: u32;
+		LastSubscriptionBlock: T::BlockNumber;
 	}
 }
 
@@ -150,6 +154,14 @@ decl_error! {
 
 		/// --- Thrown when an invalid IP address is passed to the subscribe function.
 		InvalidIpAddress,
+
+		/// --- Thrown when an invalid modality attempted on subscribe.
+		/// Currently the chain only accepts modality TEXT = 0.
+		InvalidModality,
+
+		/// --- Thrown when subscriptions this block have exeeded the number of 
+		/// allowed.
+		ToManySubscriptionsThisBlock,
 
 		/// ---- Thrown when the caller attempts to set the weight keys
 		/// and values but these vectors have different size.

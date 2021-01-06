@@ -9,8 +9,10 @@ impl<T: Trait> Module<T> {
         debug::info!("--- Called subscribe with caller {:?}", hotkey_id);
 
         // --- We make validy checks on the passed data.
+        ensure!(is_valid_modality(modality), Error::<T>::InvalidModality);
         ensure!(is_valid_ip_type(ip_type), Error::<T>::InvalidIpType);
         ensure!(is_valid_ip_address(ip_type, ip), Error::<T>::InvalidIpAddress);
+        ensure!(Self::check_and_increment_subscriptions_per_block(), Error::<T>::ToManySubscriptionsThisBlock);
 
         // --- We switch here between an update and a subscribe.
         if !Self::is_hotkey_active(&hotkey_id) {
@@ -38,7 +40,7 @@ impl<T: Trait> Module<T> {
 
             // --- If the neuron is already subscribed, we allow an update to their
             // modality and ip.
-            let neuron = Self::update_neuron_in_metagraph(uid, ip, port, ip_type, modality);
+            let neuron = Self::update_neuron_in_metagraph(uid, ip, port, ip_type);
 
             // --- We update their last emit
             Self::update_last_emit_for_neuron(&neuron);
@@ -71,17 +73,17 @@ impl<T: Trait> Module<T> {
         return metadata;
     }
 
-    pub fn update_neuron_in_metagraph(uid: u64, ip: u128, port: u16, ip_type: u8, modality: u8) -> NeuronMetadataOf<T> {
+    pub fn update_neuron_in_metagraph(uid: u64, ip: u128, port: u16, ip_type: u8) -> NeuronMetadataOf<T> {
         // Before calling this function, a check should be made to see if
         // the account_id is already used. If this is omitted, this assert breaks.
         assert_eq!(Self::is_uid_active(uid), true);
-        debug::info!("Updated neuron metadata ip: {:?}, port: {:?}, ip_type: {:?}, uid: {:?}, modality: {:?}", ip, port, ip_type, uid, modality);
+        debug::info!("Updated neuron {:?}'s metadata to ip: {:?}, port: {:?}, ip_type: {:?}", uid, ip, port, ip_type);
         let old_metadata = Self::get_neuron_for_uid(uid);
         let new_metadata = NeuronMetadataOf::<T> {
             ip: ip,
             port: port,
             ip_type: ip_type,
-            modality: modality,
+            modality: old_metadata.modality,
             uid: old_metadata.uid,
             hotkey: old_metadata.hotkey,
             coldkey: old_metadata.coldkey,
@@ -90,13 +92,40 @@ impl<T: Trait> Module<T> {
         return new_metadata;
     }
 
+    pub fn check_and_increment_subscriptions_per_block() -> bool {
+        let num_allowed_subscriptions = 25;
+        let current_block: T::BlockNumber = system::Module::<T>::block_number();
+        let last_subscription: T::BlockNumber = LastSubscriptionBlock::<T>::get();
+        if last_subscription < current_block {
+            SubscriptionsThisBlock::put( 1 );
+            LastSubscriptionBlock::<T>::put( current_block );      
+            return true;  
+        } 
+        else {
+            let subs_this_block = SubscriptionsThisBlock::get();
+            if subs_this_block >= num_allowed_subscriptions {
+                return false;
+            } else {
+                SubscriptionsThisBlock::put( subs_this_block + 1 );
+                LastSubscriptionBlock::<T>::put( current_block );   
+                return true;
+            }
+        }
+    }
+    
+
+}
+
+
+fn is_valid_modality(modality : u8) -> bool {
+    let allowed_values: Vec<u8> = vec![0];
+    return allowed_values.contains(&modality);
 }
 
 fn is_valid_ip_type(ip_type : u8) -> bool {
     let allowed_values: Vec<u8> = vec![4,6];
     return allowed_values.contains(&ip_type);
 }
-
 
 // @todo (Parallax 2-1-2021) : Implement exclusion of private IP ranges
 fn is_valid_ip_address(ip_type : u8, addr : u128) -> bool {
