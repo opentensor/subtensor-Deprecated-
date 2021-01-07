@@ -46,6 +46,45 @@ fn test_subscribe_ok() {
 }
 
 #[test]
+fn test_subscriptions_per_block() {
+	new_test_ext().execute_with(|| {
+		let ip = ipv4(8,8,8,8);
+		let ip_type = 4;
+		let port = 1337;
+		let modality = 0;
+		let coldkey_account_id = 667; // N
+		for i in 0..= 24 {
+			assert_ok!(SubtensorModule::subscribe(<<Test as Trait>::Origin>::signed(i), ip, port, ip_type, modality, coldkey_account_id));
+		}
+		let result = SubtensorModule::subscribe(<<Test as Trait>::Origin>::signed(25), ip, port, ip_type, modality, coldkey_account_id);
+		assert_eq!(result, Err(Error::<Test>::ToManySubscriptionsThisBlock.into()));
+		run_to_block(1);
+		for i in 0..= 24 {
+			assert_ok!(SubtensorModule::subscribe(<<Test as Trait>::Origin>::signed(26 + i), ip, port, ip_type, modality, coldkey_account_id));
+		}
+		let result = SubtensorModule::subscribe(<<Test as Trait>::Origin>::signed(52), ip, port, ip_type, modality, coldkey_account_id);
+		assert_eq!(result, Err(Error::<Test>::ToManySubscriptionsThisBlock.into()));
+	});
+}
+
+
+#[test]
+fn test_invalid_modality() {
+	new_test_ext().execute_with(|| {
+		let hotkey_account_id = 1;
+		let ip = ipv4(8,8,8,8);
+		let ip_type = 4;
+		let port = 1337;
+		let modality = 1;
+		let coldkey_account_id = 667; // Neighbour of the beast, har har
+
+		// Subscribe and check extrinsic output
+		let result = SubtensorModule::subscribe(<<Test as Trait>::Origin>::signed(hotkey_account_id), ip, port, ip_type, modality, coldkey_account_id);
+		assert_eq!(result, Err(Error::<Test>::InvalidModality.into()));
+	});
+}
+
+#[test]
 fn test_subscribe_update_ok() {
 	new_test_ext().execute_with(|| {
 		let hotkey_account_id = 1;
@@ -84,7 +123,7 @@ fn test_subscribe_update_ok() {
  		let new_ip = ipv6(0,0,0,0,0,0,1,1);  // off by one.
 		let new_ip_type = 6; // change to 6.
 		let new_port = port + 1; // off by one.
-		let new_modality = modality + 1; // off by once
+		let new_modality = modality; // off by once
 		assert_ok!(SubtensorModule::subscribe(<<Test as Trait>::Origin>::signed(hotkey_account_id), new_ip, new_port, new_ip_type, new_modality, coldkey_account_id));
 		let neuron = SubtensorModule::get_neuron_for_hotkey(&hotkey_account_id);
 
@@ -115,7 +154,7 @@ fn test_subscribe_update_ok() {
 }
 
 #[test]
-fn test_subscribe_update_colkey_not_changed_ok() {
+fn test_subscribe_update_colkey_modality_not_changed_ok() {
 	new_test_ext().execute_with(|| {
 		let hotkey_account_id = 1;
 		let ip = ipv4(8,8,8,8);
@@ -132,20 +171,20 @@ fn test_subscribe_update_colkey_not_changed_ok() {
  		let new_ip = ipv6(0,0,0,0,0,0,1,1);  // off by one.
 		let new_ip_type = 6; // change to 6.
 		let new_port = port + 1; // off by one.
-		let new_modality = modality + 1; // off by one.
+		let new_modality = modality; // has to be modality 0.
 		assert_ok!(SubtensorModule::subscribe(<<Test as Trait>::Origin>::signed(hotkey_account_id), new_ip, new_port, new_ip_type, new_modality, new_coldkey_account_id));
 		let neuron = SubtensorModule::get_neuron_for_hotkey(&hotkey_account_id);
 
-		// UID, coldkey and hotkey are the same.
+		// UID, modality, coldkey and hotkey are the same.
 		assert_eq!(neuron.uid, 0);
 		assert_eq!(neuron.hotkey, hotkey_account_id);
 		assert_eq!(neuron.coldkey, coldkey_account_id);
+		assert_eq!(neuron.modality, modality);
 
 		// metadata has changed
 		assert_eq!(neuron.ip, new_ip);
 		assert_eq!(neuron.ip_type, new_ip_type);
 		assert_eq!(neuron.port, new_port);
-		assert_eq!(neuron.modality, new_modality);
 
 		// Check neuron count increment functionality
 		assert_eq!(SubtensorModule::get_neuron_count(), 1);
