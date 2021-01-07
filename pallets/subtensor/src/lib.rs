@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 // --- Frame imports.
-use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, ensure, debug, traits::{Currency, WithdrawReasons, WithdrawReason, ExistenceRequirement}, Printable};
+use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, ensure, debug, IterableStorageMap, weights::Weight, traits::{Currency, WithdrawReasons, WithdrawReason, ExistenceRequirement}, Printable};
 use frame_support::weights::{DispatchClass, Pays};
 use codec::{Decode, Encode};
 use frame_system::{self as system, ensure_signed};
@@ -16,6 +16,7 @@ mod staking;
 mod subscribing;
 mod emission;
 mod block_reward;
+mod block_execution;
 
 /// --- Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Trait: frame_system::Trait {
@@ -84,13 +85,14 @@ decl_storage! {
 		/// The metadata contains that uid, the ip, port, and coldkey address.
 		pub Neurons get(fn neuron): map hasher(twox_64_concat) u64 => NeuronMetadataOf<T>;
 
-		/// ---- Maps between a neuron's hotkey account and the block number
-		/// when that peer last called an emission/subscribe. The last emit time is used to determine
-		/// the proportion of inflation remaining to emit during the next emit call. 
-		/// It can also be used as an 'Active' proxy when attempting to know who is online.
-		/// Neuron's should call emit or resubscribe actively in order to be found by other neurons.
+		/// ---- Maps between a neuron's hotkey uid and the block number
+		/// when that peer last called an emission/subscribe.
 		pub LastEmit get(fn last_emit): map hasher(twox_64_concat) u64 => T::BlockNumber;
-	
+
+		/// --- Maps between a neuron's hotkey uid and this peer's pending emission.
+		/// pending emission is the quantity 
+		pub PendingEmission get(fn pending_emission ): map hasher(identity) u64 => u64;
+
 		/// ---- List of values which map between a neuron's uid an that neuron's
 		/// weights, a.k.a is row_weights in the square matrix W. Each outward edge
 		/// is represented by a (u64, u64) tuple determining the endpoint and weight
@@ -379,6 +381,28 @@ decl_module! {
 		#[weight = (0, DispatchClass::Operational, Pays::No)]
 		pub fn subscribe(origin, ip: u128, port: u16, ip_type: u8, modality: u8, coldkey: T::AccountId) -> dispatch::DispatchResult {
 			Self::do_subscribe(origin, ip, port, ip_type, modality, coldkey)
+		}
+
+		/// ---- Finalizes the block by updating pallet state. This function is not publicly available
+		/// as an RPC but is called at the end of block execution. Subtensor's on_finalize updates
+		/// the pending emission for each active peer and performs additional clean up.
+		///
+		/// # Args:
+		/// 	* 'n': (T::BlockNumber):
+		/// 		- The number of the block we are finalizing.
+		///
+		fn on_finalize(n: T::BlockNumber) {
+			Self::do_finalize(n);
+		}
+
+		/// ---- Called on the initialization of this pallet. (the order of on_finalize calls is determined in the runtime)
+		///
+		/// # Args:
+		/// 	* 'n': (T::BlockNumber):
+		/// 		- The number of the block we are initializing.
+		fn on_initialize(n: T::BlockNumber) -> Weight {
+			let weight = Self::do_initialize(n);
+			weight
 		}
 	}
 }

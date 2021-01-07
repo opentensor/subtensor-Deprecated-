@@ -61,8 +61,16 @@ fn test_self_emission() {
         
         // Let's call an emit. Causes the new node to mint 500000000 to himself.
         let total_emission:u64 = SubtensorModule::emit_for_neuron(&neuron);
+        assert_eq!(total_emission, 1000000000);
+        assert_eq!(2000000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that the stake is there.
+
+        // Increase the block number to trigger emit. It starts at block 0.
+        run_to_block(2);
+
+        let total_emission:u64 = SubtensorModule::emit_for_neuron(&neuron);
         assert_eq!(total_emission, 500000000);
-        assert_eq!(1500000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that the stake is there.
+        assert_eq!(2500000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that the stake is there.
+          
 	});
 }
 
