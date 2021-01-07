@@ -1,7 +1,7 @@
 version: 2.1
 
 jobs:
-  "Build Subtensor Chain":
+  "Build and test Subtensor Chain":
     docker: # executor type
         - image: cimg/rust:1.48.0
     steps:
@@ -18,9 +18,12 @@ jobs:
       - run: 
           name: "Build Subtensor"
           command: cargo build --release
+      - run:
+          name: "Test Subtensor"
+          command: cargo test
 
  
 workflows:
   main:
     jobs:
-      - "Build Subtensor Chain"
+      - "Build and test Subtensor Chain"
