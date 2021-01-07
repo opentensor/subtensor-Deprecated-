@@ -14,3 +14,7 @@
 
 # Jetbrains editor files
 .idea
+
+.devcontainer
+
+.vscode
