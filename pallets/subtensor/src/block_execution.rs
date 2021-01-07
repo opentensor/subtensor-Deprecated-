@@ -8,10 +8,10 @@ impl<T: Trait> Module<T> {
 	/// 	* 'n': (T::BlockNumber):
 	/// 		- The number of the block we are finalizing.
     pub fn do_finalize(n: T::BlockNumber) {
-        Self::update_pending_emission();
-
+        // Self::update_pending_emission();
+        // does nothing.
     }
-
+    
     /// Called on the initialization of this pallet. (the order of on_finalize calls is determined in the runtime)
     ///
     /// # Args:
@@ -25,30 +25,19 @@ impl<T: Trait> Module<T> {
     pub fn update_pending_emission() -> u64 {
         let mut weight = 0;
         let block_reward = Self::current_block_reward();
-        let total_stake = TotalStake::get();
+        let total_stake = U64F64::from_num( TotalStake::get() );
+        if total_stake == U64F64::from_num(0) {
+            return 0
+        }
         for (uid, stake) in <Stake as IterableStorageMap<u64, u64>>::iter() {
-            let stake_fraction = Self::calculate_stake_fraction_with_total_stake( total_stake, stake );
+            if stake == 0 { continue; }
+            let stake = U64F64::from_num(stake);
+            let stake_fraction = stake / total_stake;
             let new_emission = block_reward * stake_fraction;
             let new_emission_u64 = new_emission.to_num::<u64>();
             PendingEmission::mutate(uid, |el| *el += new_emission_u64);
             weight += 1;
         }
         weight
-    }
-
-    // Calculates the stake fraction for a passed stake and total stake item.
-    pub fn calculate_stake_fraction_with_total_stake( total_stake: u64, stake: u64 ) -> U64F64 {
-        let total_stake = U64F64::from_num(TotalStake::get());
-        let neuron_stake = U64F64::from_num(stake);
-        // Total stake is 0, this should virtually never happen, but is still here because it could
-        if total_stake == U64F64::from_num(0) {
-            return U64F64::from_num(0);
-        }
-        // Neuron stake is zero. This means there will be nothing to emit
-        if neuron_stake ==U64F64::from_num(0) {
-            return U64F64::from_num(0);
-        }
-        let stake_fraction = neuron_stake / total_stake;
-        return stake_fraction;
     }
 }
