@@ -28,6 +28,9 @@ fn test_subscribe_ok() {
 		assert_eq!(neuron.port, port);
 		assert_eq!(neuron.coldkey, coldkey_account_id);
 
+		// Check if this function works
+		assert_eq!(SubtensorModule::is_uid_active(neuron.uid), true);
+
 		// Check neuron count increment functionality
         assert_eq!(SubtensorModule::get_neuron_count(), 1);
 
@@ -214,7 +217,7 @@ fn test_subscribe_already_active() {
 		let coldkey_account_id = 667;
 
 		// This first subscription should succeed without problems
-		let mut result = SubtensorModule::subscribe(<<Test as Trait>::Origin>::signed(hotkey_account_id), ip, port, ip_type, modality, coldkey_account_id);
+		let result = SubtensorModule::subscribe(<<Test as Trait>::Origin>::signed(hotkey_account_id), ip, port, ip_type, modality, coldkey_account_id);
 		assert_ok!(result);
 
 		// The second should fail when using the same hotkey account id

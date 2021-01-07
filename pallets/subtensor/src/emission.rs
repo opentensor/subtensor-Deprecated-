@@ -77,7 +77,7 @@ impl<T: Trait> Module<T> {
 
 			// --- We check that the staking account exists. We do not emit to non-existing nodes.
 			// This emission is burned if the user does not exist.
-			let is_existent_neuron = Stake::contains_key(dest_uid);
+			let is_existent_neuron = Self::is_uid_active(*dest_uid);
 			if !is_existent_neuron { continue; }
 
             // --- We get the weight from neuron i to neuron j, where neuron i is the calling neuron
@@ -95,7 +95,6 @@ impl<T: Trait> Module<T> {
 
             // --- We increase the total stake emitted.
             total_new_stake += stake_increment;
-
         }
 
         // Emission has been distributed.
