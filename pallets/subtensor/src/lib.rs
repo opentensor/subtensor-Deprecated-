@@ -82,26 +82,26 @@ decl_storage! {
 		/// ----  Maps between a neuron's hotkey account address and additional 
 		/// metadata associated with that neuron. All other maps, map between the with a uid. 
 		/// The metadata contains that uid, the ip, port, and coldkey address.
-		pub Neurons get(fn neuron): map hasher(twox_64_concat) u64 => NeuronMetadataOf<T>;
+		pub Neurons get(fn neuron): map hasher(identity) u64 => NeuronMetadataOf<T>;
 
 		/// ---- Maps between a neuron's hotkey account and the block number
 		/// when that peer last called an emission/subscribe. The last emit time is used to determine
 		/// the proportion of inflation remaining to emit during the next emit call. 
 		/// It can also be used as an 'Active' proxy when attempting to know who is online.
 		/// Neuron's should call emit or resubscribe actively in order to be found by other neurons.
-		pub LastEmit get(fn last_emit): map hasher(twox_64_concat) u64 => T::BlockNumber;
+		pub LastEmit get(fn last_emit): map hasher(identity) u64 => T::BlockNumber;
 	
 		/// ---- List of values which map between a neuron's uid an that neuron's
 		/// weights, a.k.a is row_weights in the square matrix W. Each outward edge
 		/// is represented by a (u64, u64) tuple determining the endpoint and weight
 		/// value respectively. Each giga byte of chain storage can hold history for
 		/// 83 million weights. 
-		pub WeightUids: map hasher(twox_64_concat) u64 => Vec<u64>;
-		pub WeightVals: map hasher(twox_64_concat) u64 => Vec<u32>;
+		pub WeightUids: map hasher(identity) u64 => Vec<u64>;
+		pub WeightVals: map hasher(identity) u64 => Vec<u32>;
 		
 		/// ----  Maps between a neuron's hotkey uid and the number of
 		/// staked tokens under that key.
-		pub Stake get(fn stake): map hasher(twox_64_concat) u64 => u64;
+		pub Stake get(fn stake): map hasher(identity) u64 => u64;
 
 		/// ---- Stores the amount of currently staked token.
 		TotalStake: u64;
