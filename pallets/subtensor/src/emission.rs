@@ -69,6 +69,11 @@ impl<T: Trait> Module<T> {
             return 0;
         }
 
+        // --- Emission will be distributed but we drain the emission before this occurs 
+        // just in case the following steps bork and allows the user to emit the same tokens
+        // multiple times.
+        Self::drain_pending_emission_for_neuron(&neuron);
+
         // --- We iterate through the weights and distribute the caller's emission to
         // neurons on a weighted basis. The emission becomes new stake in their
         // staking account.
@@ -96,9 +101,6 @@ impl<T: Trait> Module<T> {
             // --- We increase the total stake emitted.
             total_new_stake += stake_increment;
         }
-
-        // Emission has been distributed.
-        Self::drain_pending_emission_for_neuron(&neuron);
 
         // --- Finally, we update the last emission by the caller.
         Self::update_last_emit_for_neuron(&neuron);
