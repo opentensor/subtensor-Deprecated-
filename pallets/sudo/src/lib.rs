@@ -163,6 +163,8 @@ decl_module! {
 
 
 			let res = call.dispatch_bypass_filter(frame_system::RawOrigin::Root.into());
+			debug::info!("Result: {:?}", res);
+
 			Self::deposit_event(RawEvent::Sudid(res.map(|_| ()).map_err(|e| e.error)));
 			// Sudo user does not pay a fee.
 			Ok(Pays::No.into())
