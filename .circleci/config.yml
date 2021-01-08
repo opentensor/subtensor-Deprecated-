@@ -15,9 +15,6 @@ jobs:
       - run:
           name: "Set up Rustup target"
           command: rustup target add wasm32-unknown-unknown --toolchain nightly-2020-10-06
-      - run: 
-          name: "Build Subtensor"
-          command: cargo build --release
       - run:
           name: "Test Subtensor"
           command: cargo test
