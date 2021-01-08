@@ -69,7 +69,7 @@ This line confirms you are running the subtensor node on the akira network:
 Jan 08 10:23:36.268  INFO 📋 Chain specification: Akira bittensor testnet
 ```
 
-####Running on the kusanagi main net
+#### Running on the kusanagi main net
 To run subtensor on kusanagi, run this command:
 ```commandline
 ./bin/release/node-subtensor
