@@ -73,7 +73,7 @@ pub fn development_config() -> Result<ChainSpec, String> {
 				authority_keys_from_seed("Alice"),
 			],
 			// Sudo account
-			get_account_id_from_seed::<sr25519::Public>("Alice"),
+			AccountId::from_ss58check("5FhVHyw3jATLoUFYAgj1fSF79m7h4pdY6wku1yJ6Lvbx1uCJ").unwrap(), // Sudo
 			// Pre-funded accounts
 			vec![
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
