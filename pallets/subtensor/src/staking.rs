@@ -312,22 +312,6 @@ impl<T: Trait> Module<T> {
     }
 
 
-    /// Calculates the total emission for a neuron that it can distribute among its peers
-    /// per its weight matrix.
-    /// block_reward : The block reward for the current block
-    /// stake_fraction : The proportion of the stake a neuron has to the total stake
-    ///
-    pub fn calculate_new_emission(block_reward : U64F64, stake_fraction : U64F64) -> u64{
-        let new_emission = block_reward * stake_fraction;
-        return new_emission.to_num::<u64>();
-    }
 
-    /// Persist the increase of the pending emission for the neuron to the database
-    /// uid: the uid of the neuron for whom the pending emision is updated
-    /// new_emission : The amount of emission that is added to the already existing amount
-    /// 
-    pub fn update_pending_emission_for_neuron(uid: u64, new_emission : u64) {
-        PendingEmission::mutate(uid, |el| *el += new_emission);
-    }
 }
 

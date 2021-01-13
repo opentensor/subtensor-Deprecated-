@@ -53,7 +53,7 @@ impl<T: Trait> Module<T> {
         // the block reward is positive and non-zero, so are the stake_fraction and elapsed blocks.
         // this ensures the total_emission is positive non-zero. To begin the block reward is (0.5 * 10^12).
         // let callers_emission_u64_f64 = stake_fraction_u64_f64 * block_reward * elapsed_blocks;
-        let pending_emission_for_neuron = Self::get_pending_emission_for_neuron(&neuron);
+        let pending_emission_for_neuron = Self::get_pending_emission_for_neuron(neuron.uid);
 
         // --- We get the callers weights. The total emission will be distributed
         // according to these weights. The weight_vals sum to u32::max. ie. They have been normalized
@@ -96,7 +96,12 @@ impl<T: Trait> Module<T> {
             // as calculated above, and the weight which is now a value between 0 and 1. The stake
             // increment is thus a proportion of the total emission the source neuron gets to emit.
             let stake_increment = Self::calculate_stake_increment(pending_emission_for_neuron, w_ij);
-            Self::add_stake_to_neuron_hotkey_account(*dest_uid, stake_increment);
+
+            // --- We check if the weight is a self loop. In this case, the emission does not proceed
+            // to deposit new funds. The self weight is purely used to pay for transactions fees.
+            if *dest_uid != neuron.uid {
+                Self::add_stake_to_neuron_hotkey_account(*dest_uid, stake_increment);
+            }
 
             // --- We increase the total stake emitted.
             total_new_stake += stake_increment;
@@ -108,6 +113,47 @@ impl<T: Trait> Module<T> {
         // --- Return ok.
         debug::info!("--- Done emit");
         return total_new_stake;
+    }
+
+    pub fn get_self_emission_for_caller( caller: &T::AccountId) -> u64 {
+
+        // --- We get the neuron associated with the calling hotkey account.
+        let neuron = Self::get_neuron_for_hotkey( caller );
+
+        // --- Non active uids have zero emission.
+		let is_existent_neuron = Self::is_uid_active(neuron.uid);
+		if !is_existent_neuron { return 0 }
+
+        // --- How much total remaining emission is available for this neuron.
+        let pending_emission_for_neuron = Self::get_pending_emission_for_neuron( neuron.uid );
+
+        // --- We get the callers weights.
+        let (weight_uids,  weight_vals) = Self::get_weights_for_neuron( &neuron );
+
+        // - The emission for the neuron calling this function must be greater than zero
+        // - The vectors containing the account ids and values of the destination neurons must be
+        // non zero. If either of these requirements are not met, emission is zero.
+        if !Self::can_emission_proceed(&pending_emission_for_neuron, &weight_uids, &weight_vals) {
+            return 0;
+        }
+
+        // --- We iterate through the weights to find the self-weight. The self emission
+        // is easily computed as pending_emission * normalize_self_weight.
+        for (i, dest_uid) in weight_uids.iter().enumerate() {
+
+            // Is this the self weight.
+            if *dest_uid != neuron.uid {
+                // Normalize the self weight.
+                let w_ii = normalize(weight_vals[i]);
+
+                // Compute the stake increment emission.dest_uid
+                let stake_increment = Self::calulate_stake_increment(pending_emission_for_neuron, w_ii);
+
+                return stake_increment
+            }
+        }
+        // No self weight?
+        return 0
     }
 
      /// Sets the pending emission for all active peers based on a single block transition.
@@ -151,12 +197,12 @@ impl<T: Trait> Module<T> {
         return increment.to_num::<u64>()
     }
 
-    fn get_pending_emission_for_neuron(neuron: &NeuronMetadataOf<T>) -> U64F64 {
+    pub fn get_pending_emission_for_neuron(uid : u64) -> U64F64 {
         if !PendingEmission::contains_key( neuron.uid ) { return U64F64::from_num(0) }
-        U64F64::from_num( PendingEmission::get(neuron.uid) )
+        U64F64::from_num( PendingEmission::get(uid) )
     }
 
-    fn drain_pending_emission_for_neuron(neuron: &NeuronMetadataOf<T> ) {
+    pub fn drain_pending_emission_for_neuron(neuron: &NeuronMetadataOf<T> ) {
         PendingEmission::insert(neuron.uid, 0);
     } 
 
@@ -172,8 +218,23 @@ impl<T: Trait> Module<T> {
         LastEmit::<T>::insert(neuron.uid, current_block);
     }
 
-    pub fn remove_last_emit_info_for_neuron(neuron: &NeuronMetadataOf<T>) {
-        LastEmit::<T>::remove(neuron.uid);
+    /// Calculates the total emission for a neuron that it can distribute among its peers
+    /// per its weight matrix.
+    /// block_reward : The block reward for the current block
+    /// stake_fraction : The proportion of the stake a neuron has to the total stake
+    ///
+    pub fn calculate_new_emission(block_reward : U64F64, stake_fraction : U64F64) -> u64{
+        let new_emission = block_reward * stake_fraction;
+        return new_emission.to_num::<u64>();
+    }
+
+    /// Persist the increase of the pending emission for the neuron to the database
+    /// uid: the uid of the neuron for whom the pending emision is updated
+    /// new_emission : The amount of emission that is added to the already existing amount
+    ///
+    ///
+    pub fn update_pending_emission_for_neuron(uid: u64, new_emission : u64) {
+        PendingEmission::mutate(uid, |el| *el += new_emission);
     }
 }
 

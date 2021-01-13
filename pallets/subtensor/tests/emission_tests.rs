@@ -329,12 +329,37 @@ fn test_calculate_stake_increment_fails_weight_out_of_range() {
 /************************************************************
 	emission::get_pending_emission_for_neuron() tests
 ************************************************************/
+#[test]
+fn test_get_pending_emission_for_neuron_ok() {
+	new_test_ext().execute_with(|| {
+        let uid = 55;
+        let pending_emission = 50;
+
+        // Set it up
+        SubtensorModule::update_pending_emission_for_neuron(uid, pending_emission);
+        assert_eq!(SubtensorModule::get_pending_emission_for_neuron(uid), pending_emission);
+	});
+}
+
+
 
 /************************************************************
 	emission::drain_pending_emission_for_neuron() tests
 ************************************************************/
 
 
+/************************************************************
+	emission::update_last_emit_for_neuron() tests
+************************************************************/
+
+
+/************************************************************
+	emission::calculate_new_emission() tests
+************************************************************/
+
+/************************************************************
+	emission::update_pending_emission_for_neuron() tests
+************************************************************/
 
 
 pub fn close(x:u64, y:u64, d:u64) -> bool {
