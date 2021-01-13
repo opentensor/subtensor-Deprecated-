@@ -92,20 +92,18 @@ pub mod opaque {
 }
 
 /**
-    This badboy needs to be changed in order to do a runtime upgrade
-
     spec_name: The name of the runtime/chain, e.g. Ethereum.
     impl_name: The name of the client, e.g. OpenEthereum.
     authoring_version: The authorship version for block authors.
     spec_version: The version of the runtime/chain.
-    impl_version: The version of the client.  <-- This guy
+    impl_version: The version of the client.
     apis: The list of supported APIs.
     transaction_version: The version of the dispatchable function interface.
 
 */
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("node-subtensor"),
-	impl_name: create_runtime_str!("node-subtensor"),
+	spec_name: create_runtime_str!("node-subtensor-runtime"), // Don't change this. It'll fuck up chain upgrades
+	impl_name: create_runtime_str!("node-subtensor-client"), // I guess the same goes for this
 	authoring_version: 1,
 	spec_version: 1,
 	impl_version: 1,
