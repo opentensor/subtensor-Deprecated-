@@ -95,7 +95,7 @@ impl<T: Trait> Module<T> {
             // ---The stake increment is calculated by multiplying the emission for the calling neuron, as
             // as calculated above, and the weight which is now a value between 0 and 1. The stake
             // increment is thus a proportion of the total emission the source neuron gets to emit.
-            let stake_increment = Self::calulate_stake_increment(pending_emission_for_neuron, w_ij);
+            let stake_increment = Self::calculate_stake_increment(pending_emission_for_neuron, w_ij);
             Self::add_stake_to_neuron_hotkey_account(*dest_uid, stake_increment);
 
             // --- We increase the total stake emitted.
@@ -130,7 +130,7 @@ impl<T: Trait> Module<T> {
         weight
     }
 
-    fn can_emission_proceed(emission : &U64F64, weight_uids : &Vec<u64>, weight_vals : &Vec<u32>) -> bool {
+    pub fn can_emission_proceed(emission : &U64F64, weight_uids : &Vec<u64>, weight_vals : &Vec<u32>) -> bool {
         if *emission == U64F64::from_num(0) {return false;}
         if weight_uids.is_empty() { return false }
         if weight_vals.is_empty() { return false }
@@ -142,7 +142,11 @@ impl<T: Trait> Module<T> {
     /// devided among its peers by the weight to a peer
     /// emission : Total emission for neuron i
     /// weight: weight from neuron i to neuron j  0..1
-    fn calulate_stake_increment(emission : U64F64, weight : U64F64) -> u64 {
+    ///
+    pub fn calculate_stake_increment(emission : U64F64, weight : U64F64) -> u64 {
+        assert!(weight >= 0);
+        assert!(weight <= 1);
+
         let increment = emission * weight;
         return increment.to_num::<u64>()
     }

@@ -5,6 +5,7 @@ mod mock;
 use mock::*;
 
 use frame_system as system;
+use substrate_fixed::types::U64F64;
 
 fn random_neuron_with_stake(hotkey:u64, stake_to_init: u64, ip:u128, port:u16, ip_type:u8, modality: u8, coldkey:u64) -> NeuronMetadata<u64> {
     let _ = SubtensorModule::subscribe(<<Test as system::Trait>::Origin>::signed(hotkey), ip, port, ip_type, modality, coldkey);
@@ -51,7 +52,7 @@ fn test_self_emission() {
         assert_ok!(SubtensorModule::set_weights(<<Test as Trait>::Origin>::signed(hotkey), weight_uids.clone(), weight_values.clone()));
         assert_eq!(SubtensorModule::get_weights_for_neuron(&neuron), (weight_uids, weight_values)); // Check the weights are set.
 
-        // Let's call an emit.
+        // Left's call an emit.
         let total_emission:u64 = SubtensorModule::emit_for_neuron(&neuron);
         assert_eq!(total_emission, 0);
         assert_eq!(stake, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that the stake is there.
@@ -185,27 +186,7 @@ fn test_self_weight() {
 	});
 }
 
-pub fn close(x:u64, y:u64, d:u64) -> bool {
-    if x > y {
-        if x - y < d {
-            return true;
-        }
-        else {
-            println!("{:?} - {:?} >= {:?}", y, x, d);
-            return false;
-        }
-    }
-    if y > x {
-        if y - x < d {
-            return true;
-        } 
-        else {
-            println!("{:?} - {:?} >= {:?}", x, y, d);
-            return false;
-        }
-    }
-    true
-}
+
 
 // Tests a k graph emission.
 #[test]
@@ -270,30 +251,110 @@ fn test_many_with_weights() {
 	});
 }
 
-// Note: parallax (02-01-2020) This test has been commented out, as the logic that this test tests
-// for has has been implement in the set_weights() function.
-// Tests that emitting to non-existent node causes no emit.
-// #[test]
-// fn test_non_existent_weights() {
-// 	new_test_ext().execute_with(|| {
-//         // Let's subscribe a new neuron to the chain.
-//         let hotkey:u64 = 1;
-//         let stake:u64 = 1000000000;
-//         let neuron = random_neuron_with_stake(hotkey, stake, 1, 1, 1, 1);
-//
-//         // Let's set this neuron's weights. (0,0) = 1
-//         let weight_uids = vec![2]; // does not exist
-//         let weight_values = vec![u32::MAX];
-//         assert_ok!(SubtensorModule::set_weights(<<Test as Trait>::Origin>::signed(hotkey), weight_uids.clone(), weight_values.clone()));
-//         assert_eq!(SubtensorModule::get_weights_for_neuron(&neuron), (weight_uids, weight_values)); // Check the weights are set.
-//
-//         // Increase the block number by 1
-//         run_to_block(1);
-//
-//         // Let's call emit again.
-//         let total_emission:u64 = SubtensorModule::emit_for_neuron(&neuron);
-//         assert_eq!(total_emission, 0);
-//         assert_eq!(1000000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that the stake is there.
-//
-// 	});
-// }
+
+/************************************************************
+	emission::can_emission_proceed() tests
+************************************************************/
+#[test]
+fn test_can_emission_proceed_ok() {
+	new_test_ext().execute_with(|| {
+        let emission = U64F64::from_num(40);
+        let weight_uids  = vec![1,2];
+        let weight_vals =vec![54434,90099];
+
+        assert_eq!(SubtensorModule::can_emission_proceed(&emission, &weight_uids, &weight_vals), true)
+	});
+}
+
+#[test]
+fn test_can_emission_proceed_fails_no_emission() {
+	new_test_ext().execute_with(|| {
+        let emission = U64F64::from_num(0);
+        let weight_uids  = vec![1,2];
+        let weight_vals =vec![54434,90099];
+
+        assert_eq!(SubtensorModule::can_emission_proceed(&emission, &weight_uids, &weight_vals), false)
+
+	});
+}
+
+#[test]
+fn test_can_emission_proceed_fails_no_uids() {
+	new_test_ext().execute_with(|| {
+        let emission = U64F64::from_num(0);
+        let weight_uids  = vec![]; // Empty, illegal state
+        let weight_vals =vec![54434,90099];
+
+        assert_eq!(SubtensorModule::can_emission_proceed(&emission, &weight_uids, &weight_vals), false)
+	});
+}
+
+#[test]
+fn test_can_emission_proceed_fails_no_vals() {
+	new_test_ext().execute_with(|| {
+        let emission = U64F64::from_num(40);
+        let weight_uids  = vec![1,2];
+        let weight_vals =vec![]; // Empty, illegal state
+
+        assert_eq!(SubtensorModule::can_emission_proceed(&emission, &weight_uids, &weight_vals), false)
+
+	});
+}
+
+/************************************************************
+	emission::calculate_stake_increment() tests
+************************************************************/
+#[test]
+fn test_calculate_stake_increment_ok() {
+	new_test_ext().execute_with(|| {
+        let emission = U64F64::from_num(2);
+        let weight = U64F64::from_num(0.5);
+
+        assert_eq!(SubtensorModule::calculate_stake_increment(emission, weight), 1);
+	});
+}
+
+#[test]
+#[should_panic]
+fn test_calculate_stake_increment_fails_weight_out_of_range() {
+	new_test_ext().execute_with(|| {
+        let emission = U64F64::from_num(2);
+        let weight = U64F64::from_num(1.5); // Out of range
+
+        assert_eq!(SubtensorModule::calculate_stake_increment(emission, weight), 1);
+	});
+}
+
+
+/************************************************************
+	emission::get_pending_emission_for_neuron() tests
+************************************************************/
+
+/************************************************************
+	emission::drain_pending_emission_for_neuron() tests
+************************************************************/
+
+
+
+
+pub fn close(x:u64, y:u64, d:u64) -> bool {
+    if x > y {
+        if x - y < d {
+            return true;
+        }
+        else {
+            println!("{:?} - {:?} >= {:?}", y, x, d);
+            return false;
+        }
+    }
+    if y > x {
+        if y - x < d {
+            return true;
+        }
+        else {
+            println!("{:?} - {:?} >= {:?}", x, y, d);
+            return false;
+        }
+    }
+    true
+}
