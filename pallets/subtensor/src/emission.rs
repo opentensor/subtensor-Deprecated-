@@ -137,6 +137,11 @@ impl<T: Trait> Module<T> {
         return true;
     }
 
+    /// This function calculates the amount with which existing stake of a neuron is increment4d
+    /// It is calculated by taking the product of the emission for a neuron that can be
+    /// devided among its peers by the weight to a peer
+    /// emission : Total emission for neuron i
+    /// weight: weight from neuron i to neuron j  0..1
     fn calulate_stake_increment(emission : U64F64, weight : U64F64) -> u64 {
         let increment = emission * weight;
         return increment.to_num::<u64>()

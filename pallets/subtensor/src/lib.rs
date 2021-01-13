@@ -16,7 +16,6 @@ mod staking;
 mod subscribing;
 mod emission;
 mod block_reward;
-mod block_execution;
 
 /// --- Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Trait: frame_system::Trait {
