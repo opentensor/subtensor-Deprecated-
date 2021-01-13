@@ -53,7 +53,7 @@ impl<T: Trait> Module<T> {
         // the block reward is positive and non-zero, so are the stake_fraction and elapsed blocks.
         // this ensures the total_emission is positive non-zero. To begin the block reward is (0.5 * 10^12).
         // let callers_emission_u64_f64 = stake_fraction_u64_f64 * block_reward * elapsed_blocks;
-        let emission_for_neuron = Self::calculate_emission_for_neuron(&neuron);
+        let emission_for_neuron = Self::get_pending_emission_for_neuron(&neuron);
 
         // --- We get the callers weights. The total emission will be distributed
         // according to these weights. The weight_vals sum to u32::max. ie. They have been normalized
@@ -68,6 +68,11 @@ impl<T: Trait> Module<T> {
         if !Self::can_emission_proceed(&emission_for_neuron, &weight_uids, &weight_vals) {
             return 0;
         }
+
+        // --- Emission will be distributed but we drain the emission before this occurs 
+        // just in case the following steps bork and allows the user to emit the same tokens
+        // multiple times.
+        Self::drain_pending_emission_for_neuron(&neuron);
 
         // --- We iterate through the weights and distribute the caller's emission to
         // neurons on a weighted basis. The emission becomes new stake in their
@@ -117,46 +122,14 @@ impl<T: Trait> Module<T> {
         return increment.to_num::<u64>()
     }
 
-    fn calculate_emission_for_neuron(neuron : &NeuronMetadataOf<T>) -> U64F64 {
-        // --- We get the current block reward and the number of blocks that have been
-        // generated since the last time the user emitted the total proportions of his
-        // stake to his peers.
-        // This is needed to determine the proportion of inflation allocated to
-        // the caller. Note also, that the block reward is a decreasing function
-        // callers want to call emit before the block inflation decreases.
-
-        let block_reward = Self::current_block_reward();
-        let elapsed_blocks = Self::elapsed_blocks_for_neuron(&neuron);
-
-        // --- We get the fraction of total stake held by the caller.
-        // This should only be zero if the caller has zero stake. Otherwise
-        // it returns a floating point (a.k.a, bits in the F64 part.)
-        let stake_fraction = Self::calculate_stake_fraction_for_neuron(&neuron);
-
-        let emission  = block_reward * stake_fraction * elapsed_blocks;
-
-        return emission;
+    fn get_pending_emission_for_neuron(neuron: &NeuronMetadataOf<T>) -> U64F64 {
+        if !PendingEmission::contains_key( neuron.uid ) { return U64F64::from_num(0) }
+        U64F64::from_num( PendingEmission::get(neuron.uid) )
     }
 
-
-    fn elapsed_blocks_for_neuron(neuron : &NeuronMetadataOf<T>) -> U64F64{
-		// --- We compute the delta time (in blocks) since the user made an 
-		// emission.
-        let current_block = system::Module::<T>::block_number();
-        let last_emit: T::BlockNumber = LastEmit::<T>::get(neuron.uid);
-
-        let elapsed_blocks = current_block - last_emit;
-        let elapsed_blocks_u64: usize = TryInto::try_into(elapsed_blocks).ok().expect("blockchain will not exceed 2^64 blocks; qed");
-        let elapsed_blocks_u64_f64 = U64F64::from_num(elapsed_blocks_u64);
-
-        debug::debug!("current block {:?}", current_block);
-        debug::debug!("last emit block for uid: {:?} : {:?}", neuron.uid, last_emit);
-        debug::debug!("elapsed_blocks_u64: {:?}", elapsed_blocks_u64);
-        debug::debug!("elapsed_blocks_u64_f64: {:?}", elapsed_blocks_u64_f64);
-
-        elapsed_blocks_u64_f64
-    }
-
+    fn drain_pending_emission_for_neuron(neuron: &NeuronMetadataOf<T> ) {
+        PendingEmission::insert(neuron.uid, 0);
+    } 
 
     pub fn update_last_emit_for_neuron(neuron: &NeuronMetadataOf<T>) {
         // The last emit determines the last time this peer made an incentive
