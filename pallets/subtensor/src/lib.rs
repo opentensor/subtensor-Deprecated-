@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 // --- Frame imports.
-use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, ensure, debug, IterableStorageMap, weights::Weight, traits::{Currency, WithdrawReasons, WithdrawReason, ExistenceRequirement}, Printable};
+use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, dispatch::IsSubType, ensure, debug, IterableStorageMap, weights::Weight, traits::{Currency, WithdrawReasons, WithdrawReason, ExistenceRequirement}, Printable};
 use frame_support::weights::{DispatchClass, Pays};
 use codec::{Decode, Encode};
 use frame_system::{self as system, ensure_signed};
@@ -9,6 +9,15 @@ use substrate_fixed::types::U64F64;
 use sp_std::convert::TryInto;
 use sp_std::{
 	prelude::*
+};
+use sp_std::marker::PhantomData;
+use sp_runtime::{
+    traits::{
+        SignedExtension, Bounded, DispatchInfoOf,
+    },
+    transaction_validity::{
+        ValidTransaction, TransactionValidityError, InvalidTransaction, TransactionValidity,
+    },
 };
 
 mod weights;
@@ -484,19 +493,19 @@ impl<T: Trait> Module<T> {
 
 
 #[derive(Encode, Decode, Clone, Eq, PartialEq)]
-pub struct FeeFromEmission<T: Trait + Send + Sync>(PhantomData<T>);
+pub struct FeeFromSelfEmission<T: Trait + Send + Sync>(PhantomData<T>);
 
-impl<T: Trait + Send + Sync> sp_std::fmt::Debug for FeeFromEmission<T> {
+impl<T: Trait + Send + Sync> sp_std::fmt::Debug for FeeFromSelfEmission<T> {
 	fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
-		write!(f, "FeeFromEmission")
+		write!(f, "FeeFromSelfEmission")
 	}
 }
 
-impl<T: Trait + Send + Sync> SignedExtension for FeeFromEmission<T>
+impl<T: Trait + Send + Sync> SignedExtension for FeeFromSelfEmission<T>
 where
-	<T as frame_system::Trait>::Call: IsSubType<Call<T>>,
+	<T as frame_system::Trait>::Call: dispatch::IsSubType<Call<T>>,
 {
-	const IDENTIFIER: &'static str = "FeeFromEmission";
+	const IDENTIFIER: &'static str = "FeeFromSelfEmission";
 	type AccountId = T::AccountId;
 	type Call = <T as frame_system::Trait>::Call;
 	type AdditionalSigned = ();

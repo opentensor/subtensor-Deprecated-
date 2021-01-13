@@ -115,7 +115,7 @@ impl<T: Trait> Module<T> {
         return total_new_stake;
     }
 
-    pub fn get_self_emission_for_caller( caller: &Self::AccountId) -> u64 {
+    pub fn get_self_emission_for_caller( caller: &T::AccountId) -> u64 {
 
         // --- We get the neuron associated with the calling hotkey account.
         let neuron = Self::get_neuron_for_hotkey( caller );
@@ -128,7 +128,7 @@ impl<T: Trait> Module<T> {
         let pending_emission_for_neuron = Self::get_pending_emission_for_neuron( &neuron );
 
         // --- We get the callers weights.
-        let (weight_uids,  weight_vals) = Self::get_weights_for_neuron(neuron);
+        let (weight_uids,  weight_vals) = Self::get_weights_for_neuron( &neuron );
 
         // - The emission for the neuron calling this function must be greater than zero
         // - The vectors containing the account ids and values of the destination neurons must be
