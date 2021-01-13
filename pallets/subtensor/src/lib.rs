@@ -392,7 +392,7 @@ decl_module! {
 		/// 		- The number of the block we are finalizing.
 		///
 		fn on_finalize(n: T::BlockNumber) {
-			Self::do_finalize(n);
+			// Self::do_finalize(n);
 		}
 
 		/// ---- Called on the initialization of this pallet. (the order of on_finalize calls is determined in the runtime)
@@ -401,15 +401,16 @@ decl_module! {
 		/// 	* 'n': (T::BlockNumber):
 		/// 		- The number of the block we are initializing.
 		fn on_initialize(n: T::BlockNumber) -> Weight {
-			let weight = Self::do_initialize(n);
-			weight
+			Self::update_pending_emissions()
+			// let weight = Self::do_initialize(n);
+			// weight
 		}
 	}
 }
 
+
 // ---- Subtensor helper functions.
 impl<T: Trait> Module<T> {
-
 	// --- Returns Option if the u64 converts to a balance
 	// use .unwarp if the result returns .some().
 	pub fn u64_to_balance(input: u64) -> Option<<<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance>

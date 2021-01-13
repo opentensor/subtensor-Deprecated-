@@ -53,7 +53,7 @@ impl<T: Trait> Module<T> {
         // the block reward is positive and non-zero, so are the stake_fraction and elapsed blocks.
         // this ensures the total_emission is positive non-zero. To begin the block reward is (0.5 * 10^12).
         // let callers_emission_u64_f64 = stake_fraction_u64_f64 * block_reward * elapsed_blocks;
-        let emission_for_neuron = Self::get_pending_emission_for_neuron(&neuron);
+        let pending_emission_for_neuron = Self::get_pending_emission_for_neuron(&neuron);
 
         // --- We get the callers weights. The total emission will be distributed
         // according to these weights. The weight_vals sum to u32::max. ie. They have been normalized
@@ -65,7 +65,7 @@ impl<T: Trait> Module<T> {
         // - The emission for the neuron calling this function must be greater than zero
         // - The vectors containing the account ids and values of the destination neurons must be
         // non zero. If either of these requirements are not met, emission can not take place.
-        if !Self::can_emission_proceed(&emission_for_neuron, &weight_uids, &weight_vals) {
+        if !Self::can_emission_proceed(&pending_emission_for_neuron, &weight_uids, &weight_vals) {
             return 0;
         }
 
@@ -95,7 +95,7 @@ impl<T: Trait> Module<T> {
             // ---The stake increment is calculated by multiplying the emission for the calling neuron, as
             // as calculated above, and the weight which is now a value between 0 and 1. The stake
             // increment is thus a proportion of the total emission the source neuron gets to emit.
-            let stake_increment = Self::calulate_stake_increment(emission_for_neuron, w_ij);
+            let stake_increment = Self::calulate_stake_increment(pending_emission_for_neuron, w_ij);
             Self::add_stake_to_neuron_hotkey_account(*dest_uid, stake_increment);
 
             // --- We increase the total stake emitted.
@@ -108,6 +108,26 @@ impl<T: Trait> Module<T> {
         // --- Return ok.
         debug::info!("--- Done emit");
         return total_new_stake;
+    }
+
+     /// Sets the pending emission for all active peers based on a single block transition.
+    pub fn update_pending_emissions() -> u64 {
+        let mut weight = 0;
+        let block_reward = Self::current_block_reward();
+        let total_stake = Self::get_total_stake();
+
+        if total_stake == 0 {
+            return weight;
+        }
+
+        for (uid, neuron_stake) in <Stake as IterableStorageMap<u64, u64>>::iter() {
+            if neuron_stake == 0 { continue; }
+            let stake_fraction = Self::calulate_stake_fraction(neuron_stake, total_stake);
+            let new_emission = Self::calculate_new_emission(block_reward, stake_fraction);
+            Self::update_pending_emission_for_neuron(uid, new_emission);
+            weight += 1;
+        }
+        weight
     }
 
     fn can_emission_proceed(emission : &U64F64, weight_uids : &Vec<u64>, weight_vals : &Vec<u32>) -> bool {
