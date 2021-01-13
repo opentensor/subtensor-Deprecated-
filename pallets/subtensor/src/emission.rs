@@ -115,7 +115,11 @@ impl<T: Trait> Module<T> {
         return total_new_stake;
     }
 
-    pub fn get_self_emission_for_neuron( neuron: &NeuronMetadataOf<T> ) -> u64 {
+    pub fn get_self_emission_for_caller( caller: &Self::AccountId) -> u64 {
+
+        // --- We get the neuron associated with the calling hotkey account.
+        let neuron = Self::get_neuron_for_hotkey( caller );
+
         // --- Non active uids have zero emission.
 		let is_existent_neuron = Self::is_uid_active(neuron.uid);
 		if !is_existent_neuron { return 0 }

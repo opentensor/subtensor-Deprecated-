@@ -481,3 +481,49 @@ impl<T: Trait> Module<T> {
         uid
     }
 }
+
+
+#[derive(Encode, Decode, Clone, Eq, PartialEq)]
+pub struct FeeFromEmission<T: Trait + Send + Sync>(PhantomData<T>);
+
+impl<T: Trait + Send + Sync> sp_std::fmt::Debug for FeeFromEmission<T> {
+	fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
+		write!(f, "FeeFromEmission")
+	}
+}
+
+impl<T: Trait + Send + Sync> SignedExtension for FeeFromEmission<T>
+where
+	<T as frame_system::Trait>::Call: IsSubType<Call<T>>,
+{
+	const IDENTIFIER: &'static str = "FeeFromEmission";
+	type AccountId = T::AccountId;
+	type Call = <T as frame_system::Trait>::Call;
+	type AdditionalSigned = ();
+	type Pre = ();
+	fn additional_signed(&self) -> Result<Self::AdditionalSigned, TransactionValidityError> { Ok(()) }
+
+	fn validate(
+		&self,
+		_who: &Self::AccountId,
+		call: &Self::Call,
+		_info: &DispatchInfoOf<Self::Call>,
+		len: usize,
+	) -> TransactionValidity {
+		match call.is_sub_type() {
+			Some(Call::set_weights(..)) => {
+				sp_runtime::print("set_weights was received.");
+				let self_emission = Module::<T>::get_self_emission_for_caller(_who);
+				let mut valid_tx = ValidTransaction::default();
+				let priority = self_emission / len as u64;
+				valid_tx.priority = priority;
+				valid_tx.longevity = 1;
+				sp_runtime::print("transaction priority:");
+				sp_runtime::print(priority);
+				Ok( valid_tx )
+			}
+			_ => Ok(Default::default()),
+		}
+	}
+}
+
