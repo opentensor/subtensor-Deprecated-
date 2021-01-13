@@ -28,7 +28,7 @@ impl<T: Trait> Module<T> {
 
             // -- We initialize table values for this peer.
             Self::create_hotkey_account(neuron.uid);
-            Self::update_last_emit_for_neuron(&neuron);
+            Self::update_last_emit_for_neuron(neuron.uid);
             Self::init_weight_matrix_for_neuron(&neuron);
 
             // --- We deposit the neuron added event.
@@ -43,7 +43,7 @@ impl<T: Trait> Module<T> {
             let neuron = Self::update_neuron_in_metagraph(uid, ip, port, ip_type);
 
             // --- We update their last emit
-            Self::update_last_emit_for_neuron(&neuron);
+            Self::update_last_emit_for_neuron(neuron.uid);
 
             // --- We deposit the neuron updated event
             Self::deposit_event(RawEvent::NeuronUpdated(uid));

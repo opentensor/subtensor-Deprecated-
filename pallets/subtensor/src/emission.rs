@@ -72,7 +72,7 @@ impl<T: Trait> Module<T> {
         // --- Emission will be distributed but we drain the emission before this occurs 
         // just in case the following steps bork and allows the user to emit the same tokens
         // multiple times.
-        Self::drain_pending_emission_for_neuron(&neuron);
+        Self::reset_pending_emission_for_neuron(neuron.uid);
 
         // --- We iterate through the weights and distribute the caller's emission to
         // neurons on a weighted basis. The emission becomes new stake in their
@@ -108,7 +108,7 @@ impl<T: Trait> Module<T> {
         }
 
         // --- Finally, we update the last emission by the caller.
-        Self::update_last_emit_for_neuron(&neuron);
+        Self::update_last_emit_for_neuron(neuron.uid);
 
         // --- Return ok.
         debug::info!("--- Done emit");
@@ -147,7 +147,7 @@ impl<T: Trait> Module<T> {
                 let w_ii = normalize(weight_vals[i]);
 
                 // Compute the stake increment emission.dest_uid
-                let stake_increment = Self::calulate_stake_increment(pending_emission_for_neuron, w_ii);
+                let stake_increment = Self::calculate_stake_increment(pending_emission_for_neuron, w_ii);
 
                 return stake_increment
             }
@@ -197,25 +197,34 @@ impl<T: Trait> Module<T> {
         return increment.to_num::<u64>()
     }
 
+    /// Returns the pending emission for a neuron in U64F64 format
+    /// The default behaviour when a uid does not exist, is to return 0
     pub fn get_pending_emission_for_neuron(uid : u64) -> U64F64 {
-        if !PendingEmission::contains_key( neuron.uid ) { return U64F64::from_num(0) }
         U64F64::from_num( PendingEmission::get(uid) )
     }
 
-    pub fn drain_pending_emission_for_neuron(neuron: &NeuronMetadataOf<T> ) {
-        PendingEmission::insert(neuron.uid, 0);
+    /// Resets the pending emission for a neuron to zeroo
+    pub fn reset_pending_emission_for_neuron(uid : u64 ) {
+        PendingEmission::insert(uid, 0);
     } 
 
-    pub fn update_last_emit_for_neuron(neuron: &NeuronMetadataOf<T>) {
+
+    pub fn update_last_emit_for_neuron(uid: u64) {
         // The last emit determines the last time this peer made an incentive
         // mechanism emit call. Since he is just subscribed with zero stake,
         // this moment is considered his first emit.
         let current_block: T::BlockNumber = system::Module::<T>::block_number();
         debug::info!("The new last emit for this caller is: {:?} ", current_block);
 
-        // ---- We initilize the neuron maps with nill weights,
+        // ---- We initialize the neuron maps with nill weights,
         // the subscription gift and the current block as last emit.
-        LastEmit::<T>::insert(neuron.uid, current_block);
+        LastEmit::<T>::insert(uid, current_block);
+    }
+
+    /// Returns the block number for the last block and emission for the specified neuron
+    /// has occurred. Returns 0 when a uid does not exist
+    pub fn get_last_emit_for_neuron(uid : u64) -> T::BlockNumber {
+        return LastEmit::<T>::get(uid);
     }
 
     /// Calculates the total emission for a neuron that it can distribute among its peers

@@ -341,16 +341,72 @@ fn test_get_pending_emission_for_neuron_ok() {
 	});
 }
 
+#[test]
+fn test_get_pending_emission_for_neuron_uid_does_not_exist() {
+	new_test_ext().execute_with(|| {
+        let uid = 55;
+        assert_eq!(SubtensorModule::get_pending_emission_for_neuron(uid), 0);
+	});
+}
+
 
 
 /************************************************************
-	emission::drain_pending_emission_for_neuron() tests
+	emission::reset_pending_emission_for_neuron() tests
 ************************************************************/
+#[test]
+fn test_reset_pending_emission_for_neuron_ok() {
+	new_test_ext().execute_with(|| {
+        let uid = 666;
+        let emission = 66;
 
+        SubtensorModule::update_pending_emission_for_neuron(uid, emission);
+        SubtensorModule::reset_pending_emission_for_neuron(uid);
+        assert_eq!(SubtensorModule::get_pending_emission_for_neuron(uid), 0);
+	});
+}
 
 /************************************************************
 	emission::update_last_emit_for_neuron() tests
 ************************************************************/
+#[test]
+fn test_update_last_emit_for_neuron_ok() {
+	new_test_ext().execute_with(|| {
+        let uid = 1;
+
+        for x in 0..10 {
+            run_to_block(x);
+            SubtensorModule::update_last_emit_for_neuron(uid);
+            run_to_block(x+1);
+            assert_eq!(SubtensorModule::get_last_emit_for_neuron(uid), x);
+        }
+	});
+}
+
+
+/************************************************************
+	emission::get_last_emit_for_neuron() tests
+************************************************************/
+#[test]
+fn test_get_last_emit_for_neuron_ok() {
+	new_test_ext().execute_with(|| {
+        let uid = 55;
+
+        run_to_block(10);
+
+        SubtensorModule::update_last_emit_for_neuron(uid);
+        assert_eq!(SubtensorModule::get_last_emit_for_neuron(uid), 10);
+	});
+}
+
+#[test]
+fn test_get_last_emit_for_neuron_default() {
+	new_test_ext().execute_with(|| {
+        let uid = 779; // Does not exist
+        assert_eq!(SubtensorModule::get_last_emit_for_neuron(uid), 0)
+	});
+}
+
 
 
 /************************************************************
