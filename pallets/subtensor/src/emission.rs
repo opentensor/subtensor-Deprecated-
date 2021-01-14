@@ -203,7 +203,7 @@ impl<T: Trait> Module<T> {
         U64F64::from_num( PendingEmission::get(uid) )
     }
 
-    /// Resets the pending emission for a neuron to zeroo
+    /// Resets the pending emission for a neuron to zero
     pub fn reset_pending_emission_for_neuron(uid : u64 ) {
         PendingEmission::insert(uid, 0);
     } 
@@ -232,7 +232,15 @@ impl<T: Trait> Module<T> {
     /// block_reward : The block reward for the current block
     /// stake_fraction : The proportion of the stake a neuron has to the total stake
     ///
+    /// Warning, the stake fraction should be number between 0 and 1 (inclusive)
+    /// The calling function should check for this constraint.
+    ///
+    /// This constraint makes sure the u64 is not overflowed
+    ///
     pub fn calculate_new_emission(block_reward : U64F64, stake_fraction : U64F64) -> u64{
+        assert!(stake_fraction >=0);
+        assert!(stake_fraction <=1);
+
         let new_emission = block_reward * stake_fraction;
         return new_emission.to_num::<u64>();
     }
@@ -240,7 +248,6 @@ impl<T: Trait> Module<T> {
     /// Persist the increase of the pending emission for the neuron to the database
     /// uid: the uid of the neuron for whom the pending emision is updated
     /// new_emission : The amount of emission that is added to the already existing amount
-    ///
     ///
     pub fn update_pending_emission_for_neuron(uid: u64, new_emission : u64) {
         PendingEmission::mutate(uid, |el| *el += new_emission);

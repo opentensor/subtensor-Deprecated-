@@ -155,6 +155,12 @@ impl<T: Trait> Module<T> {
     /// The uid parameter identifies the neuron holding the hotkey account
     ///
     /// Calling function should make sure the uid exists within the system
+    /// This function should always increase the total stake, so the operation
+    /// of inserting new stake for a neuron and the increment of the total stake is
+    /// atomic. This is important because at some point the fraction of stake/total stake
+    /// is calculated and this should always <= 1. Having this function be atomic, fills this
+    /// requirement.
+    ///
     pub fn add_stake_to_neuron_hotkey_account(uid: u64, amount: u64) {
         assert!(Self::is_uid_active(uid));
 
@@ -307,11 +313,11 @@ impl<T: Trait> Module<T> {
         return stake_fraction;
     }
 
+    /// Calculates the proportion of the stake a neuron has to the total stake.
+    /// As such, the result of this function should ALWAYS be a number between
+    /// 0 and 1 (inclusive).
     pub fn calulate_stake_fraction(stake : u64, total_stake : u64) -> U64F64 {
         return U64F64::from_num(stake) / U64F64::from_num(total_stake);
     }
-
-
-
 }
 

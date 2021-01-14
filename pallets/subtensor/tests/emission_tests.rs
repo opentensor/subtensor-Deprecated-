@@ -412,10 +412,51 @@ fn test_get_last_emit_for_neuron_default() {
 /************************************************************
 	emission::calculate_new_emission() tests
 ************************************************************/
+#[test]
+fn test_calculate_new_emission_ok() {
+	new_test_ext().execute_with(|| {
+        let block_reward = U64F64::from_num(40);
+        let stake_fraction = U64F64::from_num(0.5);
+
+        assert_eq!(SubtensorModule::calculate_new_emission(block_reward, stake_fraction), 20);
+	});
+}
+
+#[test]
+#[should_panic]
+fn test_calculate_new_emission_stake_out_of_bound() {
+	new_test_ext().execute_with(|| {
+        let block_reward = U64F64::from_num(40);
+        let stake_fraction = U64F64::from_num(1.5); // Out of bounds
+
+        SubtensorModule::calculate_new_emission(block_reward, stake_fraction);
+
+
+	});
+}
 
 /************************************************************
 	emission::update_pending_emission_for_neuron() tests
 ************************************************************/
+#[test]
+fn test_update_pending_emission_for_neuron_ok() {
+	new_test_ext().execute_with(|| {
+        let uid = 1;
+        let increment_1 = 5;
+        let increment_2 = 10;
+        let increment_3 = 15;
+
+        assert_eq!(SubtensorModule::get_pending_emission_for_neuron(uid), 0); // Default == 0
+        SubtensorModule::update_pending_emission_for_neuron(uid, increment_1);
+        assert_eq!(SubtensorModule::get_pending_emission_for_neuron(uid), 5);
+
+        SubtensorModule::update_pending_emission_for_neuron(uid, increment_2);
+        assert_eq!(SubtensorModule::get_pending_emission_for_neuron(uid), 15);
+
+        SubtensorModule::update_pending_emission_for_neuron(uid, increment_3);
+        assert_eq!(SubtensorModule::get_pending_emission_for_neuron(uid), 30);
+	});
+}
 
 
 pub fn close(x:u64, y:u64, d:u64) -> bool {
