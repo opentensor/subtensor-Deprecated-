@@ -14,23 +14,25 @@ impl<T: Trait> Module<T> {
     /// 	* emission (u64):
     /// 		- The total amount emitted to the caller.
     ///
-    pub fn do_emit(origin: T::Origin) -> dispatch::DispatchResult {
-        // ---- We check the transaction is signed by the caller
-        // and retrieve the T::AccountId pubkey information.
-        let hotkey_id = ensure_signed(origin)?;
-        debug::info!("--- Called emit with caller {:?}", hotkey_id);
-
-        // ---- We query the Neuron set for the neuron data stored under
-        // the passed hotkey and retrieve it as a NeuronMetadata struct.
-        ensure!(Self::is_hotkey_active(&hotkey_id), Error::<T>::NotActive);
-        let neuron = Self::get_neuron_for_hotkey(&hotkey_id);
-
-        // ---- We call emit for this neuron.
-        Self::emit_for_neuron(&neuron);
-
-        // ---- Done.
-        Ok(())
-    }
+    // Parallax (14-1-2021) This is not used. Keeping it in here for now. Remove when not used
+    // down the line.
+    // pub fn do_emit(origin: T::Origin) -> dispatch::DispatchResult {
+    //     // ---- We check the transaction is signed by the caller
+    //     // and retrieve the T::AccountId pubkey information.
+    //     let hotkey_id = ensure_signed(origin)?;
+    //     debug::info!("--- Called emit with caller {:?}", hotkey_id);
+    //
+    //     // ---- We query the Neuron set for the neuron data stored under
+    //     // the passed hotkey and retrieve it as a NeuronMetadata struct.
+    //     ensure!(Self::is_hotkey_active(&hotkey_id), Error::<T>::NotActive);
+    //     let neuron = Self::get_neuron_for_hotkey(&hotkey_id);
+    //
+    //     // ---- We call emit for this neuron.
+    //     Self::emit_for_neuron(&neuron);
+    //
+    //     // ---- Done.
+    //     Ok(())
+    // }
 
     /// Emits inflation from the neuron uid to neighbors and themselves. Returns the total amount of emitted stake.
     /// The inflation available to this caller is given by (blocks_since_last_emit) * (inflation_per_block) * (this_neurons_stake) / (total_stake).
@@ -157,6 +159,17 @@ impl<T: Trait> Module<T> {
     }
 
      /// Sets the pending emission for all active peers based on a single block transition.
+     ///
+     /// This function is called every time a new block is started. ie, before the processing of
+     /// extrinsics happens. In essence, this function integrates the proportional block reward for
+     /// each neuron (which at a later point, can be distributed among its peers per the weights vector),
+     /// with respect to the block number.
+     /// Every block, the proportional block reward is calculated per neuron, and put in the PendingEmission
+     /// map. If a value already exists for the neuron, the new reward is added to the existing value.
+     ///
+     /// Then, when a neuron sets new weights, or when stake is added/removed, the do_emit function is
+     /// called which distributes this pending emission among the peers in the weights vector.
+     /// At this point, the PendingEmission is reset, and this cycle starts again.
     pub fn update_pending_emissions() -> u64 {
         let mut weight = 0;
         let block_reward = Self::current_block_reward();
@@ -176,6 +189,10 @@ impl<T: Trait> Module<T> {
         weight
     }
 
+    /// This is a check to determine if an emission to a set of peers can proceed.
+    /// The conditions are:
+    /// 1) The emission > 0; Without emission, there is nothing to emit. (You don't say?)
+    /// 2) The weights uid and values vector must be non empty
     pub fn can_emission_proceed(emission : &U64F64, weight_uids : &Vec<u64>, weight_vals : &Vec<u32>) -> bool {
         if *emission == U64F64::from_num(0) {return false;}
         if weight_uids.is_empty() { return false }
