@@ -167,7 +167,7 @@ impl<T: Trait> Module<T> {
      /// Every block, the proportional block reward is calculated per neuron, and put in the PendingEmission
      /// map. If a value already exists for the neuron, the new reward is added to the existing value.
      ///
-     /// Then, when a neuron sets new weights, or when stake is added/removed, the do_emit function is
+     /// Then, when a neuron sets new weights, or when stake is added/removed, the emit_for_neuron function is
      /// called which distributes this pending emission among the peers in the weights vector.
      /// At this point, the PendingEmission is reset, and this cycle starts again.
     pub fn update_pending_emissions() -> u64 {
