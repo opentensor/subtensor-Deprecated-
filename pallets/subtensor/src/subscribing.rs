@@ -42,9 +42,6 @@ impl<T: Trait> Module<T> {
             // modality and ip.
             let neuron = Self::update_neuron_in_metagraph(uid, ip, port, ip_type);
 
-            // --- We update their last emit
-            Self::update_last_emit_for_neuron(neuron.uid);
-
             // --- We deposit the neuron updated event
             Self::deposit_event(RawEvent::NeuronUpdated(uid));
         }
