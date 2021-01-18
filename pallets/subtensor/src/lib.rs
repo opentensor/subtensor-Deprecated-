@@ -13,10 +13,10 @@ use sp_std::{
 use sp_std::marker::PhantomData;
 use sp_runtime::{
     traits::{
-        SignedExtension, Bounded, DispatchInfoOf,
+        SignedExtension, DispatchInfoOf,
     },
     transaction_validity::{
-        ValidTransaction, TransactionValidityError, InvalidTransaction, TransactionValidity,
+        ValidTransaction, TransactionValidityError, TransactionValidity,
     },
 };
 

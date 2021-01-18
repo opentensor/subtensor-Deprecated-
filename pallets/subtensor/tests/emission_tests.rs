@@ -305,11 +305,11 @@ fn test_emission_after_many_blocks() {
                         sum_of_stake += SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid);
                 }
         }
-        for (j, neuron) in neurons.iter().enumerate() {
+        for neuron in neurons.iter() {
                 SubtensorModule::emit_for_neuron(&neuron);
         }
         let mut sum_of_stake = 0;
-        for (i, neuron) in neurons.iter().enumerate(){
+        for neuron in neurons.iter() {
                 sum_of_stake += SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid);
         }
         println!("sum of stakes {:?}", sum_of_stake);
