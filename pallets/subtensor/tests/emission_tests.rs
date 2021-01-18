@@ -6,6 +6,7 @@ use mock::*;
 
 use frame_system as system;
 use substrate_fixed::types::U64F64;
+use substrate_fixed::transcendental::pow;
 
 fn random_neuron_with_stake(hotkey:u64, stake_to_init: u64, ip:u128, port:u16, ip_type:u8, modality: u8, coldkey:u64) -> NeuronMetadata<u64> {
     let _ = SubtensorModule::subscribe(<<Test as system::Trait>::Origin>::signed(hotkey), ip, port, ip_type, modality, coldkey);
@@ -255,18 +256,58 @@ fn test_many_with_weights() {
 	});
 }
 
+/// This test tests the case where there would be 2 neurons, one of which has a weight of 1 to the
+/// other, and the other has a weight of one to the the one. This function checks to
+/// see if the total amount of minted token is correct.
+#[test]
+fn test_emission_after_many_blocks_one_edge() {
+	new_test_ext().execute_with(|| {
+        let neuron_a = subscribe_ok_neuron(1,1);
+        let neuron_b = subscribe_ok_neuron(2,2);
+
+        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron_a.uid, 1_000_000_000);
+        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron_b.uid, 1_000_000_000);
+
+        assert_eq!(SubtensorModule::get_total_stake(), 2_000_000_000);
+
+        SubtensorModule::set_new_weights(&neuron_a, &vec![neuron_b.uid], &vec![u32::MAX]);
+        SubtensorModule::set_new_weights(&neuron_b, &vec![neuron_a.uid], &vec![u32::MAX]);
+
+        // Let's run to block 1000
+        // The total block reward should be 0.5 * 1000 * 10^9 = 500 * 1069
+        // This is devided over 2, so each should end up with 250 * 10^ 9 pending emission
+        run_to_block(1000);
+
+        assert_eq!(SubtensorModule::get_pending_emission_for_neuron(neuron_a.uid), 250_000_000_000 as u64);
+        assert_eq!(SubtensorModule::get_pending_emission_for_neuron(neuron_b.uid), 250_000_000_000 as u64);
+
+        SubtensorModule::emit_for_neuron(&neuron_a); // This should transfer the pending emission to neuron_b
+        SubtensorModule::emit_for_neuron(&neuron_b); // This should transfer the pending emission to neuron_a
+
+        // neurons a&b should have 250 + 1 (initial) * 10 ^ 9 stake
+        assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron_a.uid), 251_000_000_000 as u64);
+        assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron_b.uid), 251_000_000_000 as u64);
+	});
+}
+
 #[test]
 fn test_emission_after_many_blocks() {
 	new_test_ext().execute_with(|| {
         let n = 25;
         let mut neurons: Vec<NeuronMetadata<u64>> = vec![];
+
+        // Subscribe n neurons
         for i in 0..n {
                 neurons.push(subscribe_neuron(i as u64, 10, 666, 4, 0, 66));
         }
         let mut stakes = vec![];
+
+        // Setup stake for each neuron : 1 Tao (10^9 Rao) stake
         for (_, _) in neurons.iter().enumerate(){
                 stakes.push(1000000000);
         }
+
+        // Interconnect all neurons by setting weights, without setting self weights
         let mut weight_uids = vec![];
         for (i, _) in neurons.iter().enumerate(){
                 let mut uids = vec![];
@@ -277,6 +318,8 @@ fn test_emission_after_many_blocks() {
                 }
                 weight_uids.push(uids);
         }
+
+        // Set all weights to be 1 / n (equal proportion of inflation)
         let mut weight_vals = vec![];
         for (i, _) in neurons.iter().enumerate() {
                 let mut vals = vec![];
@@ -287,27 +330,29 @@ fn test_emission_after_many_blocks() {
                 }
                 weight_vals.push(vals);
                 }
+        // Assign stake to each neuron
         for (i, neuron) in neurons.iter().enumerate() {
                 SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, stakes[i]);
         }
+
+        // Set the weights
         for (i, neuron) in neurons.iter().enumerate() {
                         assert_ok!(SubtensorModule::set_weights(<<Test as Trait>::Origin>::signed(neuron.uid), weight_uids[i].clone(), weight_vals[i].clone()));
         }
 
         let blocks_to_run = 10;
+
+        // Do an emit ever 10 blocks, starting with block 10 ending in block 100 (inclusive) with 10 block steps
         for i in 1..(blocks_to_run + 1) {
                 run_to_block(i * 10);
-                for (_, neuron) in neurons.iter().enumerate() {
+                for neuron in neurons.iter() {
                         SubtensorModule::emit_for_neuron(&neuron);
                 }            
-                let mut sum_of_stake = 0;
-                for (_, neuron) in neurons.iter().enumerate(){
-                        sum_of_stake += SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid);
-                }
         }
         for neuron in neurons.iter() {
                 SubtensorModule::emit_for_neuron(&neuron);
         }
+
         let mut sum_of_stake = 0;
         for neuron in neurons.iter() {
                 sum_of_stake += SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid);
