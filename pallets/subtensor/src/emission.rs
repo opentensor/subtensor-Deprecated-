@@ -144,7 +144,7 @@ impl<T: Trait> Module<T> {
         for (i, dest_uid) in weight_uids.iter().enumerate() {
 
             // Is this the self weight.
-            if *dest_uid != neuron.uid {
+            if *dest_uid == neuron.uid {
                 // Normalize the self weight.
                 let w_ii = normalize(weight_vals[i]);
 
