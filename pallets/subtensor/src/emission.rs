@@ -101,9 +101,9 @@ impl<T: Trait> Module<T> {
 
             // --- We check if the weight is a self loop. In this case, the emission does not proceed
             // to deposit new funds. The self weight is purely used to pay for transactions fees.
-            if *dest_uid != neuron.uid {
-                Self::add_stake_to_neuron_hotkey_account(*dest_uid, stake_increment);
-            }
+            //if *dest_uid != neuron.uid {
+            Self::add_stake_to_neuron_hotkey_account(*dest_uid, stake_increment);
+            //}
 
             // --- We increase the total stake emitted.
             total_new_stake += stake_increment;
