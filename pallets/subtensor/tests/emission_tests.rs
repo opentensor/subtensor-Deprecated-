@@ -197,44 +197,48 @@ fn test_many_with_weights() {
         let n = 25;
         let mut neurons: Vec<NeuronMetadata<u64>> = vec![];
         for i in 0..n {
-			neurons.push(subscribe_neuron(i as u64, 10, 666, 4, 0, 66));
+		neurons.push(subscribe_neuron(i as u64, 10, 666, 4, 0, 66));
         }
         let mut stakes = vec![];
         for (_, _) in neurons.iter().enumerate(){
-			stakes.push(1000000000);
+		stakes.push(1000000000);
         }
         println!("{:?}", stakes);
         let mut weight_uids = vec![];
-        for (_, _) in neurons.iter().enumerate(){
+        for (i, _) in neurons.iter().enumerate(){
             let mut uids = vec![];
-            for (i, _) in neurons.iter().enumerate(){
-                uids.push(neurons[ i ].uid);
+            for (j, _) in neurons.iter().enumerate(){
+                if i != j {
+                        uids.push(neurons[ j ].uid);
+                }
             }
             weight_uids.push(uids);
         }
         let mut weight_vals = vec![];
-        for (_, _) in neurons.iter().enumerate() {
+        for (i, _) in neurons.iter().enumerate() {
             let mut vals = vec![];
-            for (_, _) in neurons.iter().enumerate(){
-                vals.push(u32::MAX / n as u32 );
+            for (j, _) in neurons.iter().enumerate(){
+                if i != j {
+                        vals.push(u32::MAX / (n-1) as u32 );
+                }
             }
             weight_vals.push(vals);
-		}
-		for (i, neuron) in neurons.iter().enumerate() {
-			SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, stakes[i]);
+	}
+	for (i, neuron) in neurons.iter().enumerate() {
+	        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, stakes[i]);
         }
         for (i, neuron) in neurons.iter().enumerate() {
-		    assert_ok!(SubtensorModule::set_weights(<<Test as Trait>::Origin>::signed(neuron.uid), weight_uids[i].clone(), weight_vals[i].clone()));
+		assert_ok!(SubtensorModule::set_weights(<<Test as Trait>::Origin>::signed(neuron.uid), weight_uids[i].clone(), weight_vals[i].clone()));
         }
         let mut emission_per_neuron = vec![];
         for (_, neuron) in neurons.iter().enumerate() {
-		    emission_per_neuron.push(SubtensorModule::emit_for_neuron(&neuron));
+		emission_per_neuron.push(SubtensorModule::emit_for_neuron(&neuron));
         }
         for (i, _) in neurons.iter().enumerate() {
             assert_eq!(emission_per_neuron[i], 0);
         }
         for (i, neuron) in neurons.iter().enumerate(){
-			assert_eq!(stakes[i], SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid));
+	        assert_eq!(stakes[i], SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid));
         }
         run_to_block(2 * n);
         let mut emission_per_neuron = vec![];
@@ -249,6 +253,68 @@ fn test_many_with_weights() {
         }
         
 	});
+}
+
+#[test]
+fn test_emission_after_many_blocks() {
+	new_test_ext().execute_with(|| {
+        let n = 25;
+        let mut neurons: Vec<NeuronMetadata<u64>> = vec![];
+        for i in 0..n {
+                neurons.push(subscribe_neuron(i as u64, 10, 666, 4, 0, 66));
+        }
+        let mut stakes = vec![];
+        for (_, _) in neurons.iter().enumerate(){
+                stakes.push(1000000000);
+        }
+        let mut weight_uids = vec![];
+        for (i, _) in neurons.iter().enumerate(){
+                let mut uids = vec![];
+                for (j, _) in neurons.iter().enumerate(){
+                        if i != j {
+                                uids.push(neurons[ j ].uid);
+                        }
+                }
+                weight_uids.push(uids);
+        }
+        let mut weight_vals = vec![];
+        for (i, _) in neurons.iter().enumerate() {
+                let mut vals = vec![];
+                for (j, _) in neurons.iter().enumerate() {
+                        if i != j {
+                                vals.push(u32::MAX / (n-1) as u32 );
+                        }
+                }
+                weight_vals.push(vals);
+                }
+        for (i, neuron) in neurons.iter().enumerate() {
+                SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, stakes[i]);
+        }
+        for (i, neuron) in neurons.iter().enumerate() {
+                        assert_ok!(SubtensorModule::set_weights(<<Test as Trait>::Origin>::signed(neuron.uid), weight_uids[i].clone(), weight_vals[i].clone()));
+        }
+
+        let blocks_to_run = 10;
+        for i in 1..(blocks_to_run + 1) {
+                run_to_block(i * 10);
+                for (_, neuron) in neurons.iter().enumerate() {
+                        SubtensorModule::emit_for_neuron(&neuron);
+                }            
+                let mut sum_of_stake = 0;
+                for (_, neuron) in neurons.iter().enumerate(){
+                        sum_of_stake += SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid);
+                }
+        }
+        for (j, neuron) in neurons.iter().enumerate() {
+                SubtensorModule::emit_for_neuron(&neuron);
+        }
+        let mut sum_of_stake = 0;
+        for (i, neuron) in neurons.iter().enumerate(){
+                sum_of_stake += SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid);
+        }
+        println!("sum of stakes {:?}", sum_of_stake);
+        assert!( close(sum_of_stake, 75000000000, 10000) );
+        });
 }
 
 
