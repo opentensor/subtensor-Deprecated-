@@ -6,7 +6,6 @@ use mock::*;
 
 use frame_system as system;
 use substrate_fixed::types::U64F64;
-use substrate_fixed::transcendental::pow;
 
 fn random_neuron_with_stake(hotkey:u64, stake_to_init: u64, ip:u128, port:u16, ip_type:u8, modality: u8, coldkey:u64) -> NeuronMetadata<u64> {
     let _ = SubtensorModule::subscribe(<<Test as system::Trait>::Origin>::signed(hotkey), ip, port, ip_type, modality, coldkey);
