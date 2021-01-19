@@ -105,7 +105,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("node-subtensor-runtime"), // Don't change this. It'll fuck up chain upgrades
 	impl_name: create_runtime_str!("node-subtensor-client"), // I guess the same goes for this
 	authoring_version: 1,
-	spec_version: 2,
+	spec_version: 3,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -162,7 +162,7 @@ parameter_types! {
 	/// Assume 10% of weight for average on_initialize calls.
 	pub MaximumExtrinsicWeight: Weight = AvailableBlockRatio::get()
 		.saturating_sub(Perbill::from_percent(10)) * MaximumBlockWeight::get();
-	pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;
+	pub const MaximumBlockLength: u32 = 5 * 1024 * 10;
 	pub const Version: RuntimeVersion = VERSION;
 }
 
@@ -353,8 +353,8 @@ pub type SignedExtra = (
 	frame_system::CheckEra<Runtime>,
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
-	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
-	pallet_subtensor::FeeFromSelfEmission<Runtime>
+	// pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+	// pallet_subtensor::FeeFromSelfEmission<Runtime>
 );
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
