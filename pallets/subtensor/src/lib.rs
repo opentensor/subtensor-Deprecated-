@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 // --- Frame imports.
-use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, ensure, debug, IterableStorageMap, weights::Weight, traits::{Currency, WithdrawReasons, WithdrawReason, ExistenceRequirement}, Printable};
+use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, dispatch::IsSubType, ensure, debug, IterableStorageMap, weights::Weight, traits::{Currency, WithdrawReasons, WithdrawReason, ExistenceRequirement}, Printable};
 use frame_support::weights::{DispatchClass, Pays};
 use codec::{Decode, Encode};
 use frame_system::{self as system, ensure_signed};
@@ -10,13 +10,21 @@ use sp_std::convert::TryInto;
 use sp_std::{
 	prelude::*
 };
+use sp_std::marker::PhantomData;
+use sp_runtime::{
+    traits::{
+        SignedExtension, DispatchInfoOf,
+    },
+    transaction_validity::{
+        ValidTransaction, TransactionValidityError, TransactionValidity,
+    },
+};
 
 mod weights;
 mod staking;
 mod subscribing;
 mod emission;
 mod block_reward;
-mod block_execution;
 
 /// --- Configure the pallet by specifying the parameters and types on which it depends.
 pub trait Trait: frame_system::Trait {
@@ -392,7 +400,7 @@ decl_module! {
 		/// 		- The number of the block we are finalizing.
 		///
 		fn on_finalize(n: T::BlockNumber) {
-			Self::do_finalize(n);
+			// Self::do_finalize(n);
 		}
 
 		/// ---- Called on the initialization of this pallet. (the order of on_finalize calls is determined in the runtime)
@@ -401,15 +409,16 @@ decl_module! {
 		/// 	* 'n': (T::BlockNumber):
 		/// 		- The number of the block we are initializing.
 		fn on_initialize(n: T::BlockNumber) -> Weight {
-			let weight = Self::do_initialize(n);
-			weight
+			Self::update_pending_emissions()
+			// let weight = Self::do_initialize(n);
+			// weight
 		}
 	}
 }
 
+
 // ---- Subtensor helper functions.
 impl<T: Trait> Module<T> {
-
 	// --- Returns Option if the u64 converts to a balance
 	// use .unwarp if the result returns .some().
 	pub fn u64_to_balance(input: u64) -> Option<<<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance>
@@ -481,3 +490,49 @@ impl<T: Trait> Module<T> {
         uid
     }
 }
+
+
+// #[derive(Encode, Decode, Clone, Eq, PartialEq)]
+// pub struct FeeFromSelfEmission<T: Trait + Send + Sync>(PhantomData<T>);
+//
+// impl<T: Trait + Send + Sync> sp_std::fmt::Debug for FeeFromSelfEmission<T> {
+// 	fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
+// 		write!(f, "FeeFromSelfEmission")
+// 	}
+// }
+//
+// impl<T: Trait + Send + Sync> SignedExtension for FeeFromSelfEmission<T>
+// where
+// 	<T as frame_system::Trait>::Call: dispatch::IsSubType<Call<T>>,
+// {
+// 	const IDENTIFIER: &'static str = "FeeFromSelfEmission";
+// 	type AccountId = T::AccountId;
+// 	type Call = <T as frame_system::Trait>::Call;
+// 	type AdditionalSigned = ();
+// 	type Pre = ();
+// 	fn additional_signed(&self) -> Result<Self::AdditionalSigned, TransactionValidityError> { Ok(()) }
+//
+// 	fn validate(
+// 		&self,
+// 		_who: &Self::AccountId,
+// 		call: &Self::Call,
+// 		_info: &DispatchInfoOf<Self::Call>,
+// 		len: usize,
+// 	) -> TransactionValidity {
+// 		match call.is_sub_type() {
+// 			Some(Call::set_weights(..)) => {
+// 				sp_runtime::print("set_weights was received.");
+// 				let self_emission = Module::<T>::get_self_emission_for_caller(_who);
+// 				let mut valid_tx = ValidTransaction::default();
+// 				let priority = self_emission / len as u64;
+// 				valid_tx.priority = priority;
+// 				valid_tx.longevity = 1;
+// 				sp_runtime::print("transaction priority:");
+// 				sp_runtime::print(priority);
+// 				Ok( valid_tx )
+// 			}
+// 			_ => Ok(Default::default()),
+// 		}
+// 	}
+// }
+//

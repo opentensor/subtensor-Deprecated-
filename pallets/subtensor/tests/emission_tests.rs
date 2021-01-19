@@ -5,6 +5,7 @@ mod mock;
 use mock::*;
 
 use frame_system as system;
+use substrate_fixed::types::U64F64;
 
 fn random_neuron_with_stake(hotkey:u64, stake_to_init: u64, ip:u128, port:u16, ip_type:u8, modality: u8, coldkey:u64) -> NeuronMetadata<u64> {
     let _ = SubtensorModule::subscribe(<<Test as system::Trait>::Origin>::signed(hotkey), ip, port, ip_type, modality, coldkey);
@@ -51,7 +52,7 @@ fn test_self_emission() {
         assert_ok!(SubtensorModule::set_weights(<<Test as Trait>::Origin>::signed(hotkey), weight_uids.clone(), weight_values.clone()));
         assert_eq!(SubtensorModule::get_weights_for_neuron(&neuron), (weight_uids, weight_values)); // Check the weights are set.
 
-        // Let's call an emit.
+        // Left's call an emit.
         let total_emission:u64 = SubtensorModule::emit_for_neuron(&neuron);
         assert_eq!(total_emission, 0);
         assert_eq!(stake, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that the stake is there.
@@ -185,27 +186,7 @@ fn test_self_weight() {
 	});
 }
 
-pub fn close(x:u64, y:u64, d:u64) -> bool {
-    if x > y {
-        if x - y < d {
-            return true;
-        }
-        else {
-            println!("{:?} - {:?} >= {:?}", y, x, d);
-            return false;
-        }
-    }
-    if y > x {
-        if y - x < d {
-            return true;
-        } 
-        else {
-            println!("{:?} - {:?} >= {:?}", x, y, d);
-            return false;
-        }
-    }
-    true
-}
+
 
 // Tests a k graph emission.
 #[test]
@@ -216,44 +197,48 @@ fn test_many_with_weights() {
         let n = 25;
         let mut neurons: Vec<NeuronMetadata<u64>> = vec![];
         for i in 0..n {
-			neurons.push(subscribe_neuron(i as u64, 10, 666, 4, 0, 66));
+		neurons.push(subscribe_neuron(i as u64, 10, 666, 4, 0, 66));
         }
         let mut stakes = vec![];
         for (_, _) in neurons.iter().enumerate(){
-			stakes.push(1000000000);
+		stakes.push(1000000000);
         }
         println!("{:?}", stakes);
         let mut weight_uids = vec![];
-        for (_, _) in neurons.iter().enumerate(){
+        for (i, _) in neurons.iter().enumerate(){
             let mut uids = vec![];
-            for (i, _) in neurons.iter().enumerate(){
-                uids.push(neurons[ i ].uid);
+            for (j, _) in neurons.iter().enumerate(){
+                if i != j {
+                        uids.push(neurons[ j ].uid);
+                }
             }
             weight_uids.push(uids);
         }
         let mut weight_vals = vec![];
-        for (_, _) in neurons.iter().enumerate() {
+        for (i, _) in neurons.iter().enumerate() {
             let mut vals = vec![];
-            for (_, _) in neurons.iter().enumerate(){
-                vals.push(u32::MAX / n as u32 );
+            for (j, _) in neurons.iter().enumerate(){
+                if i != j {
+                        vals.push(u32::MAX / (n-1) as u32 );
+                }
             }
             weight_vals.push(vals);
-		}
-		for (i, neuron) in neurons.iter().enumerate() {
-			SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, stakes[i]);
+	}
+	for (i, neuron) in neurons.iter().enumerate() {
+	        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, stakes[i]);
         }
         for (i, neuron) in neurons.iter().enumerate() {
-		    assert_ok!(SubtensorModule::set_weights(<<Test as Trait>::Origin>::signed(neuron.uid), weight_uids[i].clone(), weight_vals[i].clone()));
+		assert_ok!(SubtensorModule::set_weights(<<Test as Trait>::Origin>::signed(neuron.uid), weight_uids[i].clone(), weight_vals[i].clone()));
         }
         let mut emission_per_neuron = vec![];
         for (_, neuron) in neurons.iter().enumerate() {
-		    emission_per_neuron.push(SubtensorModule::emit_for_neuron(&neuron));
+		emission_per_neuron.push(SubtensorModule::emit_for_neuron(&neuron));
         }
         for (i, _) in neurons.iter().enumerate() {
             assert_eq!(emission_per_neuron[i], 0);
         }
         for (i, neuron) in neurons.iter().enumerate(){
-			assert_eq!(stakes[i], SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid));
+	        assert_eq!(stakes[i], SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid));
         }
         run_to_block(2 * n);
         let mut emission_per_neuron = vec![];
@@ -270,30 +255,338 @@ fn test_many_with_weights() {
 	});
 }
 
-// Note: parallax (02-01-2020) This test has been commented out, as the logic that this test tests
-// for has has been implement in the set_weights() function.
-// Tests that emitting to non-existent node causes no emit.
-// #[test]
-// fn test_non_existent_weights() {
-// 	new_test_ext().execute_with(|| {
-//         // Let's subscribe a new neuron to the chain.
-//         let hotkey:u64 = 1;
-//         let stake:u64 = 1000000000;
-//         let neuron = random_neuron_with_stake(hotkey, stake, 1, 1, 1, 1);
-//
-//         // Let's set this neuron's weights. (0,0) = 1
-//         let weight_uids = vec![2]; // does not exist
-//         let weight_values = vec![u32::MAX];
-//         assert_ok!(SubtensorModule::set_weights(<<Test as Trait>::Origin>::signed(hotkey), weight_uids.clone(), weight_values.clone()));
-//         assert_eq!(SubtensorModule::get_weights_for_neuron(&neuron), (weight_uids, weight_values)); // Check the weights are set.
-//
-//         // Increase the block number by 1
-//         run_to_block(1);
-//
-//         // Let's call emit again.
-//         let total_emission:u64 = SubtensorModule::emit_for_neuron(&neuron);
-//         assert_eq!(total_emission, 0);
-//         assert_eq!(1000000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that the stake is there.
-//
-// 	});
-// }
+/// This test tests the case where there would be 2 neurons, one of which has a weight of 1 to the
+/// other, and the other has a weight of one to the the one. This function checks to
+/// see if the total amount of minted token is correct.
+#[test]
+fn test_emission_after_many_blocks_one_edge() {
+	new_test_ext().execute_with(|| {
+        let neuron_a = subscribe_ok_neuron(1,1);
+        let neuron_b = subscribe_ok_neuron(2,2);
+
+        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron_a.uid, 1_000_000_000);
+        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron_b.uid, 1_000_000_000);
+
+        assert_eq!(SubtensorModule::get_total_stake(), 2_000_000_000);
+
+        SubtensorModule::set_new_weights(&neuron_a, &vec![neuron_b.uid], &vec![u32::MAX]);
+        SubtensorModule::set_new_weights(&neuron_b, &vec![neuron_a.uid], &vec![u32::MAX]);
+
+        // Let's run to block 1000
+        // The total block reward should be 0.5 * 1000 * 10^9 = 500 * 1069
+        // This is devided over 2, so each should end up with 250 * 10^ 9 pending emission
+        run_to_block(1000);
+
+        assert_eq!(SubtensorModule::get_pending_emission_for_neuron(neuron_a.uid), 250_000_000_000 as u64);
+        assert_eq!(SubtensorModule::get_pending_emission_for_neuron(neuron_b.uid), 250_000_000_000 as u64);
+
+        SubtensorModule::emit_for_neuron(&neuron_a); // This should transfer the pending emission to neuron_b
+        SubtensorModule::emit_for_neuron(&neuron_b); // This should transfer the pending emission to neuron_a
+
+        // neurons a&b should have 250 + 1 (initial) * 10 ^ 9 stake
+        assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron_a.uid), 251_000_000_000 as u64);
+        assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron_b.uid), 251_000_000_000 as u64);
+	});
+}
+
+#[test]
+fn test_emission_after_many_blocks() {
+	new_test_ext().execute_with(|| {
+        let n = 25;
+        let mut neurons: Vec<NeuronMetadata<u64>> = vec![];
+
+        // Subscribe n neurons
+        for i in 0..n {
+                neurons.push(subscribe_neuron(i as u64, 10, 666, 4, 0, 66));
+        }
+        let mut stakes = vec![];
+
+        // Setup stake for each neuron : 1 Tao (10^9 Rao) stake
+        for (_, _) in neurons.iter().enumerate(){
+                stakes.push(1000000000);
+        }
+
+        // Interconnect all neurons by setting weights, without setting self weights
+        let mut weight_uids = vec![];
+        for (i, _) in neurons.iter().enumerate(){
+                let mut uids = vec![];
+                for (j, _) in neurons.iter().enumerate(){
+                        if i != j {
+                                uids.push(neurons[ j ].uid);
+                        }
+                }
+                weight_uids.push(uids);
+        }
+
+        // Set all weights to be 1 / n (equal proportion of inflation)
+        let mut weight_vals = vec![];
+        for (i, _) in neurons.iter().enumerate() {
+                let mut vals = vec![];
+                for (j, _) in neurons.iter().enumerate() {
+                        if i != j {
+                                vals.push(u32::MAX / (n-1) as u32 );
+                        }
+                }
+                weight_vals.push(vals);
+                }
+        // Assign stake to each neuron
+        for (i, neuron) in neurons.iter().enumerate() {
+                SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, stakes[i]);
+        }
+
+        // Set the weights
+        for (i, neuron) in neurons.iter().enumerate() {
+                        assert_ok!(SubtensorModule::set_weights(<<Test as Trait>::Origin>::signed(neuron.uid), weight_uids[i].clone(), weight_vals[i].clone()));
+        }
+
+        let blocks_to_run = 10;
+
+        // Do an emit ever 10 blocks, starting with block 10 ending in block 100 (inclusive) with 10 block steps
+        for i in 1..(blocks_to_run + 1) {
+                run_to_block(i * 10);
+                for neuron in neurons.iter() {
+                        SubtensorModule::emit_for_neuron(&neuron);
+                }            
+        }
+        for neuron in neurons.iter() {
+                SubtensorModule::emit_for_neuron(&neuron);
+        }
+
+        let mut sum_of_stake = 0;
+        for neuron in neurons.iter() {
+                sum_of_stake += SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid);
+        }
+        println!("sum of stakes {:?}", sum_of_stake);
+        assert!( close(sum_of_stake, 75000000000, 10000) );
+        });
+}
+
+
+/************************************************************
+	emission::can_emission_proceed() tests
+************************************************************/
+#[test]
+fn test_can_emission_proceed_ok() {
+	new_test_ext().execute_with(|| {
+        let emission = U64F64::from_num(40);
+        let weight_uids  = vec![1,2];
+        let weight_vals =vec![54434,90099];
+
+        assert_eq!(SubtensorModule::can_emission_proceed(&emission, &weight_uids, &weight_vals), true)
+	});
+}
+
+#[test]
+fn test_can_emission_proceed_fails_no_emission() {
+	new_test_ext().execute_with(|| {
+        let emission = U64F64::from_num(0);
+        let weight_uids  = vec![1,2];
+        let weight_vals =vec![54434,90099];
+
+        assert_eq!(SubtensorModule::can_emission_proceed(&emission, &weight_uids, &weight_vals), false)
+
+	});
+}
+
+#[test]
+fn test_can_emission_proceed_fails_no_uids() {
+	new_test_ext().execute_with(|| {
+        let emission = U64F64::from_num(0);
+        let weight_uids  = vec![]; // Empty, illegal state
+        let weight_vals =vec![54434,90099];
+
+        assert_eq!(SubtensorModule::can_emission_proceed(&emission, &weight_uids, &weight_vals), false)
+	});
+}
+
+#[test]
+fn test_can_emission_proceed_fails_no_vals() {
+	new_test_ext().execute_with(|| {
+        let emission = U64F64::from_num(40);
+        let weight_uids  = vec![1,2];
+        let weight_vals =vec![]; // Empty, illegal state
+
+        assert_eq!(SubtensorModule::can_emission_proceed(&emission, &weight_uids, &weight_vals), false)
+
+	});
+}
+
+/************************************************************
+	emission::calculate_stake_increment() tests
+************************************************************/
+#[test]
+fn test_calculate_stake_increment_ok() {
+	new_test_ext().execute_with(|| {
+        let emission = U64F64::from_num(2);
+        let weight = U64F64::from_num(0.5);
+
+        assert_eq!(SubtensorModule::calculate_stake_increment(emission, weight), 1);
+	});
+}
+
+#[test]
+#[should_panic]
+fn test_calculate_stake_increment_fails_weight_out_of_range() {
+	new_test_ext().execute_with(|| {
+        let emission = U64F64::from_num(2);
+        let weight = U64F64::from_num(1.5); // Out of range
+
+        assert_eq!(SubtensorModule::calculate_stake_increment(emission, weight), 1);
+	});
+}
+
+
+/************************************************************
+	emission::get_pending_emission_for_neuron() tests
+************************************************************/
+#[test]
+fn test_get_pending_emission_for_neuron_ok() {
+	new_test_ext().execute_with(|| {
+        let uid = 55;
+        let pending_emission = 50;
+
+        // Set it up
+        SubtensorModule::update_pending_emission_for_neuron(uid, pending_emission);
+        assert_eq!(SubtensorModule::get_pending_emission_for_neuron(uid), pending_emission);
+	});
+}
+
+#[test]
+fn test_get_pending_emission_for_neuron_uid_does_not_exist() {
+	new_test_ext().execute_with(|| {
+        let uid = 55;
+        assert_eq!(SubtensorModule::get_pending_emission_for_neuron(uid), 0);
+	});
+}
+
+
+
+/************************************************************
+	emission::reset_pending_emission_for_neuron() tests
+************************************************************/
+#[test]
+fn test_reset_pending_emission_for_neuron_ok() {
+	new_test_ext().execute_with(|| {
+        let uid = 666;
+        let emission = 66;
+
+        SubtensorModule::update_pending_emission_for_neuron(uid, emission);
+        SubtensorModule::reset_pending_emission_for_neuron(uid);
+        assert_eq!(SubtensorModule::get_pending_emission_for_neuron(uid), 0);
+	});
+}
+
+/************************************************************
+	emission::update_last_emit_for_neuron() tests
+************************************************************/
+#[test]
+fn test_update_last_emit_for_neuron_ok() {
+	new_test_ext().execute_with(|| {
+        let uid = 1;
+
+        for x in 0..10 {
+            run_to_block(x);
+            SubtensorModule::update_last_emit_for_neuron(uid);
+            run_to_block(x+1);
+            assert_eq!(SubtensorModule::get_last_emit_for_neuron(uid), x);
+        }
+	});
+}
+
+
+/************************************************************
+	emission::get_last_emit_for_neuron() tests
+************************************************************/
+#[test]
+fn test_get_last_emit_for_neuron_ok() {
+	new_test_ext().execute_with(|| {
+        let uid = 55;
+
+        run_to_block(10);
+
+        SubtensorModule::update_last_emit_for_neuron(uid);
+        assert_eq!(SubtensorModule::get_last_emit_for_neuron(uid), 10);
+	});
+}
+
+#[test]
+fn test_get_last_emit_for_neuron_default() {
+	new_test_ext().execute_with(|| {
+        let uid = 779; // Does not exist
+        assert_eq!(SubtensorModule::get_last_emit_for_neuron(uid), 0)
+	});
+}
+
+
+
+/************************************************************
+	emission::calculate_new_emission() tests
+************************************************************/
+#[test]
+fn test_calculate_new_emission_ok() {
+	new_test_ext().execute_with(|| {
+        let block_reward = U64F64::from_num(40);
+        let stake_fraction = U64F64::from_num(0.5);
+
+        assert_eq!(SubtensorModule::calculate_new_emission(block_reward, stake_fraction), 20);
+	});
+}
+
+#[test]
+#[should_panic]
+fn test_calculate_new_emission_stake_out_of_bound() {
+	new_test_ext().execute_with(|| {
+        let block_reward = U64F64::from_num(40);
+        let stake_fraction = U64F64::from_num(1.5); // Out of bounds
+
+        SubtensorModule::calculate_new_emission(block_reward, stake_fraction);
+
+
+	});
+}
+
+/************************************************************
+	emission::update_pending_emission_for_neuron() tests
+************************************************************/
+#[test]
+fn test_update_pending_emission_for_neuron_ok() {
+	new_test_ext().execute_with(|| {
+        let uid = 1;
+        let increment_1 = 5;
+        let increment_2 = 10;
+        let increment_3 = 15;
+
+        assert_eq!(SubtensorModule::get_pending_emission_for_neuron(uid), 0); // Default == 0
+        SubtensorModule::update_pending_emission_for_neuron(uid, increment_1);
+        assert_eq!(SubtensorModule::get_pending_emission_for_neuron(uid), 5);
+
+        SubtensorModule::update_pending_emission_for_neuron(uid, increment_2);
+        assert_eq!(SubtensorModule::get_pending_emission_for_neuron(uid), 15);
+
+        SubtensorModule::update_pending_emission_for_neuron(uid, increment_3);
+        assert_eq!(SubtensorModule::get_pending_emission_for_neuron(uid), 30);
+	});
+}
+
+
+pub fn close(x:u64, y:u64, d:u64) -> bool {
+    if x > y {
+        if x - y < d {
+            return true;
+        }
+        else {
+            println!("{:?} - {:?} >= {:?}", y, x, d);
+            return false;
+        }
+    }
+    if y > x {
+        if y - x < d {
+            return true;
+        }
+        else {
+            println!("{:?} - {:?} >= {:?}", x, y, d);
+            return false;
+        }
+    }
+    true
+}

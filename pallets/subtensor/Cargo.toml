@@ -5,7 +5,7 @@ edition = '2018'
 homepage = 'https://www.bittensor.com'
 license = 'MIT'
 name = 'pallet-subtensor'
-version = '1.0.1'
+version = '1.0.2'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
@@ -23,13 +23,13 @@ frame-support = { default-features = false, version = '2.0.0' }
 frame-system = { default-features = false, version = '2.0.0' }
 sp-std = { version = '2.0.0', default-features = false }
 sp-arithmetic = { version = '2.0.0', default-features = false }
+sp-runtime = { default-features = false, version = '2.0.0' }
 pallet-balances = { default-features = false, version = '2.0.0' }
 fixed = { default-features = false, version = '1.5' }
 
 [dev-dependencies]
 sp-core = { default-features = false, version = '2.0.0' }
 sp-io = { default-features = false, version = '2.0.0' }
-sp-runtime = { default-features = false, version = '2.0.0' }
 sp-std = { version = '2.0.0', default-features = false }
 
 [features]

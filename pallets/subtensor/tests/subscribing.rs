@@ -5,6 +5,11 @@ mod mock;
 use mock::*;
 use frame_support::sp_runtime::DispatchError;
 
+/********************************************
+	subscribing::subscribe() tests
+*********************************************/
+
+
 #[test]
 fn test_subscribe_ok() {
 	new_test_ext().execute_with(|| {
@@ -84,6 +89,32 @@ fn test_invalid_modality() {
 	});
 }
 
+/// This test tests the following
+/// Given an already subscribed neuron, resubscribing should not
+/// change the last emit data.
+#[test]
+fn test_subsribe_resubrice_emit_does_not_change() {
+	new_test_ext().execute_with(|| {
+        let hotkey_id = 1;
+		let coldkey_id = 2;
+
+		// Move the block_nr to some point in the future
+		run_to_block(10);
+
+		let mut neuron = subscribe_ok_neuron(hotkey_id, coldkey_id);
+		// The last_emit_block should be 10
+
+		assert_eq!(SubtensorModule::get_last_emit_for_neuron(neuron.uid), 10);
+
+		// Let's move the block counter again to simulate a jump
+		run_to_block(100);
+
+		// A subsequent call to subscribe should not change the last emit
+		neuron = subscribe_ok_neuron(hotkey_id, coldkey_id);
+		assert_eq!(SubtensorModule::get_last_emit_for_neuron(neuron.uid), 10);
+	});
+}
+
 #[test]
 fn test_subscribe_update_ok() {
 	new_test_ext().execute_with(|| {
@@ -154,7 +185,7 @@ fn test_subscribe_update_ok() {
 }
 
 #[test]
-fn test_subscribe_update_colkey_modality_not_changed_ok() {
+fn test_subscribe_update_coldkey_modality_not_changed_ok() {
 	new_test_ext().execute_with(|| {
 		let hotkey_account_id = 1;
 		let ip = ipv4(8,8,8,8);
@@ -202,9 +233,6 @@ fn test_subscribe_update_colkey_modality_not_changed_ok() {
 }
 
 
-/********************************************
-	subscribing::subscribe() tests
-*********************************************/
 
 #[test]
 fn test_subscribe_already_active() {
