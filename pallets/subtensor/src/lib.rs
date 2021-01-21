@@ -629,10 +629,28 @@ mod tests {
 	type System = frame_system::Module<Test>;
 	type SubtensorModule = Module<Test>;
 
+	#[allow(dead_code)]
+	pub fn subscribe_neuron(hotkey_account_id : u64, ip: u128, port: u16, ip_type : u8, modality: u8, coldkey_acount_id : u64) -> NeuronMetadata<u64> {
+		let result = SubtensorModule::subscribe(<<Test as system::Trait>::Origin>::signed(hotkey_account_id), ip, port, ip_type, modality, coldkey_acount_id);
+		assert_ok!(result);
+		let neuron = SubtensorModule::get_neuron_for_hotkey(&hotkey_account_id);
+		neuron
+	}
 
 	// Build genesis storage according to the mock runtime.
 	pub fn new_test_ext() -> sp_io::TestExternalities {
 		system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
+	}
+	
+	#[allow(dead_code)]
+	pub fn run_to_block(n: u64) {
+		while System::block_number() < n {
+			SubtensorModule::on_finalize(System::block_number());
+			System::on_finalize(System::block_number());
+			System::set_block_number(System::block_number() + 1);
+			System::on_initialize(System::block_number());
+			SubtensorModule::on_initialize(System::block_number());
+		}
 	}
 
 	#[test]
@@ -647,7 +665,7 @@ mod tests {
 	}
 
 	#[test]
-	fn fee_from_emission_priority() {
+	fn fee_from_emission_priority_no_neuron() {
 		new_test_ext().execute_with(|| {
 
 			let call = <Call<Test>>::set_weights(vec![0], vec![0]).into();
@@ -655,6 +673,89 @@ mod tests {
 			let len = 10;
 
 			assert_eq!( FeeFromSelfEmission::<Test>(PhantomData).validate(&1, &call, &info, len).unwrap().priority, 0);
+		});
+	}
+
+	#[test]
+	fn fee_from_emission_priority_with_neuron() {
+		new_test_ext().execute_with(|| {
+
+			let hotkey_account_id = 1;
+			subscribe_neuron(hotkey_account_id, 10, 666, 4, 0, 66);
+
+			let call = <Call<Test>>::set_weights(vec![0], vec![0]).into();
+			let info = DispatchInfo::default();
+			let len = 10;
+
+			assert_eq!( FeeFromSelfEmission::<Test>(PhantomData).validate(&hotkey_account_id, &call, &info, len).unwrap().priority, 0);
+		});
+	}
+
+
+	#[test]
+	fn fee_from_emission_priority_with_neuron_and_weights() {
+		new_test_ext().execute_with(|| {
+
+			let hotkey_account_id = 1;
+			let neuron = subscribe_neuron(hotkey_account_id, 10, 666, 4, 0, 66);
+
+			let weight_uids = vec![neuron.uid];
+			let weight_values = vec![u32::MAX]; 
+			assert_ok!(SubtensorModule::set_weights(<<Test as system::Trait>::Origin>::signed(hotkey_account_id), weight_uids.clone(), weight_values.clone()));
+
+			let call = <Call<Test>>::set_weights(vec![0], vec![0]).into();
+			let info = DispatchInfo::default();
+			let len = 10;
+
+			assert_eq!( FeeFromSelfEmission::<Test>(PhantomData).validate(&hotkey_account_id, &call, &info, len).unwrap().priority, 0);
+		});
+	}
+
+	#[test]
+	fn fee_from_emission_priority_with_neuron_and_weights_and_stake() {
+		new_test_ext().execute_with(|| {
+
+			let hotkey_account_id = 1;
+			let neuron = subscribe_neuron(hotkey_account_id, 10, 666, 4, 0, 66);
+
+			let weight_uids = vec![neuron.uid];
+			let weight_values = vec![u32::MAX]; 
+			assert_ok!(SubtensorModule::set_weights(<<Test as system::Trait>::Origin>::signed(hotkey_account_id), weight_uids.clone(), weight_values.clone()));
+
+
+			SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, 100000000); // Add the stake.
+
+			let call = <Call<Test>>::set_weights(vec![0], vec![0]).into();
+			let info = DispatchInfo::default();
+			let len = 10;
+
+			assert_eq!( FeeFromSelfEmission::<Test>(PhantomData).validate(&hotkey_account_id, &call, &info, len).unwrap().priority, 0);
+		});
+	}
+
+	#[test]
+	fn fee_from_emission_priority_with_neuron_and_weights_and_stake_and_run_to_block() {
+		new_test_ext().execute_with(|| {
+
+			let hotkey_account_id = 1;
+			let neuron = subscribe_neuron(hotkey_account_id, 10, 666, 4, 0, 66);
+
+			let weight_uids = vec![neuron.uid];
+			let weight_values = vec![u32::MAX]; 
+			assert_ok!(SubtensorModule::set_weights(<<Test as system::Trait>::Origin>::signed(hotkey_account_id), weight_uids.clone(), weight_values.clone()));
+
+
+			SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, 1000000000); // Add the stake.
+
+			let call = <Call<Test>>::set_weights(vec![0], vec![0]).into();
+			let info = DispatchInfo::default();
+			let len = 10;
+
+			assert_eq!( FeeFromSelfEmission::<Test>(PhantomData).validate(&hotkey_account_id, &call, &info, len).unwrap().priority, 0);
+
+			run_to_block(1);
+
+			assert_eq!( FeeFromSelfEmission::<Test>(PhantomData).validate(&hotkey_account_id, &call, &info, len).unwrap().priority, 50000000);
 		});
 	}
 }
