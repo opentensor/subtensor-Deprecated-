@@ -99,8 +99,6 @@ impl pallet_balances::Trait for Test {
 // }
 
 pub type SubtensorModule = Module<Test>;
-// type AccountIdOf<Test> = <Test as system::Trait>::AccountId;
-// type NeuronMetadataOf<Test> = <pallet_subtensor::Module<Test> as Trait>::NeuronMetadata;
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
