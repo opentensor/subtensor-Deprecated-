@@ -1,13 +1,13 @@
 use pallet_subtensor::{Module, Trait, NeuronMetadata};
 use sp_core::H256;
-use frame_support::{assert_ok, impl_outer_origin, impl_outer_event, parameter_types, weights::Weight};
+use frame_support::{assert_ok, impl_outer_origin, impl_outer_dispatch, impl_outer_event, parameter_types, weights::Weight};
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup}, testing::Header, Perbill,
 };
 
 
 /// The AccountId alias in this test module.
-pub(crate) type AccountId = u64;
+pub type AccountId = u64;
 pub(crate) type AccountIndex = u64;
 pub(crate) type BlockNumber = u64;
 pub(crate) type Balance = u128;
@@ -18,6 +18,11 @@ use pallet_balances as balances;
 use frame_support::traits::{OnInitialize, OnFinalize};
 use std::net::{Ipv6Addr, Ipv4Addr};
 
+
+impl_outer_origin! {
+	pub enum Origin for Test {}
+}
+
 impl_outer_event! {
 	pub enum MetaEvent for Test {
 		system<T>,
@@ -25,9 +30,14 @@ impl_outer_event! {
 	}
 }
 
-impl_outer_origin! {
-	pub enum Origin for Test {}
+
+
+impl_outer_dispatch! {
+	pub enum Call for Test where origin: Origin {
+		self::SubtensorModule,
+	}
 }
+
 
 // Configure a mock runtime to test the pallet.
 
@@ -45,10 +55,10 @@ parameter_types! {
 	pub const MaxLocks: u32 = 1024;
 }
 
-impl system::Trait for Test {
+impl frame_system::Trait for Test {
 	type BaseCallFilter = ();
 	type Origin = Origin;
-	type Call = ();
+	type Call = Call;
 	type Index = AccountIndex;
 	type BlockNumber = BlockNumber;
 	type Hash = H256;
@@ -76,6 +86,7 @@ impl system::Trait for Test {
 impl Trait for Test {
 	type Event = ();
 	type Currency = Balances;
+
 }
 
 impl pallet_balances::Trait for Test {
@@ -88,19 +99,9 @@ impl pallet_balances::Trait for Test {
 	type MaxLocks = MaxLocks;
 }
 
-// impl pallet_balances::Config for Test {
-// 	type MaxLocks = MaxLocks;
-// 	type Balance = Balance;
-// 	type Event = MetaEvent;
-// 	type DustRemoval = ();
-// 	type ExistentialDeposit = ExistentialDeposit;
-// 	type AccountStore = System;
-// 	type WeightInfo = ();
-// }
 
 pub type SubtensorModule = Module<Test>;
-// type AccountIdOf<Test> = <Test as system::Trait>::AccountId;
-// type NeuronMetadataOf<Test> = <pallet_subtensor::Module<Test> as Trait>::NeuronMetadata;
+
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {

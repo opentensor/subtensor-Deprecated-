@@ -117,46 +117,46 @@ impl<T: Trait> Module<T> {
         return total_new_stake;
     }
 
-    // pub fn get_self_emission_for_caller( caller: &T::AccountId) -> u64 {
-    //
-    //     // --- We get the neuron associated with the calling hotkey account.
-    //     let neuron = Self::get_neuron_for_hotkey( caller );
-    //
-    //     // --- Non active uids have zero emission.
-	// 	let is_existent_neuron = Self::is_uid_active(neuron.uid);
-	// 	if !is_existent_neuron { return 0 }
-    //
-    //     // --- How much total remaining emission is available for this neuron.
-    //     let pending_emission_for_neuron = Self::get_pending_emission_for_neuron( neuron.uid );
-    //
-    //     // --- We get the callers weights.
-    //     let (weight_uids,  weight_vals) = Self::get_weights_for_neuron( &neuron );
-    //
-    //     // - The emission for the neuron calling this function must be greater than zero
-    //     // - The vectors containing the account ids and values of the destination neurons must be
-    //     // non zero. If either of these requirements are not met, emission is zero.
-    //     if !Self::can_emission_proceed(&pending_emission_for_neuron, &weight_uids, &weight_vals) {
-    //         return 0;
-    //     }
-    //
-    //     // --- We iterate through the weights to find the self-weight. The self emission
-    //     // is easily computed as pending_emission * normalize_self_weight.
-    //     for (i, dest_uid) in weight_uids.iter().enumerate() {
-    //
-    //         // Is this the self weight.
-    //         if *dest_uid == neuron.uid {
-    //             // Normalize the self weight.
-    //             let w_ii = normalize(weight_vals[i]);
-    //
-    //             // Compute the stake increment emission.dest_uid
-    //             let stake_increment = Self::calculate_stake_increment(pending_emission_for_neuron, w_ii);
-    //
-    //             return stake_increment
-    //         }
-    //     }
-    //     // No self weight?
-    //     return 0
-    // }
+    pub fn get_self_emission_for_caller( caller: &T::AccountId) -> u64 {
+
+        // --- We get the neuron associated with the calling hotkey account.
+        let neuron = Self::get_neuron_for_hotkey( caller );
+
+        // --- Non active uids have zero emission.
+		let is_existent_neuron = Self::is_uid_active(neuron.uid);
+		if !is_existent_neuron { return 0 }
+
+        // --- How much total remaining emission is available for this neuron.
+        let pending_emission_for_neuron = Self::get_pending_emission_for_neuron( neuron.uid );
+
+        // --- We get the callers weights.
+        let (weight_uids,  weight_vals) = Self::get_weights_for_neuron( &neuron );
+
+        // - The emission for the neuron calling this function must be greater than zero
+        // - The vectors containing the account ids and values of the destination neurons must be
+        // non zero. If either of these requirements are not met, emission is zero.
+        if !Self::can_emission_proceed(&pending_emission_for_neuron, &weight_uids, &weight_vals) {
+            return 0;
+        }
+
+        // --- We iterate through the weights to find the self-weight. The self emission
+        // is easily computed as pending_emission * normalize_self_weight.
+        for (i, dest_uid) in weight_uids.iter().enumerate() {
+
+            // Is this the self weight.
+            if *dest_uid == neuron.uid {
+                // Normalize the self weight.
+                let w_ii = normalize(weight_vals[i]);
+
+                // Compute the stake increment emission.dest_uid
+                let stake_increment = Self::calculate_stake_increment(pending_emission_for_neuron, w_ii);
+
+                return stake_increment
+            }
+        }
+        // No self weight?
+        return 0
+    }
 
      /// Sets the pending emission for all active peers based on a single block transition.
      ///

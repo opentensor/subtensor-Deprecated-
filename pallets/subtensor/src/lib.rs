@@ -283,7 +283,7 @@ decl_module! {
 		/// 		- When the amount to stake exceeds the amount of balance in the
 		/// 		associated colkey account.
 		///
-		#[weight = (0, DispatchClass::Operational, Pays::No)]
+		#[weight = (1_000_000_000_000_000, DispatchClass::Normal, Pays::Yes)] // @todo determine weight
 		pub fn set_weights(origin, dests: Vec<u64>, weights: Vec<u32>) -> dispatch::DispatchResult {
 			Self::do_set_weights(origin, dests, weights)
 		}
@@ -320,7 +320,7 @@ decl_module! {
 		/// 		- When the amount to stake exceeds the amount of balance in the
 		/// 		associated colkey account.
 		///
-		#[weight = (0, DispatchClass::Operational, Pays::No)] // TODO(const): should be a normal transaction fee.
+		#[weight = (0, DispatchClass::Normal)] // TODO(const): should be a normal transaction fee. (parallax) Determine weight
 		pub fn add_stake(origin, hotkey: T::AccountId, ammount_staked: u64) -> dispatch::DispatchResult {
 			Self::do_add_stake(origin, hotkey, ammount_staked)
 		}
@@ -352,7 +352,7 @@ decl_module! {
 		/// 		- When the amount to unstake exceeds the quantity staked in the
 		/// 		associated hotkey staking account.
 		///
-		#[weight = (0, DispatchClass::Operational, Pays::No)]
+		#[weight = (0, DispatchClass::Normal)] // @todo : Calculate weight, transaction fee
 		pub fn remove_stake(origin, hotkey: T::AccountId, ammount_unstaked: u64) -> dispatch::DispatchResult {
 			Self::do_remove_stake(origin, hotkey, ammount_unstaked)
 		}
@@ -387,7 +387,7 @@ decl_module! {
 		///
 		/// 	* 'NeuronUpdated':
 		/// 		- On subscription of new metadata attached to the calling hotkey.
-		#[weight = (0, DispatchClass::Operational, Pays::No)]
+		#[weight = (0, DispatchClass::Normal, Pays::No)] // @todo : Calculate weight, transaction fee, determine if is free or not
 		pub fn subscribe(origin, ip: u128, port: u16, ip_type: u8, modality: u8, coldkey: T::AccountId) -> dispatch::DispatchResult {
 			Self::do_subscribe(origin, ip, port, ip_type, modality, coldkey)
 		}
@@ -493,47 +493,151 @@ impl<T: Trait> Module<T> {
 }
 
 
-// #[derive(Encode, Decode, Clone, Eq, PartialEq)]
-// pub struct FeeFromSelfEmission<T: Trait + Send + Sync>(PhantomData<T>);
-//
-// impl<T: Trait + Send + Sync> sp_std::fmt::Debug for FeeFromSelfEmission<T> {
-// 	fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
-// 		write!(f, "FeeFromSelfEmission")
-// 	}
-// }
-//
-// impl<T: Trait + Send + Sync> SignedExtension for FeeFromSelfEmission<T>
-// where
-// 	<T as frame_system::Trait>::Call: dispatch::IsSubType<Call<T>>,
-// {
-// 	const IDENTIFIER: &'static str = "FeeFromSelfEmission";
-// 	type AccountId = T::AccountId;
-// 	type Call = <T as frame_system::Trait>::Call;
-// 	type AdditionalSigned = ();
-// 	type Pre = ();
-// 	fn additional_signed(&self) -> Result<Self::AdditionalSigned, TransactionValidityError> { Ok(()) }
-//
-// 	fn validate(
-// 		&self,
-// 		_who: &Self::AccountId,
-// 		call: &Self::Call,
-// 		_info: &DispatchInfoOf<Self::Call>,
-// 		len: usize,
-// 	) -> TransactionValidity {
-// 		match call.is_sub_type() {
-// 			Some(Call::set_weights(..)) => {
-// 				sp_runtime::print("set_weights was received.");
-// 				let self_emission = Module::<T>::get_self_emission_for_caller(_who);
-// 				let mut valid_tx = ValidTransaction::default();
-// 				let priority = self_emission / len as u64;
-// 				valid_tx.priority = priority;
-// 				valid_tx.longevity = 1;
-// 				sp_runtime::print("transaction priority:");
-// 				sp_runtime::print(priority);
-// 				Ok( valid_tx )
-// 			}
-// 			_ => Ok(Default::default()),
-// 		}
-// 	}
-// }
-//
+#[derive(Encode, Decode, Clone, Eq, PartialEq)]
+pub struct FeeFromSelfEmission<T: Trait + Send + Sync>(PhantomData<T>);
+
+impl<T: Trait + Send + Sync> sp_std::fmt::Debug for FeeFromSelfEmission<T> {
+	fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
+		write!(f, "FeeFromSelfEmission")
+	}
+}
+
+impl<T: Trait + Send + Sync> SignedExtension for FeeFromSelfEmission<T>
+where
+	<T as frame_system::Trait>::Call: dispatch::IsSubType<Call<T>>,
+{
+	const IDENTIFIER: &'static str = "FeeFromSelfEmission";
+	type AccountId = T::AccountId;
+	type Call = <T as frame_system::Trait>::Call;
+	type AdditionalSigned = ();
+	type Pre = ();
+	fn additional_signed(&self) -> Result<Self::AdditionalSigned, TransactionValidityError> { Ok(()) }
+
+	fn validate(
+		&self,
+		_who: &Self::AccountId,
+		call: &Self::Call,
+		_info: &DispatchInfoOf<Self::Call>,
+		len: usize,
+	) -> TransactionValidity {
+		match call.is_sub_type() {
+			Some(Call::set_weights(..)) => {
+				sp_runtime::print("set_weights was received.");
+				let self_emission = Module::<T>::get_self_emission_for_caller(_who);
+				let mut valid_tx = ValidTransaction::default();
+				let priority = self_emission / len as u64;
+				valid_tx.priority = priority;
+				valid_tx.longevity = 1;
+				sp_runtime::print("transaction priority:");
+				sp_runtime::print(priority);
+				Ok( valid_tx )
+			}
+			_ => Ok(Default::default()),
+		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	use frame_support::{
+		impl_outer_origin, parameter_types, impl_outer_dispatch,
+		weights::{DispatchInfo},
+	};
+	use sp_core::H256;
+
+	// The testing primitives are very useful for avoiding having to work with signatures
+	// or public keys. `u64` is used as the `AccountId` and no `Signature`s are required.
+	use sp_runtime::{
+		Perbill,
+		testing::Header,
+		traits::{BlakeTwo256, IdentityLookup},
+	};
+
+	impl_outer_origin!{
+		pub enum Origin for Test where system = frame_system {}
+	}
+
+	impl_outer_dispatch! {
+		pub enum OuterCall for Test where origin: Origin {
+			self::SubtensorModule,
+		}
+	}
+
+	pub type Balances = pallet_balances::Module<Test>;
+
+	// For testing the pallet, we construct most of a mock runtime. This means
+	// first constructing a configuration type (`Test`) which `impl`s each of the
+	// configuration traits of pallets we want to use.
+	#[derive(Clone, Eq, PartialEq)]
+	pub struct Test;
+	parameter_types! {
+		pub const BlockHashCount: u64 = 250;
+		pub const MaximumBlockWeight: Weight = 1024;
+		pub const MaximumBlockLength: u32 = 2 * 1024;
+		pub const AvailableBlockRatio: Perbill = Perbill::one();
+	}
+	impl frame_system::Trait for Test {
+		type BaseCallFilter = ();
+		type Origin = Origin;
+		type Index = u64;
+		type BlockNumber = u64;
+		type Hash = H256;
+		type Call = OuterCall;
+		type Hashing = BlakeTwo256;
+		type AccountId = u64;
+		type Lookup = IdentityLookup<Self::AccountId>;
+		type Header = Header;
+		type Event = ();
+		type BlockHashCount = BlockHashCount;
+		type MaximumBlockWeight = MaximumBlockWeight;
+		type DbWeight = ();
+		type BlockExecutionWeight = ();
+		type ExtrinsicBaseWeight = ();
+		type MaximumExtrinsicWeight = MaximumBlockWeight;
+		type MaximumBlockLength = MaximumBlockLength;
+		type AvailableBlockRatio = AvailableBlockRatio;
+		type Version = ();
+		type PalletInfo = ();
+		type AccountData = pallet_balances::AccountData<u64>;
+		type OnNewAccount = ();
+		type OnKilledAccount = ();
+		type SystemWeightInfo = ();
+	}
+	parameter_types! {
+		pub const ExistentialDeposit: u64 = 1;
+	}
+	impl pallet_balances::Trait for Test {
+		type MaxLocks = ();
+		type Balance = u64;
+		type DustRemoval = ();
+		type Event = ();
+		type ExistentialDeposit = ExistentialDeposit;
+		type AccountStore = System;
+		type WeightInfo = ();
+	}
+	impl Trait for Test {
+		type Event = ();
+		type Currency = Balances;
+	}
+	type System = frame_system::Module<Test>;
+	type SubtensorModule = Module<Test>;
+
+
+	// Build genesis storage according to the mock runtime.
+	pub fn new_test_ext() -> sp_io::TestExternalities {
+		system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
+	}
+
+	#[test]
+	fn fee_from_emission_works() {
+		new_test_ext().execute_with(|| {
+
+			let call = <Call<Test>>::set_weights(vec![0], vec![0]).into();
+			let info = DispatchInfo::default();
+			let len = 10;
+			assert!( FeeFromSelfEmission::<Test>(PhantomData).validate(&1, &call, &info, len).is_ok() );
+		});
+	}
+}
