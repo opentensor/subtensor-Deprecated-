@@ -80,6 +80,7 @@ pub struct NeuronMetadata <AccountId> {
 	pub coldkey: AccountId,
 }
 
+
 // ---- Subtensor storage items.
 decl_storage! {
 	trait Store for Module<T: Trait> as SubtensorModule {
