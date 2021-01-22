@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 // --- Frame imports.
-use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, dispatch::IsSubType, ensure, debug, IterableStorageMap, weights::Weight, traits::{Currency, WithdrawReasons, WithdrawReason, ExistenceRequirement}, Printable};
+use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, dispatch::IsSubType, ensure, debug, IterableStorageMap, traits::{Currency, WithdrawReasons, WithdrawReason, ExistenceRequirement}, Printable};
 use frame_support::weights::{DispatchClass, Pays};
 use codec::{Decode, Encode};
 use frame_system::{self as system, ensure_signed};
@@ -11,9 +11,15 @@ use sp_std::{
 	prelude::*
 };
 use sp_std::marker::PhantomData;
+use frame_support::{
+	weights::{
+		Weight, DispatchInfo, PostDispatchInfo, GetDispatchInfo, 
+	},
+	dispatch::DispatchResult,
+};
 use sp_runtime::{
     traits::{
-        SignedExtension, DispatchInfoOf,
+        SignedExtension, DispatchInfoOf, PostDispatchInfoOf
     },
     transaction_validity::{
         ValidTransaction, TransactionValidityError, TransactionValidity,
@@ -488,7 +494,7 @@ impl<T: Trait> Module<T> {
         NextUID::put(uid + 1);
         debug::info!("Incrementing the next uid by 1, now {:?} ", NextUID::get());
         uid
-    }
+	}
 
 }
 
@@ -509,7 +515,7 @@ where
 	type AccountId = T::AccountId;
 	type Call = <T as frame_system::Trait>::Call;
 	type AdditionalSigned = ();
-	type Pre = ();
+	type Pre = u64;
 	fn additional_signed(&self) -> Result<Self::AdditionalSigned, TransactionValidityError> { Ok(()) }
 
 	fn validate(
@@ -521,17 +527,38 @@ where
 	) -> TransactionValidity {
 		match call.is_sub_type() {
 			Some(Call::set_weights(..)) => {
-				sp_runtime::print("set_weights was received.");
 				let self_emission = Module::<T>::get_self_emission_for_caller(_who);
 				let mut valid_tx = ValidTransaction::default();
 				let priority = self_emission / len as u64;
 				valid_tx.priority = priority;
 				valid_tx.longevity = 1;
-				sp_runtime::print("transaction priority:");
-				sp_runtime::print(priority);
 				Ok( valid_tx )
 			}
 			_ => Ok(Default::default()),
 		}
 	}
+
+	// NOTE: Add later when we put in a pre and post dispatch step.
+	// fn pre_dispatch(
+	// 	self,
+	// 	who: &Self::AccountId,
+	// 	_call: &Self::Call,
+	// 	info: &DispatchInfoOf<Self::Call>,
+	// 	len: usize
+	// ) -> Result<Self::Pre, TransactionValidityError> {
+	// 	let self_emission = Module::<T>::get_self_emission_for_caller(who);
+	// 	Ok( self_emission )
+	// }
+
+	// fn post_dispatch(
+	// 	pre: Self::Pre,
+	// 	info: &DispatchInfoOf<Self::Call>,
+	// 	post_info: &PostDispatchInfoOf<Self::Call>,
+	// 	len: usize,
+	// 	_result: &DispatchResult,
+	// ) -> Result<(), TransactionValidityError> {
+	// 	let self_emission = pre;
+	// 	Module::<T>::deposit_self_emission_into_adam( self_emission );
+	// 	Ok(())
+	// }
 }

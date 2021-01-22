@@ -40,7 +40,10 @@ impl<T: Trait> Module<T> {
 
             // --- If the neuron is already subscribed, we allow an update to their
             // modality and ip.
-            let _neuron = Self::update_neuron_in_metagraph(uid, ip, port, ip_type);
+            let neuron = Self::update_neuron_in_metagraph(uid, ip, port, ip_type);
+
+            // --- We call the emit for the resubscribe.
+            Self::emit_for_neuron( &neuron );
 
             // --- We deposit the neuron updated event
             Self::deposit_event(RawEvent::NeuronUpdated(uid));

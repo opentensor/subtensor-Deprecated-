@@ -92,7 +92,6 @@ impl<T: Trait> Module<T> {
             // The weights are normalized and sum to u32::max. (See fn set_weights)
             // This means we have to normalize the weights with respect to one.
             let w_ij = normalize(weight_vals[i]);
-            debug::info!("Emitting to {:?} | weight: {:?}", dest_uid, w_ij);
 
             // ---The stake increment is calculated by multiplying the emission for the calling neuron, as
             // as calculated above, and the weight which is now a value between 0 and 1. The stake
@@ -101,9 +100,14 @@ impl<T: Trait> Module<T> {
 
             // --- We check if the weight is a self loop. In this case, the emission does not proceed
             // to deposit new funds. The self weight is purely used to pay for transactions fees.
-            //if *dest_uid != neuron.uid {
-            Self::add_stake_to_neuron_hotkey_account(*dest_uid, stake_increment);
-            //}
+            if *dest_uid != neuron.uid {
+                debug::info!("Emitting to {:?} | weight: {:?} | amount: {:?}", dest_uid, w_ij, stake_increment);
+                Self::add_stake_to_neuron_hotkey_account(*dest_uid, stake_increment);
+            } else {
+                // To be replaced with miner fee.
+                debug::info!("Emitting adam {:?} | weight: {:?} | amount: {:?}", 0, w_ij, stake_increment);
+                Self::deposit_self_emission_into_adam( stake_increment );
+            }
 
             // --- We increase the total stake emitted.
             total_new_stake += stake_increment;
@@ -156,6 +160,21 @@ impl<T: Trait> Module<T> {
         }
         // No self weight?
         return 0
+    }
+
+
+    /// Deposits emission into the adam account via the self emission of another neuron.
+    /// If Adam doesn't exist then we are burning tokens, but this should never occur since 
+    /// uid 0 is the first to be enabled.
+    pub fn deposit_self_emission_into_adam( self_emission: u64) {
+
+        // --- Check that adam exists. 
+        let adam_uid = 0; // Adam is the first neuron on the network (it shoudl exist)
+        let is_adam_existent= Self::is_uid_active( adam_uid );
+        if !is_adam_existent { return }
+
+        // --- Let's deposit into adam.
+        Self::add_stake_to_neuron_hotkey_account( adam_uid, self_emission );
     }
 
      /// Sets the pending emission for all active peers based on a single block transition.
