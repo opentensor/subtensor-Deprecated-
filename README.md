@@ -8,10 +8,21 @@
                                                                              
 ```
 
-                                                       
-                                                                   
+## System Requirements
+* The binaries in ./bin/release are x86_64 binaries to be used with the Linux kernel.  
+* Subtensor needs ~286 MiB to run.                      
+* Architectures other than x86_64 are currently not supported.
+* OSs other than Linux are currently not supported.               
 
+## Network requirements
+* Subtensor needs access to the public internet
+* Subtensor runs on ipv4
+* Subtensor listens on the following ports:
+1) 9944 - Websocket. This port is used by bittensor. It only accepts connections from localhost. Make sure this port is firewalled off from the public domain.
+2) 9933 - RPC. This port is opened, but not used.
+3) 30333 - p2p socket. This port accepts connections from other subtensor nodes. Make sure your firewall(s) allow incoming traffic to this port.
 
+* It is assumed your default outgoing traffic policy is ACCEPT. If not, make sure outbound traffic to port 30333 is allowed.
 
 
 
