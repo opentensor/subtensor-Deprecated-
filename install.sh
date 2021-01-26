@@ -11,7 +11,7 @@ UNIT_FILE="/etc/systemd/system/subtensor.service"
 DATA_DIR="/var/lib/subtensor"
 USERNAME="subtensor"
 BINARY="node-subtensor"
-
+CHAIN_DATA="$DATA_DIR/chains/kusanagi_mainnet/db"
 
 echo "[+] Copying ./bin/release/node-subtensor to /usr/local/bin/"
 cp ./bin/release/$BINARY /usr/local/bin
@@ -20,8 +20,16 @@ id -u $USERNAME &>/dev/null || (echo "[+] Creating user subtensor" && useradd --
 echo "[+] Creating data dir $DATA_DIR"
 mkdir -p $DATA_DIR
 
-echo "[+] Setting ownership of $DATA_DIR to $USERNAME:$USERNAME"
-chown $USERNAME:$USERNAME $DATA_DIR
+echo "[+] Checking if kusanagi chain data is already present"
+if [ -d $CHAIN_DATA ] ; then
+    echo "[!] kusanagi chain data is already present, skipping initialization of genesis block."
+else
+    echo "[+] kusanagi chain data is not present. This indicates a fresh install. Installing genesis block"
+    tar -xf ./bin/release/kusanagi_genesis.tar -C $DATA_DIR
+fi
+
+echo "[+] Setting ownership of $DATA_DIR and subdirs to $USERNAME:$USERNAME"
+chown -R $USERNAME:$USERNAME $DATA_DIR
 
 echo "[+] Creating unit file $UNIT_FILE"
 
