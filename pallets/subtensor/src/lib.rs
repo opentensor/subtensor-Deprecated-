@@ -486,7 +486,6 @@ impl<T: Trait> Module<T> {
         let uid = NextUID::get();
         assert!(uid < u64::MAX);  // The system should fail if this is ever reached.
         NextUID::put(uid + 1);
-        debug::info!("Incrementing the next uid by 1, now {:?} ", NextUID::get());
         uid
     }
 }
