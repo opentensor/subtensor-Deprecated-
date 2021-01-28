@@ -3294,7 +3294,7 @@ dependencies = [
  "pallet-subtensor",
  "pallet-sudo",
  "pallet-timestamp",
- "pallet-transaction-payment",
+ "pallet-transaction-payment 1.0.1",
  "pallet-transaction-payment-rpc-runtime-api",
  "parity-scale-codec",
  "serde",
@@ -3620,7 +3620,7 @@ dependencies = [
  "pallet-randomness-collective-flip",
  "pallet-scheduler",
  "pallet-timestamp",
- "pallet-transaction-payment",
+ "pallet-transaction-payment 2.0.0",
  "pallet-transaction-payment-rpc-runtime-api",
  "parity-scale-codec",
  "serde",
@@ -3671,6 +3671,24 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "sp-timestamp",
+]
+
+[[package]]
+name = "pallet-transaction-payment"
+version = "1.0.1"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "pallet-transaction-payment-rpc-runtime-api",
+ "parity-scale-codec",
+ "serde",
+ "smallvec 1.4.1",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "sp-storage",
 ]
 
 [[package]]

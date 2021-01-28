@@ -329,7 +329,6 @@ construct_runtime!(
 		Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
 		TransactionPayment: pallet_transaction_payment::{Module, Storage},
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
-		// Include the custom logic from the subtensor pallet in the runtime.
 		SubtensorModule: pallet_subtensor::{Module, Call, Storage, Event<T>},
 		Scheduler: pallet_scheduler::{Module, Call, Storage, Event<T>},
 	}
