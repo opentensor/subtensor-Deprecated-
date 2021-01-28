@@ -3294,7 +3294,7 @@ dependencies = [
  "pallet-subtensor",
  "pallet-sudo",
  "pallet-timestamp",
- "pallet-transaction-payment 1.0.1",
+ "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "parity-scale-codec",
  "serde",
@@ -3620,7 +3620,6 @@ dependencies = [
  "pallet-randomness-collective-flip",
  "pallet-scheduler",
  "pallet-timestamp",
- "pallet-transaction-payment 2.0.0",
  "pallet-transaction-payment-rpc-runtime-api",
  "parity-scale-codec",
  "serde",
@@ -3675,27 +3674,9 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-payment"
-version = "1.0.1"
-dependencies = [
- "frame-support",
- "frame-system",
- "pallet-balances",
- "pallet-transaction-payment-rpc-runtime-api",
- "parity-scale-codec",
- "serde",
- "smallvec 1.4.1",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "sp-storage",
-]
-
-[[package]]
-name = "pallet-transaction-payment"
-version = "2.0.0"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9fe2fc67f2eb123199a5b8fb89a8e1c30e5d6d6b1d98e0330bac85c0d8c46f1"
+checksum = "3a34775aaf85a16cb1db44a1bef33c4ce6ef327fedb0c8eda7543991ccee7f73"
 dependencies = [
  "frame-support",
  "frame-system",

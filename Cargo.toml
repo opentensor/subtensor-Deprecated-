@@ -6,6 +6,5 @@ members = [
     'node',
     'pallets/subtensor',
     'pallets/sudo',
-    'pallets/transaction-payment',
     'runtime',
 ]

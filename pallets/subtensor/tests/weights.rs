@@ -153,13 +153,13 @@ impl_outer_origin! {
 	parameter_types! {
 		pub const TransactionByteFee: Balance = 0;
 	}
-	impl pallet_transaction_payment::Trait for Runtime {
-		type Currency = Balances;
-		type OnTransactionPayment = ();
-		type TransactionByteFee = TransactionByteFee;
-		type WeightToFee = IdentityFee<Balance>;
-		type FeeMultiplierUpdate = ();
-	}
+	// impl pallet_transaction_payment::Trait for Runtime {
+	// 	type Currency = Balances;
+	// 	type OnTransactionPayment = ();
+	// 	type TransactionByteFee = TransactionByteFee;
+	// 	type WeightToFee = IdentityFee<Balance>;
+	// 	type FeeMultiplierUpdate = ();
+	// }
 	impl custom::Trait for Runtime {}
 
 	impl ValidateUnsigned for Runtime {
@@ -196,7 +196,7 @@ impl_outer_origin! {
 		frame_system::CheckEra<Runtime>,
 		frame_system::CheckNonce<Runtime>,
 		frame_system::CheckWeight<Runtime>,
-		pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+		pallet_subtensor::ChargeTransactionPayment<Runtime>,
 	);
 	type AllModules = (System, Balances, Custom);
 	type TestXt = sp_runtime::testing::TestXt<Call, SignedExtra>;
@@ -227,7 +227,7 @@ impl_outer_origin! {
 			frame_system::CheckEra::from(Era::Immortal),
 			frame_system::CheckNonce::from(nonce),
 			frame_system::CheckWeight::new(),
-			pallet_transaction_payment::ChargeTransactionPayment::from(fee)
+			pallet_subtensor::ChargeTransactionPayment::new()
 		)
 	}
 
@@ -243,7 +243,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 
 use pallet_subtensor::Call as SubtensorCall;
 use frame_support::weights::{GetDispatchInfo, DispatchInfo, DispatchClass, Pays};
-use pallet_transaction_payment::ChargeTransactionPayment;
+use pallet_subtensor::ChargeTransactionPayment;
 
 /***************************
   pub fn set_weights() tests

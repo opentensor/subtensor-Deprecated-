@@ -44,7 +44,6 @@ pallet-grandpa = { default-features = true, version = '2.0.0' }
 pallet-randomness-collective-flip = { default-features = true, version = '2.0.0' }
 #pallet-sudo = { default-features = true, version = '2.0.0' }
 pallet-timestamp = { default-features = true, version = '2.0.0' }
-pallet-transaction-payment = { default-features = true, version = '2.0.0' }
 pallet-transaction-payment-rpc-runtime-api = { default-features = true, version = '2.0.0' }
 pallet-scheduler = { default-features = true, version = '2.0.0' }
 sp-api = { default-features = true, version = '2.0.0' }
