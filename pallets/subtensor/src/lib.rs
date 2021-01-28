@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-// --- Frame imports.
+// --- Frame imports.bug
 use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, dispatch::IsSubType, ensure, debug, IterableStorageMap, traits::{Currency, WithdrawReasons, WithdrawReason, ExistenceRequirement}, Printable};
 use frame_support::weights::{DispatchClass, Pays};
 use codec::{Decode, Encode};
@@ -288,7 +288,7 @@ decl_module! {
 		/// 		- When the amount to stake exceeds the amount of balance in the
 		/// 		associated colkey account.
 		///
-		#[weight = (0, DispatchClass::Operational, Pays::No)]
+		#[weight = (0, DispatchClass::Normal, Pays::No)]
 		pub fn set_weights(origin, dests: Vec<u64>, weights: Vec<u32>) -> dispatch::DispatchResult {
 			Self::do_set_weights(origin, dests, weights)
 		}
@@ -392,7 +392,7 @@ decl_module! {
 		///
 		/// 	* 'NeuronUpdated':
 		/// 		- On subscription of new metadata attached to the calling hotkey.
-		#[weight = (0, DispatchClass::Operational, Pays::No)]
+		#[weight = (0, DispatchClass::Normal, Pays::No)]
 		pub fn subscribe(origin, ip: u128, port: u16, ip_type: u8, modality: u8, coldkey: T::AccountId) -> dispatch::DispatchResult {
 			Self::do_subscribe(origin, ip, port, ip_type, modality, coldkey)
 		}
@@ -539,26 +539,26 @@ where
 	}
 
 	// NOTE: Add later when we put in a pre and post dispatch step.
-	// fn pre_dispatch(
-	// 	self,
-	// 	who: &Self::AccountId,
-	// 	_call: &Self::Call,
-	// 	info: &DispatchInfoOf<Self::Call>,
-	// 	len: usize
-	// ) -> Result<Self::Pre, TransactionValidityError> {
-	// 	let self_emission = Module::<T>::get_self_emission_for_caller(who);
-	// 	Ok( self_emission )
-	// }
+	fn pre_dispatch(
+		self,
+		who: &Self::AccountId,
+		_call: &Self::Call,
+		info: &DispatchInfoOf<Self::Call>,
+		len: usize
+	) -> Result<Self::Pre, TransactionValidityError> {
+		let self_emission = Module::<T>::get_self_emission_for_caller(who);
+		Ok( self_emission )
+	}
 
-	// fn post_dispatch(
-	// 	pre: Self::Pre,
-	// 	info: &DispatchInfoOf<Self::Call>,
-	// 	post_info: &PostDispatchInfoOf<Self::Call>,
-	// 	len: usize,
-	// 	_result: &DispatchResult,
-	// ) -> Result<(), TransactionValidityError> {
-	// 	let self_emission = pre;
-	// 	Module::<T>::deposit_self_emission_into_adam( self_emission );
-	// 	Ok(())
-	// }
+	fn post_dispatch(
+		pre: Self::Pre,
+		info: &DispatchInfoOf<Self::Call>,
+		post_info: &PostDispatchInfoOf<Self::Call>,
+		len: usize,
+		_result: &DispatchResult,
+	) -> Result<(), TransactionValidityError> {
+		let self_emission = pre;
+		Module::<T>::deposit_self_emission_into_adam( self_emission );
+		Ok(())
+	}
 }

@@ -157,55 +157,54 @@ fn fee_from_emission_priority_with_neuron_and_adam() {
     });
 }
 
-// Put in later when we are using a pre and post dispatch step.
-// #[test]
-// fn pre_dispatch_works() {
-//     new_test_ext().execute_with(|| {
-//         let hotkey_account_id = 1;
-//         let neuron = subscribe_neuron(hotkey_account_id, 10, 666, 4, 0, 66);
-//         assert_ok!(SubtensorModule::set_weights(Origin::signed(hotkey_account_id), vec![neuron.uid], vec![u32::MAX]));
-//         SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, 1000000000); // Add the stake.
-//         let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
-//         let info = DispatchInfo::default();
-//         let len = 10;
-//         assert_eq!(FeeFromSelfEmission::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len).unwrap(), 0);
-//         run_to_block(1);
-//         assert_eq!(FeeFromSelfEmission::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len).unwrap(), 500000000);
-//     });
-// }
+#[test]
+fn pre_dispatch_works() {
+    new_test_ext().execute_with(|| {
+        let hotkey_account_id = 1;
+        let neuron = subscribe_neuron(hotkey_account_id, 10, 666, 4, 0, 66);
+        assert_ok!(SubtensorModule::set_weights(Origin::signed(hotkey_account_id), vec![neuron.uid], vec![u32::MAX]));
+        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, 1000000000); // Add the stake.
+        let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
+        let info = DispatchInfo::default();
+        let len = 10;
+        assert_eq!(FeeFromSelfEmission::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len).unwrap(), 0);
+        run_to_block(1);
+        assert_eq!(FeeFromSelfEmission::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len).unwrap(), 500000000);
+    });
+}
 
-// #[test]
-// fn post_dispatch_works() {
-//     new_test_ext().execute_with(|| {
-//         let hotkey_account_id = 1;
-//         let neuron = subscribe_neuron(hotkey_account_id, 10, 666, 4, 0, 66);
-//         assert_ok!(SubtensorModule::set_weights(Origin::signed(hotkey_account_id), vec![neuron.uid], vec![u32::MAX]));
-//         SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, 1000000000); // Add the stake.
-//         let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
-//         let info = DispatchInfo::default();
-//         let len = 10;
-//         run_to_block(1);
-//         let pre = FeeFromSelfEmission::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len).unwrap();
-//         assert!(FeeFromSelfEmission::<Test>::post_dispatch(pre, &info, &PostDispatchInfo {actual_weight: Some(0), pays_fee: Default::default()}, len, &Ok(())).is_ok());
-//         assert!(FeeFromSelfEmission::<Test>::post_dispatch(pre, &info, &PostDispatchInfo {actual_weight: Some(1000000000), pays_fee: Default::default()}, len, &Ok(())).is_ok());
-//     });
-// }
+#[test]
+fn post_dispatch_works() {
+    new_test_ext().execute_with(|| {
+        let hotkey_account_id = 1;
+        let neuron = subscribe_neuron(hotkey_account_id, 10, 666, 4, 0, 66);
+        assert_ok!(SubtensorModule::set_weights(Origin::signed(hotkey_account_id), vec![neuron.uid], vec![u32::MAX]));
+        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, 1000000000); // Add the stake.
+        let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
+        let info = DispatchInfo::default();
+        let len = 10;
+        run_to_block(1);
+        let pre = FeeFromSelfEmission::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len).unwrap();
+        assert!(FeeFromSelfEmission::<Test>::post_dispatch(pre, &info, &PostDispatchInfo {actual_weight: Some(0), pays_fee: Default::default()}, len, &Ok(())).is_ok());
+        assert!(FeeFromSelfEmission::<Test>::post_dispatch(pre, &info, &PostDispatchInfo {actual_weight: Some(1000000000), pays_fee: Default::default()}, len, &Ok(())).is_ok());
+    });
+}
 
-// #[test]
-// fn post_dispatch_deposit_works() {
-//     new_test_ext().execute_with(|| {
-//         let adam_account_id = 0;
-//         let adam = subscribe_neuron(adam_account_id, 10, 666, 4, 0, 66);
-//         let hotkey_account_id = 1;
-//         let neuron = subscribe_neuron(hotkey_account_id, 10, 666, 4, 0, 66);
-//         assert_ok!(SubtensorModule::set_weights(Origin::signed(hotkey_account_id), vec![neuron.uid], vec![u32::MAX]));
-//         SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, 1000000000); // Add the stake.
-//         let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
-//         let info = DispatchInfo::default();
-//         let len = 10;
-//         run_to_block(1);
-//         let pre = FeeFromSelfEmission::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len).unwrap();
-//         assert!(FeeFromSelfEmission::<Test>::post_dispatch(pre, &info, &PostDispatchInfo {actual_weight: Some(0), pays_fee: Default::default()}, len, &Ok(())).is_ok());
-//         assert_eq!(500000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(adam.uid)); // Check that adam has more stake now.
-//     });
-// }
+#[test]
+fn post_dispatch_deposit_works() {
+    new_test_ext().execute_with(|| {
+        let adam_account_id = 0;
+        let adam = subscribe_neuron(adam_account_id, 10, 666, 4, 0, 66);
+        let hotkey_account_id = 1;
+        let neuron = subscribe_neuron(hotkey_account_id, 10, 666, 4, 0, 66);
+        assert_ok!(SubtensorModule::set_weights(Origin::signed(hotkey_account_id), vec![neuron.uid], vec![u32::MAX]));
+        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, 1000000000); // Add the stake.
+        let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
+        let info = DispatchInfo::default();
+        let len = 10;
+        run_to_block(1);
+        let pre = FeeFromSelfEmission::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len).unwrap();
+        assert!(FeeFromSelfEmission::<Test>::post_dispatch(pre, &info, &PostDispatchInfo {actual_weight: Some(0), pays_fee: Default::default()}, len, &Ok(())).is_ok());
+        assert_eq!(500000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(adam.uid)); // Check that adam has more stake now.
+    });
+}
