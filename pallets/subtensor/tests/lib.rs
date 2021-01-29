@@ -96,7 +96,7 @@ fn fee_from_emission_priority_with_neuron_and_weights_and_stake_and_run_to_block
         run_to_block(1);
         assert_eq!( FeeFromSelfEmission::<Test>(PhantomData).validate(&hotkey_account_id, &call, &info, len).unwrap().priority, 50000000);
         assert_eq!( 1000000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that his stake has not increased.
-        let total_emission:u64 = SubtensorModule::emit_for_neuron(&neuron); // actually do the emission.
+        let _total_emission:u64 = SubtensorModule::emit_for_neuron(&neuron); // actually do the emission.
         assert_eq!( 1500000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that his stake has increased (he is adam)
     });
 }
@@ -106,7 +106,7 @@ fn test_emission_low_priority_but_emission_goes_to_user() {
     new_test_ext().execute_with(|| {
 
         let hotkey_account_id_1 = 1;
-        let neuron_1 = subscribe_neuron(hotkey_account_id_1, 10, 666, 4, 0, 66);
+        let _neuron_1 = subscribe_neuron(hotkey_account_id_1, 10, 666, 4, 0, 66);
 
         let hotkey_account_id_2 = 2;
         let neuron_2 = subscribe_neuron(hotkey_account_id_2, 10, 666, 4, 0, 66);
@@ -125,7 +125,7 @@ fn test_emission_low_priority_but_emission_goes_to_user() {
         assert_eq!( FeeFromSelfEmission::<Test>(PhantomData).validate(&hotkey_account_id_2, &call, &info, len).unwrap().priority, 0);
         run_to_block(1);
         assert_eq!( FeeFromSelfEmission::<Test>(PhantomData).validate(&hotkey_account_id_2, &call, &info, len).unwrap().priority, 0);
-        let total_emission:u64 = SubtensorModule::emit_for_neuron(&neuron_2); // actually do the emission.
+        let _total_emission:u64 = SubtensorModule::emit_for_neuron(&neuron_2); // actually do the emission.
         assert_eq!( 500000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron_3.uid));
     });
 }
@@ -151,7 +151,7 @@ fn fee_from_emission_priority_with_neuron_and_adam() {
         assert_eq!( FeeFromSelfEmission::<Test>(PhantomData).validate(&hotkey_account_id, &call, &info, len).unwrap().priority, 50000000);
         assert_eq!( 1000000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that his stake has not increased.
 
-        let total_emission:u64 = SubtensorModule::emit_for_neuron(&neuron); // actually do the emission.
+        let _total_emission:u64 = SubtensorModule::emit_for_neuron(&neuron); // actually do the emission.
         assert_eq!( 1000000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that his stake has increased (he is *not* adam)
         assert_eq!( 500000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(adam.uid)); // Check that his stake has increased (he is adam)
     });

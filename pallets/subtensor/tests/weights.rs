@@ -1,17 +1,14 @@
-use pallet_subtensor::{Module, Trait, NeuronMetadata};
+use pallet_subtensor::{Module};
 
-use sp_core::H256;
-use sp_runtime::{generic::Era, ApplyExtrinsicResult, Perbill, DispatchError, testing::{Digest, Header, Block}, traits::{Header as HeaderT, BlakeTwo256, IdentityLookup}, transaction_validity::{InvalidTransaction, UnknownTransaction, TransactionValidityError}, DispatchOutcome};
+use sp_runtime::{generic::Era, Perbill, DispatchError, testing::{Header, Block}, traits::{BlakeTwo256, IdentityLookup}, transaction_validity::{UnknownTransaction, TransactionValidityError}};
 use frame_support::{
-	impl_outer_event, impl_outer_origin, parameter_types, impl_outer_dispatch, debug,
-	weights::{Weight, RuntimeDbWeight, IdentityFee, WeightToFeePolynomial},
-	traits::{Currency, LockIdentifier, LockableCurrency, WithdrawReasons, WithdrawReason},
+	impl_outer_event, impl_outer_origin, parameter_types, impl_outer_dispatch,
+	weights::{Weight, RuntimeDbWeight},
 };
-use frame_system::{self as system, Call as SystemCall, ChainContext, LastRuntimeUpgradeInfo};
+use frame_system::{self as system, ChainContext};
 use pallet_balances::Call as BalancesCall;
-use hex_literal::hex;
 use pallet_balances as balances;
-use sp_runtime::traits::{ValidateUnsigned, SignedExtension};
+use sp_runtime::traits::{ValidateUnsigned};
 use sp_runtime::transaction_validity::{TransactionSource, TransactionValidity};
 use frame_support::traits::OnRuntimeUpgrade;
 
@@ -201,9 +198,6 @@ impl_outer_origin! {
 	type AllModules = (System, Balances, Custom);
 	type TestXt = sp_runtime::testing::TestXt<Call, SignedExtra>;
 
-	// Will contain `true` when the custom runtime logic was called.
-	const CUSTOM_ON_RUNTIME_KEY: &[u8] = &*b":custom:on_runtime";
-
 	struct CustomOnRuntimeUpgrade;
 	impl OnRuntimeUpgrade for CustomOnRuntimeUpgrade {
 		fn on_runtime_upgrade() -> Weight {
@@ -222,7 +216,7 @@ impl_outer_origin! {
 		CustomOnRuntimeUpgrade
 	>;
 
-	fn extra(nonce: u64, fee: Balance) -> SignedExtra {
+	fn extra(nonce: u64, _fee: Balance) -> SignedExtra {
 		(
 			frame_system::CheckEra::from(Era::Immortal),
 			frame_system::CheckNonce::from(nonce),
@@ -243,7 +237,6 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 
 use pallet_subtensor::Call as SubtensorCall;
 use frame_support::weights::{GetDispatchInfo, DispatchInfo, DispatchClass, Pays};
-use pallet_subtensor::ChargeTransactionPayment;
 
 /***************************
   pub fn set_weights() tests
@@ -270,7 +263,36 @@ fn test_set_weights_dispatch_info_ok() {
 #[test]
 fn test_set_weights_priority() {
 	new_test_ext().execute_with(|| {
-        assert!(true == false);
+		let w_uids = vec![1, 1];
+		let w_vals = vec![1, 1];
+
+		let call = Call::SubtensorModule(SubtensorCall::set_weights(w_uids, w_vals));
+
+
+		let xt = TestXt::new(call, sign_extra(1,0,0));
+		let result = Executive::apply_extrinsic(xt);
+
+		let trans_err = TransactionValidityError::Unknown(UnknownTransaction::CannotLookup);
+		let res : Result<Result<(), DispatchError>, TransactionValidityError> = Result::Err(trans_err);
+
+		assert_eq!(result, res);
+		//
+		// // assert_eq!(result, res);
+		// // // debug::info!("Error: {:?}", result.err());
+		// // //
+		// // // assert_eq!(result.err().unwrap(), TransactionValidityError);
+		//
+		// // like a InsecureFreeNormal
+		// let free_transaction = DispatchInfo {
+		// 	weight: 0,
+		// 	class: DispatchClass::Normal,
+		// 	pays_fee: Pays::No,
+		// };
+		// assert!(
+		// 	ChargeTransactionPayment::<Runtime>::from(0)
+		// 		.validate(&1, &call, &free_transaction , 100)
+		// 		.is_ok()
+		// );
 	});
 }
 

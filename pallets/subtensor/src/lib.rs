@@ -13,7 +13,7 @@ use sp_std::{
 use sp_std::marker::PhantomData;
 use frame_support::{
 	weights::{
-		Weight, DispatchInfo, PostDispatchInfo, GetDispatchInfo, 
+		Weight, DispatchInfo, PostDispatchInfo
 	},
 	dispatch::DispatchResult,
 };
@@ -22,8 +22,7 @@ use sp_runtime::{traits::{
 }, transaction_validity::{
 	ValidTransaction, TransactionValidityError, TransactionValidity,
 }, FixedPointOperand};
-use sp_runtime::traits::{Dispatchable, Saturating};
-use sp_runtime::transaction_validity::InvalidTransaction;
+use sp_runtime::traits::{Dispatchable};
 
 mod weights;
 mod staking;
@@ -545,8 +544,8 @@ where
 		self,
 		who: &Self::AccountId,
 		_call: &Self::Call,
-		info: &DispatchInfoOf<Self::Call>,
-		len: usize
+		_info: &DispatchInfoOf<Self::Call>,
+		_len: usize
 	) -> Result<Self::Pre, TransactionValidityError> {
 		let self_emission = Module::<T>::get_self_emission_for_caller(who);
 		Ok( self_emission )
@@ -554,9 +553,9 @@ where
 
 	fn post_dispatch(
 		pre: Self::Pre,
-		info: &DispatchInfoOf<Self::Call>,
-		post_info: &PostDispatchInfoOf<Self::Call>,
-		len: usize,
+		_info: &DispatchInfoOf<Self::Call>,
+		_post_info: &PostDispatchInfoOf<Self::Call>,
+		_len: usize,
 		_result: &DispatchResult,
 	) -> Result<(), TransactionValidityError> {
 		let self_emission = pre;
@@ -614,10 +613,10 @@ impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T> whe
 
 	fn validate(
 		&self,
-		who: &Self::AccountId,
+		_who: &Self::AccountId,
 		_call: &Self::Call,
-		info: &DispatchInfoOf<Self::Call>,
-		len: usize,
+		_info: &DispatchInfoOf<Self::Call>,
+		_len: usize,
 	) -> TransactionValidity {
 		// let (fee, _) = self.withdraw_fee(who, info, len)?;
 		// Ok(ValidTransaction {
@@ -629,10 +628,10 @@ impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T> whe
 
 	fn pre_dispatch(
 		self,
-		who: &Self::AccountId,
+		_who: &Self::AccountId,
 		_call: &Self::Call,
-		info: &DispatchInfoOf<Self::Call>,
-		len: usize
+		_info: &DispatchInfoOf<Self::Call>,
+		_len: usize
 	) -> Result<Self::Pre, TransactionValidityError> {
 		// let (fee, imbalance) = self.withdraw_fee(who, info, len)?;
 		// Ok((self.0, who.clone(), imbalance, fee))
@@ -640,10 +639,10 @@ impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T> whe
 	}
 
 	fn post_dispatch(
-		pre: Self::Pre,
-		info: &DispatchInfoOf<Self::Call>,
-		post_info: &PostDispatchInfoOf<Self::Call>,
-		len: usize,
+		_pre: Self::Pre,
+		_info: &DispatchInfoOf<Self::Call>,
+		_post_info: &PostDispatchInfoOf<Self::Call>,
+		_len: usize,
 		_result: &DispatchResult,
 	) -> Result<(), TransactionValidityError> {
 		// let (tip, who, imbalance, fee) = pre;
