@@ -14,6 +14,8 @@ use sp_runtime::transaction_validity::{TransactionSource, TransactionValidity};
 use frame_support::traits::OnRuntimeUpgrade;
 use frame_support::codec::{Codec};
 
+use frame_support::{assert_ok};
+
 
 const TEST_KEY: &[u8] = &*b":test:key:";
 
@@ -243,25 +245,50 @@ fn test_set_weights_dispatch_info_ok() {
 
 
 #[test]
-fn test_set_weights_priority() {
+fn test_set_weights_adam_receives_funds() {
 	new_test_ext().execute_with(|| {
-		let w_uids = vec![0, 1]; // This indicates the self weight
-		let w_vals = vec![1, 1];
+		let w_uids = vec![1, 2]; // When applied to neuron_1, this will set 50% to himself and 50% to neuron_2
+		let w_vals = vec![50, 50];
 
-		let _neuron0 = subscribe_ok_neuron(0, 666); // uid 0
-		let _neuron1 = subscribe_ok_neuron(1, 666); // uid 1
+		let adam_id = 0;
+		let neuron_1_id = 1;
+
+		let _neuron_adam =  subscribe_ok_neuron(adam_id, 666); // uid 0
+		let _neuron1 = subscribe_ok_neuron(neuron_1_id, 666); // uid 1
+
+		// Add 1 Tao to neuron 1. He now hold 100% of the stake, so will get the full emission,
+		// also he only has a self_weight.
+		SubtensorModule::add_stake_to_neuron_hotkey_account(1, 1_000_000_000);
+
+		// Move to block, to build up pending emission
+		mock::run_to_block(1); // This will release 1 Tao. 0.5 for block 0, 0.5 for block 1
+
+		// Verify adam's stake == 0
+		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(adam_id), 0);
 
 		// Define the call
 		let call = Call::SubtensorModule(SubtensorCall::set_weights(w_uids, w_vals));
 
 		// Setup the extrinsic
-		let xt = TestXt::new(call, sign_extra(0,0));
+		let xt = TestXt::new(call, sign_extra(1,0)); // Apply t
 
-		// Execute
+		// Execute. This will trigger the set_weights function to emit, before the new weights are set.
+		// Resulting in Adam getting his full emission.
 		let result = Executive::apply_extrinsic(xt);
 
-		let trans_err = TransactionValidityError::Unknown(UnknownTransaction::CannotLookup);
-		let res : Result<Result<(), DispatchError>, TransactionValidityError> = Result::Err(trans_err);
+		// Verfify success
+		assert_ok!(result);
+
+		// let trans_err = TransactionValidityError::Unknown(UnknownTransaction::CannotLookup);
+		// let res : Result<Result<(), DispatchError>, TransactionValidityError> = Result::Err(trans_err);
+
+		let adam_new_stake = SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(adam_id);
+		let neuron_1_new_stake = SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron_1_id);
+
+		assert_eq!(adam_new_stake, 500_000_000);
+		assert_eq!(neuron_1_new_stake, 1_000_000_000);  // Neuron 1 maintains its stake
+
+		// let api = TestApi::empty();
 
 	});
 }

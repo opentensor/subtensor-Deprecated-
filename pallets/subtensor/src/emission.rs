@@ -143,6 +143,7 @@ impl<T: Trait> Module<T> {
             return 0;
         }
 
+
         // --- We iterate through the weights to find the self-weight. The self emission
         // is easily computed as pending_emission * normalize_self_weight.
         for (i, dest_uid) in weight_uids.iter().enumerate() {
@@ -167,8 +168,7 @@ impl<T: Trait> Module<T> {
     /// If Adam doesn't exist then we are burning tokens, but this should never occur since 
     /// uid 0 is the first to be enabled.
     pub fn deposit_self_emission_into_adam( self_emission: u64) {
-
-        // --- Check that adam exists. 
+        // --- Check that adam exists.
         let adam_uid = 0; // Adam is the first neuron on the network (it shoudl exist)
         let is_adam_existent= Self::is_uid_active( adam_uid );
         if !is_adam_existent { return }

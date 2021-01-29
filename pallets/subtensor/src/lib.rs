@@ -293,9 +293,8 @@ decl_module! {
 		/// 		associated colkey account.
 		///
 		#[weight = (0, DispatchClass::Normal, Pays::No)]
-		pub fn set_weights(origin, dests: Vec<u64>, weights: Vec<u32>) -> dispatch::DispatchResultWithPostInfo {
-			Self::do_set_weights(origin, dests, weights);
-			Ok(Some(10_000).into())
+		pub fn set_weights(origin, dests: Vec<u64>, weights: Vec<u32>) -> dispatch::DispatchResult {
+			Self::do_set_weights(origin, dests, weights)
 		}
 
 		/// --- Adds stake to a neuron account. The call is made from the
@@ -541,7 +540,6 @@ where
 		_info: &DispatchInfoOf<Self::Call>,
 		len: usize,
 	) -> TransactionValidity {
-		assert!(true==false);
 		match call.is_sub_type() {
 			Some(Call::set_weights(..)) => {
 				let self_emission = Module::<T>::get_self_emission_for_caller(_who);
@@ -558,16 +556,22 @@ where
 	// NOTE: Add later when we put in a pre and post dispatch step.
 	fn pre_dispatch(
 		self,
-		who: &Self::AccountId,
-		_call: &Self::Call,
+		_who: &Self::AccountId,
+		call: &Self::Call,
 		_info: &DispatchInfoOf<Self::Call>,
-		_len: usize
+		len: usize
 	) -> Result<Self::Pre, TransactionValidityError> {
-		let self_emission = Module::<T>::get_self_emission_for_caller(who);
-
-		println!("pre_dispatch fee_bleeh");
-
-		Ok( self_emission )
+		match call.is_sub_type() {
+			Some(Call::set_weights(..)) => {
+				let self_emission = Module::<T>::get_self_emission_for_caller(_who);
+				let mut valid_tx = ValidTransaction::default();
+				let priority = self_emission / len as u64;
+				valid_tx.priority = priority;
+				valid_tx.longevity = 1;
+				Ok( self_emission )
+			}
+			_ => Ok(Default::default()),
+		}
 	}
 
 	fn post_dispatch(
@@ -577,13 +581,8 @@ where
 		_len: usize,
 		_result: &DispatchResult,
 	) -> Result<(), TransactionValidityError> {
-
-		println!("Triggered post dispatch");
-
-		assert!(true==false);
-
-
 		let self_emission = pre;
+
 		Module::<T>::deposit_self_emission_into_adam( self_emission );
 		Ok(())
 	}
@@ -644,7 +643,6 @@ impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T> whe
 		_info: &DispatchInfoOf<Self::Call>,
 		_len: usize,
 	) -> TransactionValidity {
-		assert!(true == false);
 		// let (fee, _) = self.withdraw_fee(who, info, len)?;
 		// Ok(ValidTransaction {
 		// 	priority: Self::get_priority(len, info, fee),
@@ -660,8 +658,6 @@ impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T> whe
 		_info: &DispatchInfoOf<Self::Call>,
 		_len: usize
 	) -> Result<Self::Pre, TransactionValidityError> {
-
-		println!("pre_dispatch charge_transaction_payment");
 		// match call.is_sub_type() {
 		// 	Some(Call::set_weights(..)) => {
 		// 		// The payment of set_weight extrinsics is handled by the FeeFromSelfEmission signed extension.
@@ -669,6 +665,8 @@ impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T> whe
 		// 	}
 		// 	_ => Err(InvalidTransaction::Payment.into())
 		// }
+
+		println!("SHOULD NOT COME HERE");
 
 		// let (fee, imbalance) = self.withdraw_fee(who, info, len)?;
 		// Ok((self.0, who.clone(), imbalance, fee))
@@ -682,9 +680,6 @@ impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T> whe
 		_len: usize,
 		_result: &DispatchResult,
 	) -> Result<(), TransactionValidityError> {
-		println!("TESSETSE");
-
-		assert!(true==false);
 		// let (tip, who, imbalance, fee) = pre;
 		// if let Some(payed) = imbalance {
 		// 	let actual_fee = Module::<T>::compute_actual_fee(
