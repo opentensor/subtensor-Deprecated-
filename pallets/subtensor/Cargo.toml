@@ -5,7 +5,7 @@ edition = '2018'
 homepage = 'https://www.bittensor.com'
 license = 'MIT'
 name = 'pallet-subtensor'
-version = '1.0.2'
+version = '1.0.1'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
@@ -24,41 +24,21 @@ frame-system = { default-features = false, version = '2.0.0' }
 sp-std = { version = '2.0.0', default-features = false }
 sp-arithmetic = { version = '2.0.0', default-features = false }
 sp-runtime = { default-features = false, version = '2.0.0' }
+sp-transaction-pool = { default-features = false, version = '2.0.0' }
 pallet-balances = { default-features = false, version = '2.0.0' }
 fixed = { default-features = false, version = '1.5' }
 
 [dev-dependencies]
-hex-literal = { version = '0.3.1' }
-serde = { features = ['derive'], version = '1.0.101' }
-
-# Substrate dependencies
-frame-benchmarking = { default-features = true, version = '2.0.0' }
-frame-executive = { default-features = true, version = '2.0.0' }
-frame-support = { default-features = true, version = '2.0.0' }
-frame-system = { default-features = true, version = '2.0.0' }
-frame-system-benchmarking = { default-features = true, version = '2.0.0' }
-frame-system-rpc-runtime-api = { default-features = true, version = '2.0.0' }
-pallet-aura = { default-features = true, version = '2.0.0' }
-pallet-balances = { default-features = true, version = '2.0.0' }
-pallet-grandpa = { default-features = true, version = '2.0.0' }
-pallet-randomness-collective-flip = { default-features = true, version = '2.0.0' }
-#pallet-sudo = { default-features = true, version = '2.0.0' }
-pallet-timestamp = { default-features = true, version = '2.0.0' }
-pallet-transaction-payment-rpc-runtime-api = { default-features = true, version = '2.0.0' }
-pallet-scheduler = { default-features = true, version = '2.0.0' }
-sp-api = { default-features = true, version = '2.0.0' }
-sp-block-builder = { default-features = true, version = '2.0.0' }
-sp-consensus-aura = { default-features = true, version = '0.8.0' }
-sp-core = { default-features = true, version = '2.0.0' }
-sp-inherents = { default-features = true, version = '2.0.0' }
-sp-offchain = { default-features = true, version = '2.0.0' }
-sp-runtime = { default-features = true, version = '2.0.0' }
-sp-session = { default-features = true, version = '2.0.0' }
-sp-std = { default-features = true, version = '2.0.0' }
-sp-arithmetic = { default-features = true, version = '2.0.0'}
-sp-transaction-pool = { default-features = true, version = '2.0.0' }
-sp-version = { default-features = true, version = '2.0.0' }
-sp-io = { default-features = true, version = '2.0.0' }
+sp-core = { default-features = false, version = '2.0.0' }
+sp-io = { default-features = false, version = '2.0.0' }
+sp-std = { version = '2.0.0', default-features = false }
+sp-version = { version = '2.0.0'}
+sp-api = { version = '2.0.0', features = ['std']}
+frame-executive = {version = "2.0.0", features = ['std'] }
+serde = { version = "1.0.101", features = ['std'] }
+parity-util-mem = { version = "0.7.0", features = ['primitive-types']}
+rand = { version = "0.7.2"  }
+sp-application-crypto = { version = "2.0.0" }
 
 [features]
 default = ['std']

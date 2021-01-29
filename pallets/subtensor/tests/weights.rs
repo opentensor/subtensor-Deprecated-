@@ -1,6 +1,7 @@
-use pallet_subtensor::{Module};
-
-use sp_runtime::{generic::Era, Perbill, DispatchError, testing::{Header, Block}, traits::{BlakeTwo256, IdentityLookup}, transaction_validity::{UnknownTransaction, TransactionValidityError}};
+use pallet_subtensor::{Module, NeuronMetadata};
+mod test_xt;
+use sp_runtime::testing::{Header, Block};
+use sp_runtime::{generic::Era, Perbill, DispatchError, traits::{BlakeTwo256, IdentityLookup}, transaction_validity::{UnknownTransaction, TransactionValidityError}, ApplyExtrinsicResultWithInfo};
 use frame_support::{
 	impl_outer_event, impl_outer_origin, parameter_types, impl_outer_dispatch,
 	weights::{Weight, RuntimeDbWeight},
@@ -8,65 +9,24 @@ use frame_support::{
 use frame_system::{self as system, ChainContext};
 use pallet_balances::Call as BalancesCall;
 use pallet_balances as balances;
-use sp_runtime::traits::{ValidateUnsigned};
+use sp_runtime::traits::{ValidateUnsigned, Applyable, Dispatchable, SignedExtension, DispatchInfoOf, PostDispatchInfoOf};
 use sp_runtime::transaction_validity::{TransactionSource, TransactionValidity};
 use frame_support::traits::OnRuntimeUpgrade;
-
+use frame_support::codec::{Codec};
 
 
 const TEST_KEY: &[u8] = &*b":test:key:";
 
 type SubtensorModule = Module<Runtime>;
 
-mod custom {
-	use frame_support::weights::{Weight, DispatchClass};
-
-	pub trait Trait: frame_system::Trait {}
-
-	frame_support::decl_module! {
-		pub struct Module<T: Trait> for enum Call where origin: T::Origin {
-			#[weight = 100]
-			fn some_function(origin) {
-				// NOTE: does not make any different.
-				let _ = frame_system::ensure_signed(origin);
-			}
-			#[weight = (200, DispatchClass::Operational)]
-			fn some_root_operation(origin) {
-				let _ = frame_system::ensure_root(origin);
-			}
-			#[weight = 0]
-			fn some_unsigned_message(origin) {
-				let _ = frame_system::ensure_none(origin);
-			}
-
-			// module hooks.
-			// one with block number arg and one without
-			fn on_initialize(n: T::BlockNumber) -> Weight {
-				println!("on_initialize({})", n);
-				175
-			}
-
-			fn on_finalize() {
-				println!("on_finalize(?)");
-			}
-
-			fn on_runtime_upgrade() -> Weight {
-				sp_io::storage::set(super::TEST_KEY, "module".as_bytes());
-				0
-			}
-		}
-	}
-}
 
 type System = frame_system::Module<Runtime>;
 type Balances = pallet_balances::Module<Runtime>;
-type Custom = custom::Module<Runtime>;
+type AccountId = u64;
 
 
 
-
-
-impl_outer_origin! {
+	impl_outer_origin! {
 		pub enum Origin for Runtime { }
 	}
 
@@ -157,15 +117,16 @@ impl_outer_origin! {
 	// 	type WeightToFee = IdentityFee<Balance>;
 	// 	type FeeMultiplierUpdate = ();
 	// }
-	impl custom::Trait for Runtime {}
 
 	impl ValidateUnsigned for Runtime {
 		type Call = Call;
-
-		fn pre_dispatch(_call: &Self::Call) -> Result<(), TransactionValidityError> {
-			Ok(())
-		}
-
+		//
+		// fn pre_dispatch(_call: &Self::Call) -> Result<(), TransactionValidityError> {
+		// 	Ok(())
+		// }
+		//
+		//
+		//
 		fn validate_unsigned(
 			_source: TransactionSource,
 			call: &Self::Call,
@@ -194,9 +155,14 @@ impl_outer_origin! {
 		frame_system::CheckNonce<Runtime>,
 		frame_system::CheckWeight<Runtime>,
 		pallet_subtensor::ChargeTransactionPayment<Runtime>,
+		pallet_subtensor::FeeFromSelfEmission<Runtime>
 	);
-	type AllModules = (System, Balances, Custom);
-	type TestXt = sp_runtime::testing::TestXt<Call, SignedExtra>;
+	type AllModules = (System, Balances, SubtensorModule);
+	// type TestXt = mock::TestXt<Call, SignedExtra>;
+
+	type TestXt = test_xt::TestXt<Call, SignedExtra>;
+
+
 
 	struct CustomOnRuntimeUpgrade;
 	impl OnRuntimeUpgrade for CustomOnRuntimeUpgrade {
@@ -216,17 +182,18 @@ impl_outer_origin! {
 		CustomOnRuntimeUpgrade
 	>;
 
-	fn extra(nonce: u64, _fee: Balance) -> SignedExtra {
+	fn extra(nonce: u64) -> SignedExtra {
 		(
 			frame_system::CheckEra::from(Era::Immortal),
 			frame_system::CheckNonce::from(nonce),
 			frame_system::CheckWeight::new(),
-			pallet_subtensor::ChargeTransactionPayment::new()
+			pallet_subtensor::ChargeTransactionPayment::new(),
+			pallet_subtensor::FeeFromSelfEmission::new()
 		)
 	}
 
-	fn sign_extra(who: u64, nonce: u64, fee: Balance) -> Option<(u64, SignedExtra)> {
-		Some((who, extra(nonce, fee)))
+	fn sign_extra(who: u64, nonce: u64) -> Option<(u64, SignedExtra)> {
+		Some((who, extra(nonce)))
 	}
 
 
@@ -235,8 +202,23 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	system::GenesisConfig::default().build_storage::<Runtime>().unwrap().into()
 }
 
+mod mock;
+use mock::ipv4;
+
+pub fn subscribe_neuron(hotkey_account_id : u64, ip: u128, port: u16, ip_type : u8, modality: u8, coldkey_acount_id : u64) -> NeuronMetadata<u64> {
+	let _result = SubtensorModule::subscribe(Origin::signed(hotkey_account_id), ip, port, ip_type, modality, coldkey_acount_id);
+	let neuron = SubtensorModule::get_neuron_for_hotkey(&hotkey_account_id);
+	neuron
+}
+
+pub fn subscribe_ok_neuron(hotkey_account_id : u64,  coldkey_account_id : u64) -> NeuronMetadata<u64> {
+	return subscribe_neuron(hotkey_account_id, ipv4(8,8,8,8), 66, 4, 0, coldkey_account_id );
+}
+
 use pallet_subtensor::Call as SubtensorCall;
 use frame_support::weights::{GetDispatchInfo, DispatchInfo, DispatchClass, Pays};
+use sp_std::fmt::Debug;
+use sp_runtime::generic::CheckedExtrinsic;
 
 /***************************
   pub fn set_weights() tests
@@ -263,68 +245,27 @@ fn test_set_weights_dispatch_info_ok() {
 #[test]
 fn test_set_weights_priority() {
 	new_test_ext().execute_with(|| {
-		let w_uids = vec![1, 1];
+		let w_uids = vec![0, 1]; // This indicates the self weight
 		let w_vals = vec![1, 1];
 
+		let _neuron0 = subscribe_ok_neuron(0, 666); // uid 0
+		let _neuron1 = subscribe_ok_neuron(1, 666); // uid 1
+
+		// Define the call
 		let call = Call::SubtensorModule(SubtensorCall::set_weights(w_uids, w_vals));
 
+		// Setup the extrinsic
+		let xt = TestXt::new(call, sign_extra(0,0));
 
-		let xt = TestXt::new(call, sign_extra(1,0,0));
+		// Execute
 		let result = Executive::apply_extrinsic(xt);
 
 		let trans_err = TransactionValidityError::Unknown(UnknownTransaction::CannotLookup);
 		let res : Result<Result<(), DispatchError>, TransactionValidityError> = Result::Err(trans_err);
 
-		assert_eq!(result, res);
-		//
-		// // assert_eq!(result, res);
-		// // // debug::info!("Error: {:?}", result.err());
-		// // //
-		// // // assert_eq!(result.err().unwrap(), TransactionValidityError);
-		//
-		// // like a InsecureFreeNormal
-		// let free_transaction = DispatchInfo {
-		// 	weight: 0,
-		// 	class: DispatchClass::Normal,
-		// 	pays_fee: Pays::No,
-		// };
-		// assert!(
-		// 	ChargeTransactionPayment::<Runtime>::from(0)
-		// 		.validate(&1, &call, &free_transaction , 100)
-		// 		.is_ok()
-		// );
 	});
 }
 
-
-//
-// 		// let xt = TestXt::new(call, sign_extra(1,0,0));
-// 		//
-// 		// let result = Executive::apply_extrinsic(xt);
-//
-//
-// 		// let dispatch_err = DispatchError::BadOrigin;
-// 		// let trans_err = TransactionValidityError::Unknown(UnknownTransaction::CannotLookup);
-// 		// let res : Result<Result<(), DispatchError>, TransactionValidityError> = Result::Err(trans_err);
-// 		//
-// 		// assert_eq!(result, res);
-// 		// // debug::info!("Error: {:?}", result.err());
-// 		// //
-// 		// // assert_eq!(result.err().unwrap(), TransactionValidityError);
-//
-// 		// like a InsecureFreeNormal
-// 		let free_transaction = DispatchInfo {
-// 			weight: 0,
-// 			class: DispatchClass::Normal,
-// 			pays_fee: Pays::No,
-// 		};
-// 		assert!(
-// 			ChargeTransactionPayment::<Runtime>::from(0)
-// 				.validate(&1, &call, &free_transaction , 100)
-// 				.is_ok()
-// 		);
-// 	});
-// }
 
 
 

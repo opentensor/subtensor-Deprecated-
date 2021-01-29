@@ -17,12 +17,18 @@ use frame_support::{
 	},
 	dispatch::DispatchResult,
 };
-use sp_runtime::{traits::{
-	SignedExtension, DispatchInfoOf, PostDispatchInfoOf
-}, transaction_validity::{
-	ValidTransaction, TransactionValidityError, TransactionValidity,
-}, FixedPointOperand};
+use sp_runtime::{
+	traits::{
+		SignedExtension, DispatchInfoOf, PostDispatchInfoOf,
+	},
+	transaction_validity::{
+		ValidTransaction, TransactionValidityError, TransactionValidity,InvalidTransaction
+	},
+	FixedPointOperand
+};
+
 use sp_runtime::traits::{Dispatchable};
+use pallet_balances::Error::DeadAccount;
 
 mod weights;
 mod staking;
@@ -287,8 +293,9 @@ decl_module! {
 		/// 		associated colkey account.
 		///
 		#[weight = (0, DispatchClass::Normal, Pays::No)]
-		pub fn set_weights(origin, dests: Vec<u64>, weights: Vec<u32>) -> dispatch::DispatchResult {
-			Self::do_set_weights(origin, dests, weights)
+		pub fn set_weights(origin, dests: Vec<u64>, weights: Vec<u32>) -> dispatch::DispatchResultWithPostInfo {
+			Self::do_set_weights(origin, dests, weights);
+			Ok(Some(10_000).into())
 		}
 
 		/// --- Adds stake to a neuron account. The call is made from the
@@ -499,6 +506,14 @@ impl<T: Trait> Module<T> {
 #[derive(Encode, Decode, Clone, Eq, PartialEq)]
 pub struct FeeFromSelfEmission<T: Trait + Send + Sync>(pub PhantomData<T>);
 
+impl<T: Trait + Send + Sync> FeeFromSelfEmission<T> where
+	T::Call: Dispatchable<Info=DispatchInfo, PostInfo=PostDispatchInfo>,
+	BalanceOf<T>: Send + Sync + FixedPointOperand,
+{
+	pub fn new() -> Self {
+		Self(Default::default())
+	}
+}
 
 
 
@@ -526,6 +541,7 @@ where
 		_info: &DispatchInfoOf<Self::Call>,
 		len: usize,
 	) -> TransactionValidity {
+		assert!(true==false);
 		match call.is_sub_type() {
 			Some(Call::set_weights(..)) => {
 				let self_emission = Module::<T>::get_self_emission_for_caller(_who);
@@ -548,6 +564,9 @@ where
 		_len: usize
 	) -> Result<Self::Pre, TransactionValidityError> {
 		let self_emission = Module::<T>::get_self_emission_for_caller(who);
+
+		println!("pre_dispatch fee_bleeh");
+
 		Ok( self_emission )
 	}
 
@@ -558,6 +577,12 @@ where
 		_len: usize,
 		_result: &DispatchResult,
 	) -> Result<(), TransactionValidityError> {
+
+		println!("Triggered post dispatch");
+
+		assert!(true==false);
+
+
 		let self_emission = pre;
 		Module::<T>::deposit_self_emission_into_adam( self_emission );
 		Ok(())
@@ -603,6 +628,7 @@ impl<T: Trait + Send + Sync> sp_std::fmt::Debug for ChargeTransactionPayment<T> 
 impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T> where
 	BalanceOf<T>: Send + Sync + From<u64> + FixedPointOperand,
 	T::Call: Dispatchable<Info=DispatchInfo, PostInfo=PostDispatchInfo>,
+	// <T as frame_system::Trait>::Call: dispatch::IsSubType<Call<T>>,
 {
 	const IDENTIFIER: &'static str = "ChargeTransactionPayment";
 	type AccountId = T::AccountId;
@@ -618,6 +644,7 @@ impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T> whe
 		_info: &DispatchInfoOf<Self::Call>,
 		_len: usize,
 	) -> TransactionValidity {
+		assert!(true == false);
 		// let (fee, _) = self.withdraw_fee(who, info, len)?;
 		// Ok(ValidTransaction {
 		// 	priority: Self::get_priority(len, info, fee),
@@ -629,10 +656,20 @@ impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T> whe
 	fn pre_dispatch(
 		self,
 		_who: &Self::AccountId,
-		_call: &Self::Call,
+		call: &Self::Call,
 		_info: &DispatchInfoOf<Self::Call>,
 		_len: usize
 	) -> Result<Self::Pre, TransactionValidityError> {
+
+		println!("pre_dispatch charge_transaction_payment");
+		// match call.is_sub_type() {
+		// 	Some(Call::set_weights(..)) => {
+		// 		// The payment of set_weight extrinsics is handled by the FeeFromSelfEmission signed extension.
+		// 		Ok(Default::default())
+		// 	}
+		// 	_ => Err(InvalidTransaction::Payment.into())
+		// }
+
 		// let (fee, imbalance) = self.withdraw_fee(who, info, len)?;
 		// Ok((self.0, who.clone(), imbalance, fee))
 		Ok(Default::default())
@@ -645,6 +682,9 @@ impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T> whe
 		_len: usize,
 		_result: &DispatchResult,
 	) -> Result<(), TransactionValidityError> {
+		println!("TESSETSE");
+
+		assert!(true==false);
 		// let (tip, who, imbalance, fee) = pre;
 		// if let Some(payed) = imbalance {
 		// 	let actual_fee = Module::<T>::compute_actual_fee(
