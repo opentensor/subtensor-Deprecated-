@@ -3,16 +3,11 @@ version: "3.2"
 services:
   dev:
     container_name: node-subtensor
-    image: paritytech/ci-linux:production
-    working_dir: /var/www/node-subtensor
+    image: "bittensor/subtensor:latest"
     ports:
       - "9944:9944"
     environment:
-      - CARGO_HOME=/var/www/node-subtensor/.cargo
+      - CARGO_HOME=/subtensor/.cargo
       - WASM_BUILD_TOOLCHAIN=nightly-2020-10-05
-    volumes:
-      - .:/var/www/node-subtensor
-      - type: bind
-        source: ./.local
-        target: /root/.local
-    command: bash -c "cargo build --release && ./target/release/node-subtensor --dev --ws-external"
+    
+    command: /bin/bash -c "cd /subtensor && ./install.sh && ./bin/release/node-subtensor --dev --ws-external"
