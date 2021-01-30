@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 // --- Frame imports.
-use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, dispatch::IsSubType, ensure, debug, IterableStorageMap, weights::Weight, traits::{Currency, WithdrawReasons, WithdrawReason, ExistenceRequirement}, Printable};
+use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, ensure, debug, IterableStorageMap, weights::Weight, traits::{Currency, WithdrawReasons, WithdrawReason, ExistenceRequirement}, Printable};
 use frame_support::weights::{DispatchClass, Pays};
 use codec::{Decode, Encode};
 use frame_system::{self as system, ensure_signed};
@@ -10,15 +10,7 @@ use sp_std::convert::TryInto;
 use sp_std::{
 	prelude::*
 };
-use sp_std::marker::PhantomData;
-use sp_runtime::{
-    traits::{
-        SignedExtension, DispatchInfoOf,
-    },
-    transaction_validity::{
-        ValidTransaction, TransactionValidityError, TransactionValidity,
-    },
-};
+
 
 mod weights;
 mod staking;
