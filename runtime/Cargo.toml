@@ -24,7 +24,6 @@ version = '1.3.4'
 hex-literal = { optional = true, version = '0.3.1' }
 serde = { features = ['derive'], optional = true, version = '1.0.101' }
 
-
 # local dependencies
 pallet-subtensor = { path = '../pallets/subtensor', default-features = false, version = '1.0.1' }
 pallet-sudo = { path = '../pallets/sudo', default-features = false, version = '1.0.1' }
@@ -72,7 +71,6 @@ runtime-benchmarks = [
 ]
 std = [
     'codec/std',
-    'clang = "1.0.3"',
     'serde',
     'frame-executive/std',
     'frame-support/std',
