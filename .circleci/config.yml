@@ -4,7 +4,7 @@ jobs:
   "Build and test Subtensor Chain":
     docker: # executor type
         - image: cimg/rust:1.48.0
-    resource_class: large
+    resource_class: medium+
     steps:
       - checkout
       - run:
