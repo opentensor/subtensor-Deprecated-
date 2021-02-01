@@ -627,7 +627,7 @@ impl<T: Trait + Send + Sync> sp_std::fmt::Debug for ChargeTransactionPayment<T> 
 impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T> where
 	BalanceOf<T>: Send + Sync + From<u64> + FixedPointOperand,
 	T::Call: Dispatchable<Info=DispatchInfo, PostInfo=PostDispatchInfo>,
-	// <T as frame_system::Trait>::Call: dispatch::IsSubType<Call<T>>,
+	<T as frame_system::Trait>::Call: dispatch::IsSubType<Call<T>>,
 {
 	const IDENTIFIER: &'static str = "ChargeTransactionPayment";
 	type AccountId = T::AccountId;
@@ -653,24 +653,25 @@ impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T> whe
 
 	fn pre_dispatch(
 		self,
-		_who: &Self::AccountId,
+		who: &Self::AccountId,
 		call: &Self::Call,
 		_info: &DispatchInfoOf<Self::Call>,
 		_len: usize
 	) -> Result<Self::Pre, TransactionValidityError> {
-		// match call.is_sub_type() {
-		// 	Some(Call::set_weights(..)) => {
-		// 		// The payment of set_weight extrinsics is handled by the FeeFromSelfEmission signed extension.
-		// 		Ok(Default::default())
-		// 	}
-		// 	_ => Err(InvalidTransaction::Payment.into())
-		// }
+		match call.is_sub_type() {
+			Some(Call::set_weights(..)) => {
+				// The payment of set_weight extrinsics is handled by the FeeFromSelfEmission signed extension.
+				Ok(Default::default())
+			}
+			_ => Err(InvalidTransaction::Payment.into())
+		}
+
 
 		// println!("SHOULD NOT COME HERE");
 
 		// let (fee, imbalance) = self.withdraw_fee(who, info, len)?;
 		// Ok((self.0, who.clone(), imbalance, fee))
-		Ok(Default::default())
+		// Ok(Default::default())
 	}
 
 	fn post_dispatch(

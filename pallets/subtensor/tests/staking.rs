@@ -33,7 +33,6 @@ fn test_add_stake_transaction_fee_ends_up_as_adam_stake() {
 		assert_eq!(start_balance, 1_000_000_000);
 		assert_eq!(start_stake, 0);
 
-		// Perform staking operation
 		let result = SubtensorModule::add_stake(Origin::signed(test_neuron_cold_key), test_neuron_hot_key, 500_000_000);
 		assert_ok!(result);
 
