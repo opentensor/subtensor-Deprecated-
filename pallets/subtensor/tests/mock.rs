@@ -33,6 +33,8 @@ const TEST_KEY: &[u8] = &*b":test:key:";
 
 type System = frame_system::Module<Test>;
 type Balances = pallet_balances::Module<Test>;
+
+#[allow(dead_code)]
 pub type AccountId = u64;
 
 impl_outer_origin! {
@@ -150,12 +152,12 @@ impl ValidateUnsigned for Test {
 pub struct RuntimeVersion;
 impl frame_support::traits::Get<sp_version::RuntimeVersion> for RuntimeVersion {
 	fn get() -> sp_version::RuntimeVersion {
-		Test_VERSION.with(|v| v.borrow().clone())
+		RUNTIME_VERSION.with(|v| v.borrow().clone())
 	}
 }
 
 thread_local! {
-	pub static Test_VERSION: std::cell::RefCell<sp_version::RuntimeVersion> =
+	pub static RUNTIME_VERSION: std::cell::RefCell<sp_version::RuntimeVersion> =
 		Default::default();
 }
 
@@ -166,11 +168,13 @@ type SignedExtra = (
 	pallet_subtensor::ChargeTransactionPayment<Test>,
 	pallet_subtensor::FeeFromSelfEmission<Test>
 );
+
+#[allow(dead_code)]
 type AllModules = (System, Balances, SubtensorModule);
 
 
 
-
+#[allow(dead_code)]
 pub struct CustomOnRuntimeUpgrade;
 impl OnRuntimeUpgrade for CustomOnRuntimeUpgrade {
 	fn on_runtime_upgrade() -> Weight {
@@ -180,6 +184,7 @@ impl OnRuntimeUpgrade for CustomOnRuntimeUpgrade {
 	}
 }
 
+#[allow(dead_code)]
 pub type Executive = frame_executive::Executive<
 	Test,
 	Block<TestXt<Call, SignedExtra>>,
@@ -216,10 +221,12 @@ pub type SubtensorModule = Module<Test>;
 
 
 // Build genesis storage according to the mock runtime.
+#[allow(dead_code)]
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
 }
 
+#[allow(dead_code)]
 pub fn test_ext_with_balances(balances : Vec<(u64, u128)>) -> sp_io::TestExternalities {
 	let mut t = frame_system::GenesisConfig::default()
 		.build_storage::<Test>()
@@ -404,6 +411,7 @@ impl traits::Verify for TestSignature {
 }
 
 /// Digest item
+#[allow(dead_code)]
 pub type DigestItem = generic::DigestItem<H256>;
 
 
@@ -495,6 +503,7 @@ pub struct TestXt<Call, Extra> {
 	pub call: Call,
 }
 
+#[allow(dead_code)]
 impl<Call, Extra> TestXt<Call, Extra> {
 	/// Create a new `TextXt`.
 	pub fn new(call: Call, signature: Option<(u64, Extra)>) -> Self {

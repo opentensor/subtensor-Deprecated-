@@ -580,8 +580,6 @@ where
 	) -> Result<(), TransactionValidityError> {
 		let self_emission = pre;
 
-		println!("[!] Self emission to adam : {:?}", self_emission);
-
 		Module::<T>::deposit_self_emission_into_adam( self_emission );
 		Ok(())
 	}
