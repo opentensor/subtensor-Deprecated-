@@ -287,9 +287,6 @@ fn test_set_weights_adam_receives_funds() {
 
 		assert_eq!(adam_new_stake, 500_000_000);
 		assert_eq!(neuron_1_new_stake, 1_000_000_000);  // Neuron 1 maintains its stake
-
-		// let api = TestApi::empty();
-
 	});
 }
 

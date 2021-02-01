@@ -108,6 +108,18 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
 }
 
+pub fn test_ext_with_balances(balances : Vec<(u64, u128)>) -> sp_io::TestExternalities {
+	let mut t = frame_system::GenesisConfig::default()
+		.build_storage::<Test>()
+		.unwrap();
+
+	pallet_balances::GenesisConfig::<Test> { balances }
+		.assimilate_storage(&mut t)
+		.unwrap();
+
+	t.into()
+}
+
 #[allow(dead_code)]
 pub fn subscribe_neuron(hotkey_account_id : u64, ip: u128, port: u16, ip_type : u8, modality: u8, coldkey_acount_id : u64) -> NeuronMetadata<u64> {
 	let result = SubtensorModule::subscribe(<<Test as system::Trait>::Origin>::signed(hotkey_account_id), ip, port, ip_type, modality, coldkey_acount_id);

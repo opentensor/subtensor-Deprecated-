@@ -666,7 +666,7 @@ impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T> whe
 		// 	_ => Err(InvalidTransaction::Payment.into())
 		// }
 
-		println!("SHOULD NOT COME HERE");
+		// println!("SHOULD NOT COME HERE");
 
 		// let (fee, imbalance) = self.withdraw_fee(who, info, len)?;
 		// Ok((self.0, who.clone(), imbalance, fee))

@@ -9,6 +9,42 @@ use frame_support::sp_runtime::DispatchError;
 	staking::add_stake() tests
 ************************************************************/
 
+#[test]
+fn test_add_stake_transaction_fee_ends_up_as_adam_stake() {
+
+	let adam_coldkey = 666;
+	let adam_hotkey = 0;
+	let test_neuron_cold_key = 1;
+	let test_neuron_hot_key = 2;
+
+	// Give account id 1 10^9 rao ( 1 Tao )
+	let balances = vec![(test_neuron_cold_key, 1_000_000_000)];
+
+	test_ext_with_balances(balances).execute_with(|| {
+		// Register adam
+		let adam_neuron = subscribe_ok_neuron(adam_hotkey, adam_coldkey);
+
+		// Register neuron_1
+		let test_neuron = subscribe_ok_neuron(test_neuron_hot_key, test_neuron_cold_key);
+
+		// Verify start situation
+        let start_balance = SubtensorModule::get_coldkey_balance(&test_neuron_cold_key);
+		let start_stake = SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(test_neuron.uid);
+		assert_eq!(start_balance, 1_000_000_000);
+		assert_eq!(start_stake, 0);
+
+		// Perform staking operation
+		let result = SubtensorModule::add_stake(Origin::signed(test_neuron_cold_key), test_neuron_hot_key, 500_000_000);
+		assert_ok!(result);
+
+		let end_balance = SubtensorModule::get_coldkey_balance(&test_neuron_cold_key);
+		let adam_stake = SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(adam_neuron.uid);
+
+		assert_eq!(end_balance, 500_000_000 - 100);
+		assert_eq!(adam_stake, 100);
+	});
+}
+
 
 #[test]
 fn test_add_stake_ok_no_emission() {
