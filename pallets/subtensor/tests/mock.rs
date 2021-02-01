@@ -1,4 +1,4 @@
-use sp_runtime::{generic::Era, Perbill, DispatchError, traits::{BlakeTwo256, IdentityLookup}, transaction_validity::{UnknownTransaction}, ApplyExtrinsicResultWithInfo};
+use sp_runtime::{generic::Era, Perbill, traits::{BlakeTwo256, IdentityLookup}, transaction_validity::{UnknownTransaction}, ApplyExtrinsicResultWithInfo};
 use frame_support::{
 	impl_outer_event, impl_outer_origin, parameter_types, impl_outer_dispatch,
 	weights::{Weight, RuntimeDbWeight},
@@ -167,7 +167,7 @@ type SignedExtra = (
 	pallet_subtensor::FeeFromSelfEmission<Test>
 );
 type AllModules = (System, Balances, SubtensorModule);
-// pub type TestXt = test_xt::TestXt<Call, SignedExtra>;
+
 
 
 
@@ -189,6 +189,7 @@ pub type Executive = frame_executive::Executive<
 	CustomOnRuntimeUpgrade
 >;
 
+#[allow(dead_code)]
 fn extra(nonce: u64) -> SignedExtra {
 	(
 		frame_system::CheckEra::from(Era::Immortal),
@@ -199,6 +200,7 @@ fn extra(nonce: u64) -> SignedExtra {
 	)
 }
 
+#[allow(dead_code)]
 pub fn sign_extra(who: u64, nonce: u64) -> Option<(u64, SignedExtra)> {
 	Some((who, extra(nonce)))
 }

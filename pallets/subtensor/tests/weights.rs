@@ -4,9 +4,8 @@ use mock::{TestXt};
 use pallet_subtensor::{Call as SubtensorCall, Error};
 use frame_support::weights::{GetDispatchInfo, DispatchInfo, DispatchClass, Pays};
 use frame_support::{assert_ok};
-use sp_std::fmt::Debug;
-use sp_runtime::generic::CheckedExtrinsic;
 use sp_runtime::DispatchError;
+
 
 /***************************
   pub fn set_weights() tests
@@ -38,17 +37,18 @@ fn test_set_weights_adam_receives_funds() {
 
 		let adam_id = 0;
 		let neuron_1_id = 1;
+		let neuron_2_id = 2;
 
 		let _neuron_adam =  subscribe_ok_neuron(adam_id, 666); // uid 0
 		let _neuron1 = subscribe_ok_neuron(neuron_1_id, 666); // uid 1
+		let _neuron2 = subscribe_ok_neuron(neuron_2_id, 666);
 
 		// Add 1 Tao to neuron 1. He now hold 100% of the stake, so will get the full emission,
 		// also he only has a self_weight.
-		SubtensorModule::add_stake_to_neuron_hotkey_account(1, 1_000_000_000);
+		SubtensorModule::add_stake_to_neuron_hotkey_account(neuron_1_id, 1_000_000_000);
 
 		// Move to block, to build up pending emission
-		mock::run_to_block(1); // This will release 1 Tao. 0.5 for block 0, 0.5 for block 1
-
+		mock::run_to_block(1); // This will emit .5 TAO to neuron 1, since he has 100% of the total stake
 		// Verify adam's stake == 0
 		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(adam_id), 0);
 
@@ -56,11 +56,12 @@ fn test_set_weights_adam_receives_funds() {
 		let call = Call::SubtensorModule(SubtensorCall::set_weights(w_uids, w_vals));
 
 		// Setup the extrinsic
-		let xt = TestXt::new(call, mock::sign_extra(1,0)); // Apply t
+		let xt = TestXt::new(call, mock::sign_extra(neuron_1_id,0)); // Apply t
 
 		// Execute. This will trigger the set_weights function to emit, before the new weights are set.
 		// Resulting in Adam getting his full emission.
 		let result = mock::Executive::apply_extrinsic(xt);
+
 
 		// Verfify success
 		assert_ok!(result);

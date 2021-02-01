@@ -20,7 +20,7 @@ fn test_add_stake_transaction_fee_ends_up_as_adam_stake() {
 	// Give account id 1 10^9 rao ( 1 Tao )
 	let balances = vec![(test_neuron_cold_key, 1_000_000_000)];
 
-	test_ext_with_balances(balances).execute_with(|| {
+	mock::test_ext_with_balances(balances).execute_with(|| {
 		// Register adam
 		let adam_neuron = subscribe_ok_neuron(adam_hotkey, adam_coldkey);
 

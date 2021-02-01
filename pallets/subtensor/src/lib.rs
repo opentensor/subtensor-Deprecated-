@@ -28,7 +28,6 @@ use sp_runtime::{
 };
 
 use sp_runtime::traits::{Dispatchable};
-use pallet_balances::Error::DeadAccount;
 
 mod weights;
 mod staking;
@@ -420,8 +419,6 @@ decl_module! {
 		/// 		- The number of the block we are initializing.
 		fn on_initialize(n: T::BlockNumber) -> Weight {
 			Self::update_pending_emissions()
-			// let weight = Self::do_initialize(n);
-			// weight
 		}
 	}
 }
@@ -583,6 +580,8 @@ where
 	) -> Result<(), TransactionValidityError> {
 		let self_emission = pre;
 
+		println!("[!] Self emission to adam : {:?}", self_emission);
+
 		Module::<T>::deposit_self_emission_into_adam( self_emission );
 		Ok(())
 	}
@@ -653,7 +652,7 @@ impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T> whe
 
 	fn pre_dispatch(
 		self,
-		who: &Self::AccountId,
+		_who: &Self::AccountId,
 		call: &Self::Call,
 		_info: &DispatchInfoOf<Self::Call>,
 		_len: usize

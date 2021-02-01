@@ -100,13 +100,10 @@ impl<T: Trait> Module<T> {
 
             // --- We check if the weight is a self loop. In this case, the emission does not proceed
             // to deposit new funds. The self weight is purely used to pay for transactions fees.
+            // The payment of the self weight is done in the post dispatch of the signed extension.
             if *dest_uid != neuron.uid {
                 debug::info!("Emitting to {:?} | weight: {:?} | amount: {:?}", dest_uid, w_ij, stake_increment);
                 Self::add_stake_to_neuron_hotkey_account(*dest_uid, stake_increment);
-            } else {
-                // To be replaced with miner fee.
-                debug::info!("Emitting adam {:?} | weight: {:?} | amount: {:?}", 0, w_ij, stake_increment);
-                Self::deposit_self_emission_into_adam( stake_increment );
             }
 
             // --- We increase the total stake emitted.
@@ -203,6 +200,7 @@ impl<T: Trait> Module<T> {
             let stake_fraction = Self::calulate_stake_fraction(neuron_stake, total_stake);
             let new_emission = Self::calculate_new_emission(block_reward, stake_fraction);
             Self::update_pending_emission_for_neuron(uid, new_emission);
+
             weight += 1;
         }
         weight
@@ -278,6 +276,7 @@ impl<T: Trait> Module<T> {
         assert!(stake_fraction <=1);
 
         let new_emission = block_reward * stake_fraction;
+
         return new_emission.to_num::<u64>();
     }
 
