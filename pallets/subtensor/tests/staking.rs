@@ -1,13 +1,32 @@
-use pallet_subtensor::{Error};
 use frame_support::{assert_ok};
 use frame_system::Trait;
 mod mock;
 use mock::*;
+use mock::{TestXt};
 use frame_support::sp_runtime::DispatchError;
+use pallet_subtensor::{Call as SubtensorCall, Error};
+use frame_support::weights::{GetDispatchInfo, DispatchInfo, DispatchClass, Pays};
 
 /***********************************************************
 	staking::add_stake() tests
 ************************************************************/
+
+
+#[test]
+fn test_add_stake_dispatch_info_ok() {
+	new_test_ext().execute_with(|| {
+		let account_id = 0;
+		let stake = 5000;
+
+        let call = Call::SubtensorModule(SubtensorCall::add_stake(account_id, stake));
+
+		assert_eq!(call.get_dispatch_info(), DispatchInfo {
+			weight: 0,
+			class: DispatchClass::Normal,
+			pays_fee: Pays::Yes
+		});
+	});
+}
 
 #[test]
 fn test_add_stake_transaction_fee_ends_up_as_adam_stake() {

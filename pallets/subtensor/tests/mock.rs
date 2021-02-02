@@ -115,11 +115,12 @@ impl pallet_balances::Trait for Test {
 impl pallet_subtensor::Trait for Test {
 	type Event = ();
 	type Currency = Balances;
+	type TransactionByteFee = TransactionByteFee;
 
 }
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = 0;
+	pub const TransactionByteFee: Balance = 100;
 }
 // impl pallet_transaction_payment::Trait for Test {
 // 	type Currency = Balances;
@@ -165,7 +166,6 @@ type SignedExtra = (
 	frame_system::CheckEra<Test>,
 	frame_system::CheckNonce<Test>,
 	frame_system::CheckWeight<Test>,
-	pallet_subtensor::ChargeTransactionPayment<Test>,
 	pallet_subtensor::FeeFromSelfEmission<Test>
 );
 
@@ -200,7 +200,6 @@ fn extra(nonce: u64) -> SignedExtra {
 		frame_system::CheckEra::from(Era::Immortal),
 		frame_system::CheckNonce::from(nonce),
 		frame_system::CheckWeight::new(),
-		pallet_subtensor::ChargeTransactionPayment::new(),
 		pallet_subtensor::FeeFromSelfEmission::new()
 	)
 }

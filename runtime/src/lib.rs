@@ -263,7 +263,7 @@ impl pallet_timestamp::Trait for Runtime {
 }
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = 1;
+	pub const TransactionByteFee: Balance = 100;
 }
 
 impl pallet_transaction_payment::Trait for Runtime {
@@ -352,7 +352,7 @@ pub type SignedExtra = (
 	frame_system::CheckEra<Runtime>,
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
-	pallet_subtensor::ChargeTransactionPayment<Runtime>,
+	// pallet_subtensor::ChargeTransactionPayment<Runtime>,
 	pallet_subtensor::FeeFromSelfEmission<Runtime>
 );
 /// Unchecked extrinsic type as expected by this runtime.

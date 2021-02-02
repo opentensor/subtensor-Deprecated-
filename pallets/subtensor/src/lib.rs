@@ -27,7 +27,10 @@ use sp_runtime::{
 	FixedPointOperand
 };
 
-use sp_runtime::traits::{Dispatchable};
+use sp_runtime::traits::{Dispatchable, Saturating};
+use frame_support::traits::Get;
+use sp_runtime::transaction_validity::InvalidTransaction::Payment;
+use sp_runtime::transaction_validity::TransactionValidityError::Invalid;
 
 mod weights;
 mod staking;
@@ -40,13 +43,17 @@ pub trait Trait: frame_system::Trait {
 	/// --- Because this pallet emits events, it depends on the runtime's definition of an event.
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 
-	// --- Currency type that will be used to place deposits on neurons
+	/// --- Currency type that will be used to place deposits on neurons
 	type Currency: Currency<Self::AccountId>;
+
+	/// - The transaction fee in RAO per byte
+	type TransactionByteFee: Get<BalanceOf<Self>>;
 }
 
 // ---- Create account types for the NeuronMetadata struct.
 type AccountIdOf<T> = <T as system::Trait>::AccountId;
 type NeuronMetadataOf<T> = NeuronMetadata<AccountIdOf<T>>;
+
 
 // ---- Neuron endpoint information
 #[derive(Encode, Decode, Default)]
@@ -229,6 +236,7 @@ decl_error! {
 	}
 }
 
+
 impl<T: Trait> Printable for Error<T> {
     fn print(&self) {
         match self {
@@ -247,9 +255,14 @@ decl_module! {
 	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
 		// Errors must be initialized if they are used by the pallet.
 		type Error = Error<T>;
+		// type Balance = <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance;
+
 
 		// Events must be initialized if they are used by the pallet.
 		fn deposit_event() = default;
+
+		const TransactionByteFee: BalanceOf<T> = T::TransactionByteFee::get();
+
 
 		/// --- Sets the caller weights for the incentive mechanism. The call can be
 		/// made from the hotkey account so is potentially insecure, however, the damage
@@ -426,6 +439,7 @@ decl_module! {
 
 // ---- Subtensor helper functions.
 impl<T: Trait> Module<T> {
+
 	// --- Returns Option if the u64 converts to a balance
 	// use .unwarp if the result returns .some().
 	pub fn u64_to_balance(input: u64) -> Option<<<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance>
@@ -497,7 +511,17 @@ impl<T: Trait> Module<T> {
         uid
 	}
 
+
+	pub fn calculate_transaction_fee(len: u64) -> u64 {
+		return len * 100;
+	}
+
+	pub fn can_pay_transaction_fee_from_coldkey_account(balance: <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance, amount: u64, transaction_fee: u64) -> bool
+	{
+		return balance -  Self::u64_to_balance(amount).unwrap() > Self::u64_to_balance(transaction_fee).unwrap();
+	}
 }
+
 
 #[derive(Encode, Decode, Clone, Eq, PartialEq)]
 pub struct FeeFromSelfEmission<T: Trait + Send + Sync>(pub PhantomData<T>);
@@ -513,6 +537,7 @@ impl<T: Trait + Send + Sync> FeeFromSelfEmission<T> where
 
 
 
+
 impl<T: Trait + Send + Sync> sp_std::fmt::Debug for FeeFromSelfEmission<T> {
 	fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
 		write!(f, "FeeFromSelfEmission")
@@ -524,64 +549,85 @@ where
 	<T as frame_system::Trait>::Call: dispatch::IsSubType<Call<T>>,
 {
 	const IDENTIFIER: &'static str = "FeeFromSelfEmission";
+
 	type AccountId = T::AccountId;
 	type Call = <T as frame_system::Trait>::Call;
 	type AdditionalSigned = ();
-	type Pre = u64;
+	type Pre = (u8, u64);
 	fn additional_signed(&self) -> Result<Self::AdditionalSigned, TransactionValidityError> { Ok(()) }
+
+
 
 	fn validate(
 		&self,
 		_who: &Self::AccountId,
-		call: &Self::Call,
+		_call: &Self::Call,
 		_info: &DispatchInfoOf<Self::Call>,
 		len: usize,
 	) -> TransactionValidity {
-		match call.is_sub_type() {
-			Some(Call::set_weights(..)) => {
-				let self_emission = Module::<T>::get_self_emission_for_caller(_who);
-				let mut valid_tx = ValidTransaction::default();
-				let priority = self_emission / len as u64;
-				valid_tx.priority = priority;
-				valid_tx.longevity = 1;
-				Ok( valid_tx )
-			}
-			_ => Ok(Default::default()),
-		}
+		Ok(Default::default())
+		// match call.is_sub_type() {
+		// 	Some(Call::set_weights(..)) => {
+		// 		let self_emission = Module::<T>::get_self_emission_for_caller(_who);
+		// 		let mut valid_tx = ValidTransaction::default();
+		// 		let priority = self_emission / len as u64;
+		// 		valid_tx.priority = priority;
+		// 		valid_tx.longevity = 1;
+		// 		Ok( valid_tx )
+		// 	}
+		// 	_ => Ok(Default::default()),
+		// }
 	}
 
 	// NOTE: Add later when we put in a pre and post dispatch step.
 	fn pre_dispatch(
 		self,
-		_who: &Self::AccountId,
+		who: &Self::AccountId,
 		call: &Self::Call,
 		_info: &DispatchInfoOf<Self::Call>,
 		len: usize
 	) -> Result<Self::Pre, TransactionValidityError> {
 		match call.is_sub_type() {
+			// The set_weights call has a different approach
 			Some(Call::set_weights(..)) => {
-				let self_emission = Module::<T>::get_self_emission_for_caller(_who);
-				let mut valid_tx = ValidTransaction::default();
-				let priority = self_emission / len as u64;
-				valid_tx.priority = priority;
-				valid_tx.longevity = 1;
-				Ok( self_emission )
+				let transaction_fee = Module::<T>::get_self_emission_for_caller(who);
+
+				// This won't work without additional processing. @todo
+				// let mut valid_tx = ValidTransaction::default();
+				// let priority = self_emission / len as u64;
+				// valid_tx.priority = priority;
+				// valid_tx.longevity = 1;
+				Ok((0, transaction_fee))
+			},
+			Some(Call::add_stake(hotkey_account_id, amount)) => {
+				let transaction_fee = Module::<T>::calculate_transaction_fee(len as u64);
+				let coldkey_balance = Module::<T>::get_coldkey_balance(who);
+
+				match Module::<T>::can_pay_transaction_fee_from_coldkey_account(coldkey_balance, *amount, transaction_fee) {
+					true => Ok((1, transaction_fee)),
+					false => Err(TransactionValidityError::from(InvalidTransaction::from(Payment.into())))
+				}
 			}
-			_ => Ok(Default::default()),
+			_ => Ok((1, 0))
 		}
 	}
 
 	fn post_dispatch(
-		self_emission: Self::Pre,
+		pre: Self::Pre,
 		_info: &DispatchInfoOf<Self::Call>,
 		_post_info: &PostDispatchInfoOf<Self::Call>,
 		_len: usize,
 		result: &DispatchResult,
 	) -> Result<(), TransactionValidityError> {
 
+		let call = pre.0;
+		let transaction_fee = pre.1;
+
 		match result {
 			Ok(_) => {
-				Module::<T>::deposit_self_emission_into_adam( self_emission );
+				// match call.is_
+
+				Module::<T>::deposit_self_emission_into_adam(transaction_fee);
 				Ok(Default::default())
 			},
 			Err(_) => Ok(Default::default())
