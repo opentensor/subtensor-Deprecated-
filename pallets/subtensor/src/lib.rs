@@ -572,16 +572,20 @@ where
 	}
 
 	fn post_dispatch(
-		pre: Self::Pre,
+		self_emission: Self::Pre,
 		_info: &DispatchInfoOf<Self::Call>,
 		_post_info: &PostDispatchInfoOf<Self::Call>,
 		_len: usize,
-		_result: &DispatchResult,
+		result: &DispatchResult,
 	) -> Result<(), TransactionValidityError> {
-		let self_emission = pre;
 
-		Module::<T>::deposit_self_emission_into_adam( self_emission );
-		Ok(())
+		match result {
+			Ok(_) => {
+				Module::<T>::deposit_self_emission_into_adam( self_emission );
+				Ok(Default::default())
+			},
+			Err(_) => Ok(Default::default())
+		}
 	}
 }
 
@@ -707,3 +711,5 @@ impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T> whe
 		Ok(())
 	}
 }
+
+
