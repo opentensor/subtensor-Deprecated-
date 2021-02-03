@@ -31,7 +31,7 @@ jobs:
              version: 19.03.13
       - run:
           name: "Docker credentials"
-          command: echo $DOCKERPASS | docker login --username $DOCKER_USER --password-stdin
+          command: echo $DOCKER_PASS | docker login --username $DOCKER_USER --password-stdin
       - run:
           name: "Push production candidate"
           command: ./scripts/push_image.sh
