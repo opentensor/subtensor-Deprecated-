@@ -239,35 +239,44 @@ fn test_remove_stake_ok_no_emission() {
 fn test_remove_stake_ok_with_emission() {
 	new_test_ext().execute_with(|| {
         let coldkey_account_id = 4343;
-		let hotkey_account_id : u64 = 4968585;
+		let hotkey_neuron_src: u64 = 4968585;
+		let hotkey_neuron_dest: u64 = 78979;
 		let amount = 10000; // Amount to be removed
 		let initial_amount = 20000; // This will be added before the function UT is called, to trigger an emit
 
-		// Add neuron
-		let neuron = subscribe_ok_neuron(hotkey_account_id, coldkey_account_id);
+		// Add neurons
+		let _adam = subscribe_ok_neuron(0, coldkey_account_id);
+		let neuron_src = subscribe_ok_neuron(hotkey_neuron_src, coldkey_account_id);
+		let neuron_dest = subscribe_ok_neuron(hotkey_neuron_dest, coldkey_account_id);
+
+		// Set neuron_src weight to neuron_dest
+		SubtensorModule::set_weights(Origin::signed(hotkey_neuron_src), vec![neuron_dest.uid], vec![100]);
 
 		// Add the stake to the hotkey account
-		SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, initial_amount);
+		SubtensorModule::add_stake_to_neuron_hotkey_account(neuron_src.uid, initial_amount);
 
 		// Some basic assertions
 		assert_eq!(SubtensorModule::get_total_stake(), initial_amount);
-		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid), initial_amount);
+		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron_src.uid), initial_amount);
 		assert_eq!(SubtensorModule::get_coldkey_balance(&coldkey_account_id), 0);
 
 		// Run a couple of blocks
 		run_to_block(100);
 
 		// Perform the remove_stake operation
-		assert_ok!(SubtensorModule::remove_stake(<<Test as Trait>::Origin>::signed(coldkey_account_id), hotkey_account_id, amount));
+		assert_ok!(SubtensorModule::remove_stake(Origin::signed(coldkey_account_id), hotkey_neuron_src, amount));
 
-		// The amount of stake left should be more than the difference between the inital amount and the removed amount
-		assert!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid) > initial_amount - amount);
+		// The amount of stake left should be the same as the inital amount and the removed amount
+		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron_src.uid), initial_amount - amount);
 
-		// The same goes for the total stake
+		// The total stake should be bigger than the initial amount - amount
 		assert!(SubtensorModule::get_total_stake() > initial_amount - amount);
 
 		// The coldkey balance should be equal to the removed stake
 		assert_eq!(SubtensorModule::get_coldkey_balance(&coldkey_account_id), amount as u128);
+
+		// The stake of neuron_dest should be > 0, due to emission to this neuron
+		assert!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron_dest.uid) > 0);
 	});
 }
 
