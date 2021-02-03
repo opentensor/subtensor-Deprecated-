@@ -283,6 +283,7 @@ impl pallet_sudo::Trait for Runtime {
 impl pallet_subtensor::Trait for Runtime {
 	type Currency = pallet_balances::Module<Runtime>;
 	type Event = Event;
+	type TransactionByteFee = ();
 }
 
 parameter_types! {

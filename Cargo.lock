@@ -3675,7 +3675,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-sudo"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -3708,7 +3708,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-payment"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "frame-support",
  "frame-system",
