@@ -43,3 +43,7 @@ workflows:
       - "Push image to dockerhub":
           requires:
             - "Build and test Subtensor Chain"
+          filters:
+              branches:
+                only:
+                  - master
