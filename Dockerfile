@@ -1,13 +1,13 @@
 FROM ubuntu:20.04
 
-LABEL io.parity.image.authors="bittensor.com" \
-	io.parity.image.vendor="Bittensor" \
-	io.parity.image.title="bittensor/subtensor" \
-	io.parity.image.description="Subtensor: The blockchain for the bittensor project." \
-	io.parity.image.source="https://github.com/opentensor/subtensor.git" \
-	io.parity.image.revision="${VCS_REF}" \
-	io.parity.image.created="${BUILD_DATE}" \
-	io.parity.image.documentation="https://opentensor.bittensor.io"
+LABEL bittensor.image.authors="bittensor.com" \
+	bittensor.image.vendor="Bittensor" \
+	bittensor.image.title="bittensor/subtensor" \
+	bittensor.image.description="Subtensor: The blockchain for the bittensor project." \
+	bittensor.image.source="https://github.com/opentensor/subtensor.git" \
+	bittensor.image.revision="${VCS_REF}" \
+	bittensor.image.created="${BUILD_DATE}" \
+	bittensor.image.documentation="https://opentensor.bittensor.io"
 
 
 # show backtraces
