@@ -22,15 +22,14 @@ use sp_runtime::{
 		SignedExtension, DispatchInfoOf, PostDispatchInfoOf,
 	},
 	transaction_validity::{
-		ValidTransaction, TransactionValidityError, TransactionValidity,InvalidTransaction
+		TransactionValidityError, TransactionValidity,InvalidTransaction
 	},
 	FixedPointOperand
 };
 
-use sp_runtime::traits::{Dispatchable, Saturating};
+use sp_runtime::traits::{Dispatchable};
 use frame_support::traits::Get;
 use sp_runtime::transaction_validity::InvalidTransaction::Payment;
-use sp_runtime::transaction_validity::TransactionValidityError::Invalid;
 
 mod weights;
 mod staking;
@@ -553,7 +552,7 @@ where
 	type AccountId = T::AccountId;
 	type Call = <T as frame_system::Trait>::Call;
 	type AdditionalSigned = ();
-	type Pre = (u8, u64);
+	type Pre = (u8, u64, Self::AccountId);
 	fn additional_signed(&self) -> Result<Self::AdditionalSigned, TransactionValidityError> { Ok(()) }
 
 
@@ -563,7 +562,7 @@ where
 		_who: &Self::AccountId,
 		_call: &Self::Call,
 		_info: &DispatchInfoOf<Self::Call>,
-		len: usize,
+		_len: usize,
 	) -> TransactionValidity {
 		Ok(Default::default())
 		// match call.is_sub_type() {
@@ -597,18 +596,20 @@ where
 				// let priority = self_emission / len as u64;
 				// valid_tx.priority = priority;
 				// valid_tx.longevity = 1;
-				Ok((0, transaction_fee))
+				Ok((0, transaction_fee, Self::AccountId::default())) // 0 indicates that post_dispatch should use the self-weight to pay for the transaction
 			},
-			Some(Call::add_stake(hotkey_account_id, amount)) => {
+			Some(Call::add_stake(..)) => {
 				let transaction_fee = Module::<T>::calculate_transaction_fee(len as u64);
-				let coldkey_balance = Module::<T>::get_coldkey_balance(who);
 
-				match Module::<T>::can_pay_transaction_fee_from_coldkey_account(coldkey_balance, *amount, transaction_fee) {
-					true => Ok((1, transaction_fee)),
-					false => Err(TransactionValidityError::from(InvalidTransaction::from(Payment.into())))
+				let transaction_fee_as_balance = Module::<T>::u64_to_balance( transaction_fee );
+
+				if !Module::<T>::can_remove_balance_from_coldkey_account(&who, transaction_fee_as_balance.unwrap()) {
+					Err(TransactionValidityError::from(InvalidTransaction::from(Payment.into())))
+				} else {
+					Ok((1, transaction_fee, who.clone()))
 				}
 			}
-			_ => Ok((1, 0))
+			_ => Err(TransactionValidityError::from(InvalidTransaction::Call))
 		}
 	}
 
@@ -620,15 +621,25 @@ where
 		result: &DispatchResult,
 	) -> Result<(), TransactionValidityError> {
 
-		let call = pre.0;
+		let payment_type = pre.0;
 		let transaction_fee = pre.1;
+		let coldkey_id = pre.2;
+		let transaction_fee_as_balance = Module::<T>::u64_to_balance( transaction_fee ).unwrap();
 
 		match result {
 			Ok(_) => {
-				// match call.is_
-
-				Module::<T>::deposit_self_emission_into_adam(transaction_fee);
-				Ok(Default::default())
+				match payment_type {
+					0 => {
+						Module::<T>::deposit_self_emission_into_adam(transaction_fee);
+						Ok(Default::default())
+					},
+					1 => {
+						Module::<T>::remove_balance_from_coldkey_account(&coldkey_id, transaction_fee_as_balance);
+						Module::<T>::add_stake_to_neuron_hotkey_account(0, transaction_fee); // uid 0 == Adam
+						Ok(Default::default())
+					},
+					_ => Err(TransactionValidityError::from(InvalidTransaction::Call))
+				}
 			},
 			Err(_) => Ok(Default::default())
 		}

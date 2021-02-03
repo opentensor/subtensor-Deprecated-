@@ -28,6 +28,10 @@ fn test_add_stake_dispatch_info_ok() {
 	});
 }
 
+/************************************************************
+	This test also covers any signed extensions
+************************************************************/
+
 #[test]
 fn test_add_stake_transaction_fee_ends_up_as_adam_stake() {
 
@@ -52,14 +56,17 @@ fn test_add_stake_transaction_fee_ends_up_as_adam_stake() {
 		assert_eq!(start_balance, 1_000_000_000);
 		assert_eq!(start_stake, 0);
 
-		let result = SubtensorModule::add_stake(Origin::signed(test_neuron_cold_key), test_neuron_hot_key, 500_000_000);
+		let call = Call::SubtensorModule(SubtensorCall::add_stake(test_neuron_hot_key, 500_000_000));
+		let xt = TestXt::new(call, mock::sign_extra(test_neuron_cold_key, 0));
+		let result = mock::Executive::apply_extrinsic(xt);
+
 		assert_ok!(result);
 
 		let end_balance = SubtensorModule::get_coldkey_balance(&test_neuron_cold_key);
 		let adam_stake = SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(adam_neuron.uid);
 
-		assert_eq!(end_balance, 500_000_000 - 100);
-		assert_eq!(adam_stake, 100);
+		assert_eq!(end_balance, 499_997_100);
+		assert_eq!(adam_stake, 2900);
 	});
 }
 
@@ -118,7 +125,7 @@ fn test_add_stake_ok_with_emission() {
 		// We will need to set a weight to another neuron to test for emission later on.
 		// This is because the self weight will be used to pay for the transaction, and as such
 		// does not end up in the neuron's own account.
-		SubtensorModule::set_weights(Origin::signed(neuron_src_hotkey_id), vec![neuron_dest.uid], vec![100]);
+		let _ = SubtensorModule::set_weights(Origin::signed(neuron_src_hotkey_id), vec![neuron_dest.uid], vec![100]);
 
 
 		// Give it some $$$ in his coldkey balance
@@ -250,7 +257,7 @@ fn test_remove_stake_ok_with_emission() {
 		let neuron_dest = subscribe_ok_neuron(hotkey_neuron_dest, coldkey_account_id);
 
 		// Set neuron_src weight to neuron_dest
-		SubtensorModule::set_weights(Origin::signed(hotkey_neuron_src), vec![neuron_dest.uid], vec![100]);
+		let _ = SubtensorModule::set_weights(Origin::signed(hotkey_neuron_src), vec![neuron_dest.uid], vec![100]);
 
 		// Add the stake to the hotkey account
 		SubtensorModule::add_stake_to_neuron_hotkey_account(neuron_src.uid, initial_amount);
