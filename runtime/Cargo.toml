@@ -27,6 +27,7 @@ serde = { features = ['derive'], optional = true, version = '1.0.101' }
 # local dependencies
 pallet-subtensor = { path = '../pallets/subtensor', default-features = false, version = '1.0.1' }
 pallet-sudo = { path = '../pallets/sudo', default-features = false, version = '1.0.1' }
+pallet-transaction-payment = { path = '../pallets/transaction-payment', default-features = false, version = '1.0.1'}
 
 # Substrate dependencies
 frame-benchmarking = { default-features = false, optional = true, version = '2.0.0' }
@@ -40,7 +41,6 @@ pallet-balances = { default-features = false, version = '2.0.0' }
 pallet-grandpa = { default-features = false, version = '2.0.0' }
 pallet-randomness-collective-flip = { default-features = false, version = '2.0.0' }
 pallet-timestamp = { default-features = false, version = '2.0.0' }
-pallet-transaction-payment = { default-features = false, version = '2.0.0'}
 pallet-transaction-payment-rpc-runtime-api = { default-features = false, version = '2.0.0' }
 pallet-scheduler = { default-features = false, version = '2.0.0' }
 sp-api = { default-features = false, version = '2.0.0' }
