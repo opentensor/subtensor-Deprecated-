@@ -40,10 +40,18 @@ are new to bittensor/subtensor and just want to try it out.
 
 ## Installation
 
-There are 2 ways to run subtensor
-1) Run the binary directly
-2) Install and run subtensor as a systemd unit
+There are 3 ways to run subtensor
+1) Run the Subtensor Docker container.
+2) Run the binary directly
+3) Install and run subtensor as a systemd unit
 
+
+### Run the Subtensor Docker container
+This is arguably the easiest way to run subtensor right away without trying to install it directly into your machine, simply create a new terminal and run:
+```
+$ docker-compose up
+``` 
+inside the subtensor repository. **Note that by default, this runs the development-mode chain, not the production chain. To run the production chain, remove the `--dev` flag from the run command in docker-compose.yml**.
 
 
 ### Run the binary directly
