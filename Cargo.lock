@@ -3656,6 +3656,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "pallet-balances",
+ "pallet-transaction-payment",
  "parity-scale-codec",
  "parity-util-mem",
  "rand 0.7.3",

@@ -6,6 +6,7 @@ use frame_support::{
 use frame_system::{self as system, ChainContext};
 use pallet_balances::Call as BalancesCall;
 use pallet_balances as balances;
+use pallet_transaction_payment as transaction_payment;
 use frame_support::traits::{OnRuntimeUpgrade, OnFinalize, OnInitialize};
 
 use frame_support::{assert_ok};
@@ -25,7 +26,7 @@ pub use sp_core::{H256, sr25519};
 use sp_core::{crypto::{CryptoType, Dummy, key_types, Public}, U256};
 use sp_runtime::transaction_validity::{TransactionValidity, TransactionSource, TransactionValidityError};
 use sp_runtime::testing::Header;
-use frame_support::weights::{DispatchInfo, GetDispatchInfo};
+use frame_support::weights::{DispatchInfo, GetDispatchInfo, IdentityFee};
 
 
 const TEST_KEY: &[u8] = &*b":test:key:";
@@ -122,13 +123,15 @@ impl pallet_subtensor::Trait for Test {
 parameter_types! {
 	pub const TransactionByteFee: Balance = 100;
 }
-// impl pallet_transaction_payment::Trait for Test {
-// 	type Currency = Balances;
-// 	type OnTransactionPayment = ();
-// 	type TransactionByteFee = TransactionByteFee;
-// 	type WeightToFee = IdentityFee<Balance>;
-// 	type FeeMultiplierUpdate = ();
-// }
+
+
+impl pallet_transaction_payment::Trait for Test {
+	type Currency = Balances;
+	type OnTransactionPayment = ();
+	type TransactionByteFee = TransactionByteFee;
+	type WeightToFee = IdentityFee<Balance>;
+	type FeeMultiplierUpdate = ();
+}
 
 impl ValidateUnsigned for Test {
 	type Call = Call;
@@ -166,7 +169,7 @@ type SignedExtra = (
 	frame_system::CheckEra<Test>,
 	frame_system::CheckNonce<Test>,
 	frame_system::CheckWeight<Test>,
-	pallet_subtensor::FeeFromSelfEmission<Test>
+	transaction_payment::ChargeTransactionPayment<Test>
 );
 
 #[allow(dead_code)]
@@ -200,7 +203,7 @@ fn extra(nonce: u64) -> SignedExtra {
 		frame_system::CheckEra::from(Era::Immortal),
 		frame_system::CheckNonce::from(nonce),
 		frame_system::CheckWeight::new(),
-		pallet_subtensor::FeeFromSelfEmission::new()
+		transaction_payment::ChargeTransactionPayment::from(0)
 	)
 }
 

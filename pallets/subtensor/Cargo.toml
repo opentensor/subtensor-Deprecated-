@@ -39,6 +39,7 @@ serde = { version = "1.0.101", features = ['std'] }
 parity-util-mem = { version = "0.7.0", features = ['primitive-types']}
 rand = { version = "0.7.2"  }
 sp-application-crypto = { version = "2.0.0" }
+pallet-transaction-payment = { version = "1.0.0", path = "../transaction-payment"}
 
 [features]
 default = ['std']
