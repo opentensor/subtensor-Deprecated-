@@ -10,4 +10,9 @@ services:
       - CARGO_HOME=/subtensor/.cargo
       - WASM_BUILD_TOOLCHAIN=nightly-2020-10-05
     
-    command: /bin/bash -c "cd /subtensor && ./bin/release/node-subtensor --dev --ws-external"
+    command: /bin/bash -c "
+      cd /subtensor
+      && mkdir -p ~/.local/share/node-subtensor
+      && tar -xf ./bin/release/kusanagi_genesis.tar -C ~/.local/share/node-subtensor
+      && cd /subtensor && ./bin/release/node-subtensor --dev --ws-external
+      "
