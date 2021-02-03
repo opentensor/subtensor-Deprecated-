@@ -1,5 +1,5 @@
 use frame_support::{assert_ok};
-use frame_system::Trait;
+use frame_system::{Trait};
 mod mock;
 use mock::*;
 use mock::{TestXt};
@@ -101,41 +101,52 @@ fn test_add_stake_ok_no_emission() {
 }
 
 #[test]
-fn test_add_stake_err_with_emission() {
+fn test_add_stake_ok_with_emission() {
 	new_test_ext().execute_with(|| {
-        let hotkey_account_id = 533453;
-		let ip = ipv4(8,8,8,8);
-		let port = 66;
-		let ip_type = 4;
-		let modality = 0;
-		let coldkey_account_id = 55453;
+       	let neuron_src_hotkey_id = 1;
+		let neuron_dest_hotkey_id = 2;
+		let coldkey_account_id = 667;
 
 		let transfer_amount:u64 = 10000;
 		let initial_stake:u64 = 5000;
 
-		// Subscribe neuron
-		let neuron = subscribe_neuron(hotkey_account_id, ip,port,ip_type, modality, coldkey_account_id);
+		// Subscribe neuron, this will set a self weight
+		let _adam = subscribe_ok_neuron(0, coldkey_account_id);
+		let neuron_src = subscribe_ok_neuron(neuron_src_hotkey_id, coldkey_account_id);
+		let neuron_dest = subscribe_ok_neuron(neuron_dest_hotkey_id, coldkey_account_id);
+
+		// We will need to set a weight to another neuron to test for emission later on.
+		// This is because the self weight will be used to pay for the transaction, and as such
+		// does not end up in the neuron's own account.
+		SubtensorModule::set_weights(Origin::signed(neuron_src_hotkey_id), vec![neuron_dest.uid], vec![100]);
+
 
 		// Give it some $$$ in his coldkey balance
 		SubtensorModule::add_balance_to_coldkey_account(&coldkey_account_id, transfer_amount.into());
 
 		// Add some stake to the hotkey account, so we can test for emission before the transfer takes place
-		SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, initial_stake);
+		SubtensorModule::add_stake_to_neuron_hotkey_account(neuron_src.uid, initial_stake);
+
+		// Check if the initial stake has arrived
+		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron_src.uid), initial_stake);
 
 		// Run a couple of blocks to check if emission works
 		run_to_block(5);
 
 		// Initiate transfer
-		assert_ok!(SubtensorModule::do_add_stake(<<Test as Trait>::Origin>::signed(coldkey_account_id), hotkey_account_id, transfer_amount));
+		assert_ok!(SubtensorModule::do_add_stake(Origin::signed(coldkey_account_id), neuron_src_hotkey_id, transfer_amount));
 
-		// Check if the stake is bigger than the inital stake + transfer due to emission.
-		assert!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid) > initial_stake + transfer_amount);
+		// Check if the stake is equal to the inital stake + transfer
+		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron_src.uid), initial_stake + transfer_amount);
 
 		// Check if the balance has been reduced by the transfer amount
 		assert_eq!(SubtensorModule::get_coldkey_balance(&coldkey_account_id), 0);
 
 		// Check if the total stake is bigger than the sum of initial stake + transferred amount
-		assert!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid) > initial_stake + transfer_amount);
+		assert!(SubtensorModule::get_total_stake() > initial_stake + transfer_amount);
+
+		// Check if the destination neuron has received emission
+		assert!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron_dest.uid) > 0);
 	});
 }
 

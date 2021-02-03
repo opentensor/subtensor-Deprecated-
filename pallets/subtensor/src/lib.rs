@@ -304,7 +304,7 @@ decl_module! {
 		/// 		- When the amount to stake exceeds the amount of balance in the
 		/// 		associated colkey account.
 		///
-		#[weight = (0, DispatchClass::Normal, Pays::No)]
+		#[weight = (0, DispatchClass::Normal, Pays::Yes)]
 		pub fn set_weights(origin, dests: Vec<u64>, weights: Vec<u32>) -> dispatch::DispatchResult {
 			Self::do_set_weights(origin, dests, weights)
 		}
@@ -341,7 +341,7 @@ decl_module! {
 		/// 		- When the amount to stake exceeds the amount of balance in the
 		/// 		associated colkey account.
 		///
-		#[weight = (0, DispatchClass::Operational, Pays::No)] // TODO(const): should be a normal transaction fee.
+		#[weight = (0, DispatchClass::Normal, Pays::Yes)]
 		pub fn add_stake(origin, hotkey: T::AccountId, ammount_staked: u64) -> dispatch::DispatchResult {
 			Self::do_add_stake(origin, hotkey, ammount_staked)
 		}

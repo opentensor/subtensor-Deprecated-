@@ -106,7 +106,7 @@ impl pallet_balances::Trait for Test {
 	type Balance = Balance;
 	type Event = ();
 	type DustRemoval = ();
-	type ExistentialDeposit = ExistentialDeposit;
+	type ExistentialDeposit = ();
 	type AccountStore = System;
 	type MaxLocks = ();
 	type WeightInfo = ();
@@ -166,7 +166,7 @@ type SignedExtra = (
 	frame_system::CheckEra<Test>,
 	frame_system::CheckNonce<Test>,
 	frame_system::CheckWeight<Test>,
-	pallet_subtensor::FeeFromSelfEmission<Test>
+	// pallet_subtensor::FeeFromSelfEmission<Test>
 );
 
 #[allow(dead_code)]
@@ -200,7 +200,7 @@ fn extra(nonce: u64) -> SignedExtra {
 		frame_system::CheckEra::from(Era::Immortal),
 		frame_system::CheckNonce::from(nonce),
 		frame_system::CheckWeight::new(),
-		pallet_subtensor::FeeFromSelfEmission::new()
+		// pallet_subtensor::FeeFromSelfEmission::new()
 	)
 }
 
