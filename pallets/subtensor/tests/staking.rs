@@ -216,6 +216,24 @@ fn test_add_stake_err_not_enough_belance() {
 /***********************************************************
 	staking::remove_stake() tests
 ************************************************************/
+
+#[test]
+fn test_remove_stake_dispatch_info_ok() {
+	new_test_ext().execute_with(|| {
+        let account_id = 0;
+		let stake = 5000;
+
+		let call = Call::SubtensorModule(SubtensorCall::remove_stake(account_id, stake));
+
+		assert_eq!(call.get_dispatch_info(), DispatchInfo {
+			weight: 0,
+			class: DispatchClass::Normal,
+			pays_fee: Pays::Yes
+		});
+	});
+}
+
+
 #[test]
 fn test_remove_stake_ok_no_emission() {
 	new_test_ext().execute_with(|| {
