@@ -607,13 +607,16 @@ where
 		len: usize
 	) -> Result<Self::Pre, TransactionValidityError> {
 		match call.is_sub_type() {
-			// The set_weights call has a different approach
 			Some(Call::set_weights(..)) => {
+				// To pay for the set_weights operation, the self_weight of a neuron is used for payment
+				// This can be >= 0, however the lower the self weight, the lower the priority in the block
+				// and may result the transaction is not put into a block
 				let transaction_fee = Module::<T>::get_self_emission_for_caller(who);
 
 				Ok((CallType::SetWeights, transaction_fee, who.clone())) // 0 indicates that post_dispatch should use the self-weight to pay for the transaction
 			},
 			Some(Call::add_stake(..)) => {
+				// The transaction fee for the add_stake function is paid from the coldkey balance
 				let transaction_fee = Module::<T>::calculate_transaction_fee(len as u64);
 				let transaction_fee_as_balance = Module::<T>::u64_to_balance( transaction_fee );
 
@@ -624,6 +627,11 @@ where
 				}
 			}
 			Some(Call::remove_stake(hotkey_id, _requested_amount)) => {
+				// The tranaction fee for the remove_stake call is paid from the coldkey balance
+				// after the transaction completes. For this, a check is done on both the stake
+				// as well as the coldkey balance to see if one of both is sufficient to pay
+				// for the transaction
+
 				let neuron = Module::<T>::get_neuron_for_hotkey(hotkey_id);
 				let transaction_fee = Module::<T>::calculate_transaction_fee(len as u64);
 				let transaction_fee_as_balance = Module::<T>::u64_to_balance( transaction_fee ).unwrap();
@@ -634,6 +642,10 @@ where
 				} else {
 					Ok((CallType::RemoveStake, transaction_fee, who.clone()))
 				}
+			}
+			Some(Call::subscribe(..)) => {
+				// Subscribing to the network is free
+				Ok((CallType::Subscribe, 0, who.clone()))
 			}
 			_ => {
 				// @todo handle tranaction for default payments here
@@ -670,6 +682,9 @@ where
 					CallType::RemoveStake => {
 						Module::<T>::remove_balance_from_coldkey_account(&coldkey_id, transaction_fee_as_balance);
 						Module::<T>::add_stake_to_neuron_hotkey_account(0, transaction_fee); // uid 0 == Adam
+						Ok(Default::default())
+					}
+					CallType::Subscribe => {
 						Ok(Default::default())
 					}
 					_ => Err(TransactionValidityError::from(InvalidTransaction::Call))
