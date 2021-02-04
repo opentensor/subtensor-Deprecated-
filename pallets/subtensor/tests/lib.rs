@@ -1,4 +1,4 @@
-use pallet_subtensor::{ChargeTransactionPayment, Error, Trait, CallType};
+use pallet_subtensor::{ChargeTransactionPayment, Error, CallType};
 use frame_support::{assert_ok};
 mod mock;
 use mock::*;
@@ -7,8 +7,6 @@ use frame_support::weights::PostDispatchInfo;
 use sp_std::marker::PhantomData;
 use sp_runtime::traits::SignedExtension;
 use pallet_subtensor::Call as SubtensorCall;
-use sp_runtime::DispatchError;
-use sp_runtime::transaction_validity::TransactionValidityError;
 
 #[test]
 fn fee_from_emission_works() {
@@ -196,7 +194,7 @@ fn post_dispatch_works() {
         let adam_id = 0;
         let hotkey_account_id = 1;
 
-        let adam = subscribe_ok_neuron(0, 667);
+        let _adam = subscribe_ok_neuron(adam_id, 667);
         let neuron = subscribe_neuron(hotkey_account_id, 10, 666, 4, 0, 66);
         assert_ok!(SubtensorModule::set_weights(Origin::signed(hotkey_account_id), vec![neuron.uid], vec![u32::MAX]));
         SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, 1000000000); // Add the stake.
@@ -205,7 +203,7 @@ fn post_dispatch_works() {
         let len = 10;
         run_to_block(1);
 
-        let mut result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len);
+        let result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len);
         assert_ok!(result);
 
         let pre = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len).unwrap();
@@ -219,10 +217,10 @@ fn post_dispatch_works() {
 fn test_post_dispatch_does_not_deposit_to_adam_on_error() {
 	new_test_ext().execute_with(|| {
         let adam_id = 0;
-        let adam = subscribe_ok_neuron(adam_id, 667);
+        let _adam = subscribe_ok_neuron(adam_id, 667);
 
         // Adam should have no stake before operation
-        let mut result = SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(adam_id);
+        let result = SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(adam_id);
         assert_eq!(result, 0);
 
         let pre_dispatch_result = Err(Error::<Test>::DuplicateUids.into());

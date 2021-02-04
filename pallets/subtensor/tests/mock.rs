@@ -1,12 +1,12 @@
 use sp_runtime::{generic::Era, Perbill, traits::{BlakeTwo256, IdentityLookup}, transaction_validity::{UnknownTransaction}, ApplyExtrinsicResultWithInfo};
 use frame_support::{
 	impl_outer_event, impl_outer_origin, parameter_types, impl_outer_dispatch,
-	weights::{Weight, RuntimeDbWeight},
+	weights::{Weight},
 };
 use frame_system::{self as system, ChainContext};
 use pallet_balances::Call as BalancesCall;
 use pallet_balances as balances;
-use pallet_transaction_payment as transaction_payment;
+// use pallet_transaction_payment as transaction_payment;
 use frame_support::traits::{OnRuntimeUpgrade, OnFinalize, OnInitialize};
 
 use frame_support::{assert_ok};
@@ -21,7 +21,7 @@ use sp_runtime::traits::{
 	SignedExtension, Dispatchable, DispatchInfoOf, PostDispatchInfoOf,
 };
 use sp_runtime::traits::{ValidateUnsigned, Saturating};
-use sp_runtime::{generic, KeyTypeId, CryptoTypeId};
+use sp_runtime::{KeyTypeId, CryptoTypeId};
 pub use sp_core::{H256, sr25519};
 use sp_core::{crypto::{CryptoType, Dummy, key_types, Public}, U256};
 use sp_runtime::transaction_validity::{TransactionValidity, TransactionSource, TransactionValidityError};
@@ -37,24 +37,15 @@ type System = frame_system::Module<Test>;
 type Balances = pallet_balances::Module<Test>;
 
 /// An index to a block.
-pub type BlockNumber = u32;
+pub type BlockNumber = u64;
 
 
-/// The type for looking up accounts. We don't expect more than 4 billion of them, but you
-/// never know...
-pub type AccountIndex = u32;
 
 /// Balance of an account.
 pub type Balance = u128;
 
-/// Index of a transaction in the chain.
-pub type Index = u32;
 
-/// A hash of some data used by the chain.
-pub type Hash = sp_core::H256;
 
-/// Digest item type.
-pub type DigestItem = generic::DigestItem<Hash>;
 
 
 
@@ -93,17 +84,14 @@ parameter_types! {
 	pub const MaximumBlockLength: u32 = 5 * 1024 * 10;
 	// pub const Version: RuntimeVersion = VERSION;
 	pub const ExtrinsicBaseWeight: Weight = 5;
-	pub const DbWeight: RuntimeDbWeight = RuntimeDbWeight {
-		read: 10,
-		write: 100,
-	};
+	// pub const DbWeight = RocksDbWeight;
 }
 impl frame_system::Trait for Test {
 	type BaseCallFilter = ();
 	type Origin = Origin;
 	type Index = u64;
 	type Call = Call;
-	type BlockNumber = u64;
+	type BlockNumber = BlockNumber;
 	type Hash = sp_core::H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = u64;
@@ -112,7 +100,7 @@ impl frame_system::Trait for Test {
 	type Event = ();
 	type BlockHashCount = BlockHashCount;
 	type MaximumBlockWeight = MaximumBlockWeight;
-	type DbWeight = DbWeight;
+	type DbWeight = RocksDbWeight;
 	type BlockExecutionWeight = BlockExecutionWeight;
 	type ExtrinsicBaseWeight = ExtrinsicBaseWeight;
 	type MaximumExtrinsicWeight = MaximumExtrinsicWeight;
