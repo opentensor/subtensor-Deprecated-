@@ -530,9 +530,6 @@ impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T> whe
 		len: usize
 	) -> Result<Self::Pre, TransactionValidityError> {
 
-		println!("PRE_DISPATCH TRANSACTION PAYMENT CALLED");
-
-
 		let (fee, imbalance) = self.withdraw_fee(who, info, len)?;
 		Ok((self.0, who.clone(), imbalance, fee))
 	}

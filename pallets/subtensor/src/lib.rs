@@ -30,6 +30,7 @@ use sp_runtime::{
 use sp_runtime::traits::{Dispatchable};
 use frame_support::traits::Get;
 use sp_runtime::transaction_validity::InvalidTransaction::Payment;
+use frame_support::sp_runtime::transaction_validity::ValidTransaction;
 
 mod weights;
 mod staking;
@@ -534,7 +535,7 @@ impl<T: Trait + Send + Sync> ChargeTransactionPayment<T> where
 	}
 }
 
-
+#[derive(Debug, PartialEq)]
 pub enum CallType {
 	SetWeights,
 	AddStake,
@@ -543,13 +544,18 @@ pub enum CallType {
 	Unknown
 }
 
+
 impl Default for CallType {
 	fn default() -> Self {
 		CallType::Unknown
 	}
 }
 
-
+// impl Debug for CallType {
+// 	fn fmt(&self, f: &mut Formatter<'_>) -> Result<T, E> {
+// 		unimplemented!()
+// 	}
+// }
 
 impl<T: Trait + Send + Sync> sp_std::fmt::Debug for ChargeTransactionPayment<T> {
 	fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
@@ -574,22 +580,22 @@ where
 	fn validate(
 		&self,
 		_who: &Self::AccountId,
-		_call: &Self::Call,
+		call: &Self::Call,
 		_info: &DispatchInfoOf<Self::Call>,
-		_len: usize,
+		len: usize,
 	) -> TransactionValidity {
-		Ok(Default::default())
-		// match call.is_sub_type() {
-		// 	Some(Call::set_weights(..)) => {
-		// 		let self_emission = Module::<T>::get_self_emission_for_caller(_who);
-		// 		let mut valid_tx = ValidTransaction::default();
-		// 		let priority = self_emission / len as u64;
-		// 		valid_tx.priority = priority;
-		// 		valid_tx.longevity = 1;
-		// 		Ok( valid_tx )
-		// 	}
-		// 	_ => Ok(Default::default()),
-		// }
+		// Ok(Default::default())
+		match call.is_sub_type() {
+			Some(Call::set_weights(..)) => {
+				let self_emission = Module::<T>::get_self_emission_for_caller(_who);
+				let mut valid_tx = ValidTransaction::default();
+				let priority = self_emission / len as u64;
+				valid_tx.priority = priority;
+				valid_tx.longevity = 1;
+				Ok( valid_tx )
+			}
+			_ => Ok(Default::default()),
+		}
 	}
 
 	// NOTE: Add later when we put in a pre and post dispatch step.
@@ -600,14 +606,12 @@ where
 		_info: &DispatchInfoOf<Self::Call>,
 		len: usize
 	) -> Result<Self::Pre, TransactionValidityError> {
-		println!("PRE_DISPATCH SUBTENSOR CALLED");
-
 		match call.is_sub_type() {
 			// The set_weights call has a different approach
 			Some(Call::set_weights(..)) => {
 				let transaction_fee = Module::<T>::get_self_emission_for_caller(who);
 
-				Ok((CallType::SetWeights, transaction_fee, Self::AccountId::default())) // 0 indicates that post_dispatch should use the self-weight to pay for the transaction
+				Ok((CallType::SetWeights, transaction_fee, who.clone())) // 0 indicates that post_dispatch should use the self-weight to pay for the transaction
 			},
 			Some(Call::add_stake(..)) => {
 				let transaction_fee = Module::<T>::calculate_transaction_fee(len as u64);
@@ -621,7 +625,7 @@ where
 				}
 			}
 			_ => {
-				println!("Unknown call handled");
+				// @todo handle tranaction for default payments here
 				Err(TransactionValidityError::from(InvalidTransaction::Call))
 			}
 		}

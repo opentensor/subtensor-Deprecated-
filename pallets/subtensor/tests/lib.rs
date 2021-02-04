@@ -1,4 +1,4 @@
-use pallet_subtensor::{ChargeTransactionPayment, Error};
+use pallet_subtensor::{ChargeTransactionPayment, Error, Trait, CallType};
 use frame_support::{assert_ok};
 mod mock;
 use mock::*;
@@ -173,9 +173,20 @@ fn pre_dispatch_works() {
         let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
         let info = DispatchInfo::default();
         let len = 10;
-        assert_eq!(ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len).unwrap(), 0);
+
+
+        let mut result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len).unwrap();
+        assert_eq!(result.0, CallType::SetWeights);
+        assert_eq!(result.1, 0);
+        assert_eq!(result.2, hotkey_account_id);
+
         run_to_block(1);
-        assert_eq!(ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len).unwrap(), 500000000);
+
+        result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len).unwrap();
+        assert_eq!(result.0, CallType::SetWeights);
+        assert_eq!(result.1, 500000000);
+        assert_eq!(result.2, hotkey_account_id);
+
     });
 }
 
@@ -194,22 +205,15 @@ fn post_dispatch_works() {
         let len = 10;
         run_to_block(1);
 
-        let result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len);
+        let mut result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len);
         assert_ok!(result);
 
-        let pre = result.unwrap();
-        assert!(ChargeTransactionPayment::<Test>::post_dispatch(pre, &info, &PostDispatchInfo {actual_weight: Some(0), pays_fee: Default::default()}, len, &Ok(())).is_ok());
+        let pre = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len).unwrap();
+        // assert!(ChargeTransactionPayment::<Test>::post_dispatch(pre, &info, &PostDispatchInfo {actual_weight: Some(0), pays_fee: Default::default()}, len, &Ok(())).is_ok());
         assert!(ChargeTransactionPayment::<Test>::post_dispatch(pre, &info, &PostDispatchInfo {actual_weight: Some(1000000000), pays_fee: Default::default()}, len, &Ok(())).is_ok());
     });
 }
 
-
-#[test]
-fn test_post_dispath_works_only_on_set_weights_function() {
-	new_test_ext().execute_with(|| {
-        assert!(true == false);
-	});
-}
 
 #[test]
 fn test_post_dispatch_does_not_deposit_to_adam_on_error() {
@@ -222,14 +226,14 @@ fn test_post_dispatch_does_not_deposit_to_adam_on_error() {
         assert_eq!(result, 0);
 
         let pre_dispatch_result = Err(Error::<Test>::DuplicateUids.into());
-        let self_emission = 1000000;
+        let pre_dispatch_data = (pallet_subtensor::CallType::SetWeights, 0, 0);
 
         // let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
         let info = DispatchInfo::default();
         let post_dispatch_info = PostDispatchInfo {actual_weight: Some(0), pays_fee: Default::default()};
         let len = 100;
 
-        let post_dispatch_result  = ChargeTransactionPayment::<Test>::post_dispatch(self_emission, &info, &post_dispatch_info, len, &pre_dispatch_result);
+        let post_dispatch_result  = ChargeTransactionPayment::<Test>::post_dispatch(pre_dispatch_data, &info, &post_dispatch_info, len, &pre_dispatch_result);
         assert_ok!(post_dispatch_result);
 
         assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(adam_id), 0);
