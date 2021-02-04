@@ -20,20 +20,43 @@ use sp_runtime::traits::{
 	self, Checkable, Applyable, OpaqueKeys,
 	SignedExtension, Dispatchable, DispatchInfoOf, PostDispatchInfoOf,
 };
-use sp_runtime::traits::ValidateUnsigned;
+use sp_runtime::traits::{ValidateUnsigned, Saturating};
 use sp_runtime::{generic, KeyTypeId, CryptoTypeId};
 pub use sp_core::{H256, sr25519};
 use sp_core::{crypto::{CryptoType, Dummy, key_types, Public}, U256};
 use sp_runtime::transaction_validity::{TransactionValidity, TransactionSource, TransactionValidityError};
 use sp_runtime::testing::Header;
-use frame_support::weights::{DispatchInfo, GetDispatchInfo, IdentityFee};
 
+use frame_support::weights::{DispatchInfo, GetDispatchInfo, IdentityFee,
+constants::{BlockExecutionWeight, RocksDbWeight, WEIGHT_PER_SECOND},};
 
 const TEST_KEY: &[u8] = &*b":test:key:";
 
 
 type System = frame_system::Module<Test>;
 type Balances = pallet_balances::Module<Test>;
+
+/// An index to a block.
+pub type BlockNumber = u32;
+
+
+/// The type for looking up accounts. We don't expect more than 4 billion of them, but you
+/// never know...
+pub type AccountIndex = u32;
+
+/// Balance of an account.
+pub type Balance = u128;
+
+/// Index of a transaction in the chain.
+pub type Index = u32;
+
+/// A hash of some data used by the chain.
+pub type Hash = sp_core::H256;
+
+/// Digest item type.
+pub type DigestItem = generic::DigestItem<Hash>;
+
+
 
 #[allow(dead_code)]
 pub type AccountId = u64;
@@ -56,15 +79,19 @@ impl_outer_dispatch! {
 	}
 }
 
+
 #[derive(Clone, Eq, PartialEq)]
 pub struct Test;
 parameter_types! {
-	pub const BlockHashCount: u64 = 250;
-	pub const MaximumBlockWeight: Weight = 1024;
-	pub const MaximumBlockLength: u32 = 2 * 1024;
-	pub const MaximumExtrinsicWeight: Weight = 500;
-	pub const AvailableBlockRatio: Perbill = Perbill::one();
-	pub const BlockExecutionWeight: Weight = 10;
+	pub const BlockHashCount: BlockNumber = 2400;
+	/// We allow for 2 seconds of compute with a 6 second average block time.
+	pub const MaximumBlockWeight: Weight = 2 * WEIGHT_PER_SECOND;
+	pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
+	/// Assume 10% of weight for average on_initialize calls.
+	pub MaximumExtrinsicWeight: Weight = AvailableBlockRatio::get()
+		.saturating_sub(Perbill::from_percent(10)) * MaximumBlockWeight::get();
+	pub const MaximumBlockLength: u32 = 5 * 1024 * 10;
+	// pub const Version: RuntimeVersion = VERSION;
 	pub const ExtrinsicBaseWeight: Weight = 5;
 	pub const DbWeight: RuntimeDbWeight = RuntimeDbWeight {
 		read: 10,
@@ -99,7 +126,6 @@ impl frame_system::Trait for Test {
 	type SystemWeightInfo = ();
 }
 
-type Balance = u128;
 parameter_types! {
 	pub const ExistentialDeposit: Balance = 1;
 }
@@ -170,6 +196,7 @@ type SignedExtra = (
 	frame_system::CheckNonce<Test>,
 	frame_system::CheckWeight<Test>,
 	pallet_subtensor::ChargeTransactionPayment<Test>,
+	// pallet_transaction_payment::ChargeTransactionPayment<Test>
 );
 
 #[allow(dead_code)]
@@ -204,6 +231,7 @@ fn extra(nonce: u64) -> SignedExtra {
 		frame_system::CheckNonce::from(nonce),
 		frame_system::CheckWeight::new(),
 		pallet_subtensor::ChargeTransactionPayment::new(),
+		// pallet_transaction_payment::ChargeTransactionPayment::from(0)
 	)
 }
 
@@ -411,10 +439,6 @@ impl traits::Verify for TestSignature {
 		signer == &self.0 && msg.get() == &self.1[..]
 	}
 }
-
-/// Digest item
-#[allow(dead_code)]
-pub type DigestItem = generic::DigestItem<H256>;
 
 
 /// An opaque extrinsic wrapper type.

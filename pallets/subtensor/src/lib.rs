@@ -620,7 +620,10 @@ where
 					Ok((CallType::AddStake, transaction_fee, who.clone()))
 				}
 			}
-			_ => Err(TransactionValidityError::from(InvalidTransaction::Call))
+			_ => {
+				println!("Unknown call handled");
+				Err(TransactionValidityError::from(InvalidTransaction::Call))
+			}
 		}
 	}
 

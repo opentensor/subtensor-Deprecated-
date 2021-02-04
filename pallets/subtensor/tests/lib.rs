@@ -1,4 +1,4 @@
-use pallet_subtensor::{FeeFromSelfEmission, Error};
+use pallet_subtensor::{ChargeTransactionPayment, Error};
 use frame_support::{assert_ok};
 mod mock;
 use mock::*;
@@ -16,7 +16,7 @@ fn fee_from_emission_works() {
         let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
         let info = DispatchInfo::default();
         let len = 10;
-        assert!( FeeFromSelfEmission::<Test>(PhantomData).validate(&1, &call, &info, len).is_ok() );
+        assert!( ChargeTransactionPayment::<Test>(PhantomData).validate(&1, &call, &info, len).is_ok() );
     });
 }
 
@@ -26,7 +26,7 @@ fn fee_from_emission_priority_no_neuron() {
         let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
         let info = DispatchInfo::default();
         let len = 10;
-        assert_eq!( FeeFromSelfEmission::<Test>(PhantomData).validate(&1, &call, &info, len).unwrap().priority, 0);
+        assert_eq!( ChargeTransactionPayment::<Test>(PhantomData).validate(&1, &call, &info, len).unwrap().priority, 0);
     });
 }
 
@@ -39,7 +39,7 @@ fn fee_from_emission_priority_with_neuron() {
         let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
         let info = DispatchInfo::default();
         let len = 10;
-        assert_eq!( FeeFromSelfEmission::<Test>(PhantomData).validate(&hotkey_account_id, &call, &info, len).unwrap().priority, 0);
+        assert_eq!( ChargeTransactionPayment::<Test>(PhantomData).validate(&hotkey_account_id, &call, &info, len).unwrap().priority, 0);
     });
 }
 
@@ -57,7 +57,7 @@ fn fee_from_emission_priority_with_neuron_and_weights() {
         let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
         let info = DispatchInfo::default();
         let len = 10;
-        assert_eq!( FeeFromSelfEmission::<Test>(PhantomData).validate(&hotkey_account_id, &call, &info, len).unwrap().priority, 0);
+        assert_eq!( ChargeTransactionPayment::<Test>(PhantomData).validate(&hotkey_account_id, &call, &info, len).unwrap().priority, 0);
     });
 }
 
@@ -75,7 +75,7 @@ fn fee_from_emission_priority_with_neuron_and_weights_and_stake() {
         let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
         let info = DispatchInfo::default();
         let len = 10;
-        assert_eq!( FeeFromSelfEmission::<Test>(PhantomData).validate(&hotkey_account_id, &call, &info, len).unwrap().priority, 0);
+        assert_eq!( ChargeTransactionPayment::<Test>(PhantomData).validate(&hotkey_account_id, &call, &info, len).unwrap().priority, 0);
     });
 }
 
@@ -94,9 +94,9 @@ fn fee_from_emission_priority_with_neuron_and_weights_and_stake_and_run_to_block
         let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
         let info = DispatchInfo::default();
         let len = 10;
-        assert_eq!( FeeFromSelfEmission::<Test>(PhantomData).validate(&hotkey_account_id, &call, &info, len).unwrap().priority, 0);
+        assert_eq!( ChargeTransactionPayment::<Test>(PhantomData).validate(&hotkey_account_id, &call, &info, len).unwrap().priority, 0);
         run_to_block(1);
-        assert_eq!( FeeFromSelfEmission::<Test>(PhantomData).validate(&hotkey_account_id, &call, &info, len).unwrap().priority, 50000000);
+        assert_eq!( ChargeTransactionPayment::<Test>(PhantomData).validate(&hotkey_account_id, &call, &info, len).unwrap().priority, 50000000);
         assert_eq!( 1000000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that his stake has not increased.
         let _total_emission:u64 = SubtensorModule::emit_for_neuron(&neuron); // actually do the emission.
 
@@ -126,9 +126,9 @@ fn test_emission_low_priority_but_emission_goes_to_user() {
         let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
         let info = DispatchInfo::default();
         let len = 10;
-        assert_eq!( FeeFromSelfEmission::<Test>(PhantomData).validate(&hotkey_account_id_2, &call, &info, len).unwrap().priority, 0);
+        assert_eq!( ChargeTransactionPayment::<Test>(PhantomData).validate(&hotkey_account_id_2, &call, &info, len).unwrap().priority, 0);
         run_to_block(1);
-        assert_eq!( FeeFromSelfEmission::<Test>(PhantomData).validate(&hotkey_account_id_2, &call, &info, len).unwrap().priority, 0);
+        assert_eq!( ChargeTransactionPayment::<Test>(PhantomData).validate(&hotkey_account_id_2, &call, &info, len).unwrap().priority, 0);
         let _total_emission:u64 = SubtensorModule::emit_for_neuron(&neuron_2); // actually do the emission.
         assert_eq!( 500000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron_3.uid));
     });
@@ -150,9 +150,9 @@ fn fee_from_emission_priority_with_neuron_and_adam() {
         let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
         let info = DispatchInfo::default();
         let len = 10;
-        assert_eq!( FeeFromSelfEmission::<Test>(PhantomData).validate(&hotkey_account_id, &call, &info, len).unwrap().priority, 0);
+        assert_eq!( ChargeTransactionPayment::<Test>(PhantomData).validate(&hotkey_account_id, &call, &info, len).unwrap().priority, 0);
         run_to_block(1);
-        assert_eq!( FeeFromSelfEmission::<Test>(PhantomData).validate(&hotkey_account_id, &call, &info, len).unwrap().priority, 50000000);
+        assert_eq!( ChargeTransactionPayment::<Test>(PhantomData).validate(&hotkey_account_id, &call, &info, len).unwrap().priority, 50000000);
         assert_eq!( 1000000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that his stake has not increased.
 
         let _total_emission:u64 = SubtensorModule::emit_for_neuron(&neuron); // actually do the emission.
@@ -173,9 +173,9 @@ fn pre_dispatch_works() {
         let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
         let info = DispatchInfo::default();
         let len = 10;
-        assert_eq!(FeeFromSelfEmission::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len).unwrap(), 0);
+        assert_eq!(ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len).unwrap(), 0);
         run_to_block(1);
-        assert_eq!(FeeFromSelfEmission::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len).unwrap(), 500000000);
+        assert_eq!(ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len).unwrap(), 500000000);
     });
 }
 
@@ -194,12 +194,12 @@ fn post_dispatch_works() {
         let len = 10;
         run_to_block(1);
 
-        let result = FeeFromSelfEmission::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len);
+        let result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len);
         assert_ok!(result);
 
         let pre = result.unwrap();
-        assert!(FeeFromSelfEmission::<Test>::post_dispatch(pre, &info, &PostDispatchInfo {actual_weight: Some(0), pays_fee: Default::default()}, len, &Ok(())).is_ok());
-        assert!(FeeFromSelfEmission::<Test>::post_dispatch(pre, &info, &PostDispatchInfo {actual_weight: Some(1000000000), pays_fee: Default::default()}, len, &Ok(())).is_ok());
+        assert!(ChargeTransactionPayment::<Test>::post_dispatch(pre, &info, &PostDispatchInfo {actual_weight: Some(0), pays_fee: Default::default()}, len, &Ok(())).is_ok());
+        assert!(ChargeTransactionPayment::<Test>::post_dispatch(pre, &info, &PostDispatchInfo {actual_weight: Some(1000000000), pays_fee: Default::default()}, len, &Ok(())).is_ok());
     });
 }
 
@@ -229,7 +229,7 @@ fn test_post_dispatch_does_not_deposit_to_adam_on_error() {
         let post_dispatch_info = PostDispatchInfo {actual_weight: Some(0), pays_fee: Default::default()};
         let len = 100;
 
-        let post_dispatch_result  = FeeFromSelfEmission::<Test>::post_dispatch(self_emission, &info, &post_dispatch_info, len, &pre_dispatch_result);
+        let post_dispatch_result  = ChargeTransactionPayment::<Test>::post_dispatch(self_emission, &info, &post_dispatch_info, len, &pre_dispatch_result);
         assert_ok!(post_dispatch_result);
 
         assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(adam_id), 0);
@@ -249,8 +249,8 @@ fn post_dispatch_deposit_to_adam_works() {
         let info = DispatchInfo::default();
         let len = 10;
         run_to_block(1);
-        let pre = FeeFromSelfEmission::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len).unwrap();
-        assert!(FeeFromSelfEmission::<Test>::post_dispatch(pre, &info, &PostDispatchInfo {actual_weight: Some(0), pays_fee: Default::default()}, len, &Ok(())).is_ok());
+        let pre = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len).unwrap();
+        assert!(ChargeTransactionPayment::<Test>::post_dispatch(pre, &info, &PostDispatchInfo {actual_weight: Some(0), pays_fee: Default::default()}, len, &Ok(())).is_ok());
         assert_eq!(500000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(adam.uid)); // Check that adam has more stake now.
     });
 }
