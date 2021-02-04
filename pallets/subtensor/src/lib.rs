@@ -535,6 +535,20 @@ impl<T: Trait + Send + Sync> ChargeTransactionPayment<T> where
 }
 
 
+pub enum CallType {
+	SetWeights,
+	AddStake,
+	RemoveStake,
+	Subscribe,
+	Unknown
+}
+
+impl Default for CallType {
+	fn default() -> Self {
+		CallType::Unknown
+	}
+}
+
 
 
 impl<T: Trait + Send + Sync> sp_std::fmt::Debug for ChargeTransactionPayment<T> {
@@ -552,7 +566,7 @@ where
 	type AccountId = T::AccountId;
 	type Call = <T as frame_system::Trait>::Call;
 	type AdditionalSigned = ();
-	type Pre = (u8, u64, Self::AccountId);
+	type Pre = (CallType, u64, Self::AccountId);
 	fn additional_signed(&self) -> Result<Self::AdditionalSigned, TransactionValidityError> { Ok(()) }
 
 
@@ -593,7 +607,7 @@ where
 			Some(Call::set_weights(..)) => {
 				let transaction_fee = Module::<T>::get_self_emission_for_caller(who);
 
-				Ok((0, transaction_fee, Self::AccountId::default())) // 0 indicates that post_dispatch should use the self-weight to pay for the transaction
+				Ok((CallType::SetWeights, transaction_fee, Self::AccountId::default())) // 0 indicates that post_dispatch should use the self-weight to pay for the transaction
 			},
 			Some(Call::add_stake(..)) => {
 				let transaction_fee = Module::<T>::calculate_transaction_fee(len as u64);
@@ -603,7 +617,7 @@ where
 				if !Module::<T>::can_remove_balance_from_coldkey_account(&who, transaction_fee_as_balance.unwrap()) {
 					Err(TransactionValidityError::from(InvalidTransaction::from(Payment.into())))
 				} else {
-					Ok((1, transaction_fee, who.clone()))
+					Ok((CallType::AddStake, transaction_fee, who.clone()))
 				}
 			}
 			_ => Err(TransactionValidityError::from(InvalidTransaction::Call))
@@ -626,11 +640,11 @@ where
 		match result {
 			Ok(_) => {
 				match payment_type {
-					0 => {
+					CallType::SetWeights => {
 						Module::<T>::deposit_self_emission_into_adam(transaction_fee);
 						Ok(Default::default())
 					},
-					1 => {
+					CallType::AddStake => {
 						Module::<T>::remove_balance_from_coldkey_account(&coldkey_id, transaction_fee_as_balance);
 						Module::<T>::add_stake_to_neuron_hotkey_account(0, transaction_fee); // uid 0 == Adam
 						Ok(Default::default())
