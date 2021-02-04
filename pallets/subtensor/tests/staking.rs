@@ -233,6 +233,29 @@ fn test_remove_stake_dispatch_info_ok() {
 	});
 }
 
+#[test]
+fn test_remove_stake_ok_transaction_fee_ends_up_in_adam_account() {
+	let coldkey_id = 667;
+	let initial_stake : u64 = 1_000_000_000;
+	let hotkey_id = 1;
+
+	test_ext_with_balances(vec![(coldkey_id, initial_stake as u128)]).execute_with(|| {
+        let _adam = subscribe_ok_neuron(0,667);
+		let _neuron = subscribe_ok_neuron(hotkey_id, coldkey_id);
+		assert_ok!(SubtensorModule::add_stake(Origin::signed(coldkey_id), hotkey_id, initial_stake));
+
+
+		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(hotkey_id), 1_000_000_000);
+
+		let call = Call::SubtensorModule(SubtensorCall::remove_stake(hotkey_id, 500_000_000));
+		let xt = TestXt::new(call, mock::sign_extra(coldkey_id, 0));
+		let result = mock::Executive::apply_extrinsic(xt);
+		assert_ok!(result);
+
+		assert!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(0) > 0);
+	});
+}
+
 
 #[test]
 fn test_remove_stake_ok_no_emission() {

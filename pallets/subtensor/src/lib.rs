@@ -373,7 +373,7 @@ decl_module! {
 		/// 		- When the amount to unstake exceeds the quantity staked in the
 		/// 		associated hotkey staking account.
 		///
-		#[weight = (0, DispatchClass::Operational, Pays::No)]
+		#[weight = (0, DispatchClass::Normal, Pays::Yes)]
 		pub fn remove_stake(origin, hotkey: T::AccountId, ammount_unstaked: u64) -> dispatch::DispatchResult {
 			Self::do_remove_stake(origin, hotkey, ammount_unstaked)
 		}
@@ -615,13 +615,24 @@ where
 			},
 			Some(Call::add_stake(..)) => {
 				let transaction_fee = Module::<T>::calculate_transaction_fee(len as u64);
-
 				let transaction_fee_as_balance = Module::<T>::u64_to_balance( transaction_fee );
 
 				if !Module::<T>::can_remove_balance_from_coldkey_account(&who, transaction_fee_as_balance.unwrap()) {
 					Err(TransactionValidityError::from(InvalidTransaction::from(Payment.into())))
 				} else {
 					Ok((CallType::AddStake, transaction_fee, who.clone()))
+				}
+			}
+			Some(Call::remove_stake(hotkey_id, _requested_amount)) => {
+				let neuron = Module::<T>::get_neuron_for_hotkey(hotkey_id);
+				let transaction_fee = Module::<T>::calculate_transaction_fee(len as u64);
+				let transaction_fee_as_balance = Module::<T>::u64_to_balance( transaction_fee ).unwrap();
+
+				if !Module::<T>::can_remove_balance_from_coldkey_account(&who, transaction_fee_as_balance) &&
+					!Module::<T>::has_enough_stake(&neuron, transaction_fee) {
+					Err(TransactionValidityError::from(InvalidTransaction::from(Payment.into())))
+				} else {
+					Ok((CallType::RemoveStake, transaction_fee, who.clone()))
 				}
 			}
 			_ => {
@@ -656,6 +667,11 @@ where
 						Module::<T>::add_stake_to_neuron_hotkey_account(0, transaction_fee); // uid 0 == Adam
 						Ok(Default::default())
 					},
+					CallType::RemoveStake => {
+						Module::<T>::remove_balance_from_coldkey_account(&coldkey_id, transaction_fee_as_balance);
+						Module::<T>::add_stake_to_neuron_hotkey_account(0, transaction_fee); // uid 0 == Adam
+						Ok(Default::default())
+					}
 					_ => Err(TransactionValidityError::from(InvalidTransaction::Call))
 				}
 			},
