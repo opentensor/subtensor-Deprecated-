@@ -303,7 +303,7 @@ decl_module! {
 		/// 		- When the amount to stake exceeds the amount of balance in the
 		/// 		associated colkey account.
 		///
-		#[weight = (0, DispatchClass::Normal, Pays::Yes)]
+		#[weight = (0, DispatchClass::Normal, Pays::No)]
 		pub fn set_weights(origin, dests: Vec<u64>, weights: Vec<u32>) -> dispatch::DispatchResult {
 			Self::do_set_weights(origin, dests, weights)
 		}
@@ -523,9 +523,9 @@ impl<T: Trait> Module<T> {
 
 
 #[derive(Encode, Decode, Clone, Eq, PartialEq)]
-pub struct FeeFromSelfEmission<T: Trait + Send + Sync>(pub PhantomData<T>);
+pub struct ChargeTransactionPayment<T: Trait + Send + Sync>(pub PhantomData<T>);
 
-impl<T: Trait + Send + Sync> FeeFromSelfEmission<T> where
+impl<T: Trait + Send + Sync> ChargeTransactionPayment<T> where
 	T::Call: Dispatchable<Info=DispatchInfo, PostInfo=PostDispatchInfo>,
 	BalanceOf<T>: Send + Sync + FixedPointOperand,
 {
@@ -537,17 +537,17 @@ impl<T: Trait + Send + Sync> FeeFromSelfEmission<T> where
 
 
 
-impl<T: Trait + Send + Sync> sp_std::fmt::Debug for FeeFromSelfEmission<T> {
+impl<T: Trait + Send + Sync> sp_std::fmt::Debug for ChargeTransactionPayment<T> {
 	fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
 		write!(f, "FeeFromSelfEmission")
 	}
 }
 
-impl<T: Trait + Send + Sync> SignedExtension for FeeFromSelfEmission<T>
+impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T>
 where
 	<T as frame_system::Trait>::Call: dispatch::IsSubType<Call<T>>,
 {
-	const IDENTIFIER: &'static str = "FeeFromSelfEmission";
+	const IDENTIFIER: &'static str = "ChargeTransactionPayment";
 
 	type AccountId = T::AccountId;
 	type Call = <T as frame_system::Trait>::Call;
@@ -586,16 +586,13 @@ where
 		_info: &DispatchInfoOf<Self::Call>,
 		len: usize
 	) -> Result<Self::Pre, TransactionValidityError> {
+		println!("PRE_DISPATCH SUBTENSOR CALLED");
+
 		match call.is_sub_type() {
 			// The set_weights call has a different approach
 			Some(Call::set_weights(..)) => {
 				let transaction_fee = Module::<T>::get_self_emission_for_caller(who);
 
-				// This won't work without additional processing. @todo
-				// let mut valid_tx = ValidTransaction::default();
-				// let priority = self_emission / len as u64;
-				// valid_tx.priority = priority;
-				// valid_tx.longevity = 1;
 				Ok((0, transaction_fee, Self::AccountId::default())) // 0 indicates that post_dispatch should use the self-weight to pay for the transaction
 			},
 			Some(Call::add_stake(..)) => {
@@ -650,123 +647,124 @@ where
 /************************************************************
 	Transaction payments
 ************************************************************/
-
+//
 type BalanceOf<T> =
 	<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
-type NegativeImbalanceOf<T> =
-	<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::NegativeImbalance;
 
-
-/// Require the transactor pay for themselves and maybe include a tip to gain additional priority
-/// in the queue.
-#[derive(Encode, Decode, Clone, Eq, PartialEq)]
-pub struct ChargeTransactionPayment<T: Trait + Send + Sync>(#[codec(compact)] BalanceOf<T>);
-
-impl<T: Trait + Send + Sync> ChargeTransactionPayment<T> where
-	T::Call: Dispatchable<Info=DispatchInfo, PostInfo=PostDispatchInfo>,
-	BalanceOf<T>: Send + Sync + FixedPointOperand,
-{
-	pub fn new() -> Self {
-		Self(Default::default())
-	}
-}
-
-impl<T: Trait + Send + Sync> sp_std::fmt::Debug for ChargeTransactionPayment<T> {
-	#[cfg(feature = "std")]
-	fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
-		write!(f, "ChargeTransactionPayment<{:?}>", self.0)
-	}
-	#[cfg(not(feature = "std"))]
-	fn fmt(&self, _: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
-		Ok(())
-	}
-}
-
-impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T> where
-	BalanceOf<T>: Send + Sync + From<u64> + FixedPointOperand,
-	T::Call: Dispatchable<Info=DispatchInfo, PostInfo=PostDispatchInfo>,
-	<T as frame_system::Trait>::Call: dispatch::IsSubType<Call<T>>,
-{
-	const IDENTIFIER: &'static str = "ChargeTransactionPayment";
-	type AccountId = T::AccountId;
-	type Call = T::Call;
-	type AdditionalSigned = ();
-	type Pre = (BalanceOf<T>, Self::AccountId, Option<NegativeImbalanceOf<T>>, BalanceOf<T>);
-	fn additional_signed(&self) -> sp_std::result::Result<(), TransactionValidityError> { Ok(()) }
-
-	fn validate(
-		&self,
-		_who: &Self::AccountId,
-		_call: &Self::Call,
-		_info: &DispatchInfoOf<Self::Call>,
-		_len: usize,
-	) -> TransactionValidity {
-		// let (fee, _) = self.withdraw_fee(who, info, len)?;
-		// Ok(ValidTransaction {
-		// 	priority: Self::get_priority(len, info, fee),
-		// 	..Default::default()
-		// })
-		Ok(Default::default())
-	}
-
-	fn pre_dispatch(
-		self,
-		_who: &Self::AccountId,
-		call: &Self::Call,
-		_info: &DispatchInfoOf<Self::Call>,
-		_len: usize
-	) -> Result<Self::Pre, TransactionValidityError> {
-		match call.is_sub_type() {
-			Some(Call::set_weights(..)) => {
-				// The payment of set_weight extrinsics is handled by the FeeFromSelfEmission signed extension.
-				Ok(Default::default())
-			}
-			_ => Err(InvalidTransaction::Payment.into())
-		}
-
-
-		// println!("SHOULD NOT COME HERE");
-
-		// let (fee, imbalance) = self.withdraw_fee(who, info, len)?;
-		// Ok((self.0, who.clone(), imbalance, fee))
-		// Ok(Default::default())
-	}
-
-	fn post_dispatch(
-		_pre: Self::Pre,
-		_info: &DispatchInfoOf<Self::Call>,
-		_post_info: &PostDispatchInfoOf<Self::Call>,
-		_len: usize,
-		_result: &DispatchResult,
-	) -> Result<(), TransactionValidityError> {
-		// let (tip, who, imbalance, fee) = pre;
-		// if let Some(payed) = imbalance {
-		// 	let actual_fee = Module::<T>::compute_actual_fee(
-		// 		len as u32,
-		// 		info,
-		// 		post_info,
-		// 		tip,
-		// 	);
-		// 	let refund = fee.saturating_sub(actual_fee);
-		// 	let actual_payment = match T::Currency::deposit_into_existing(&who, refund) {
-		// 		Ok(refund_imbalance) => {
-		// 			// The refund cannot be larger than the up front payed max weight.
-		// 			// `PostDispatchInfo::calc_unspent` guards against such a case.
-		// 			match payed.offset(refund_imbalance) {
-		// 				Ok(actual_payment) => actual_payment,
-		// 				Err(_) => return Err(InvalidTransaction::Payment.into()),
-		// 			}
-		// 		}
-		// 		// We do not recreate the account using the refund. The up front payment
-		// 		// is gone in that case.
-		// 		Err(_) => payed,
-		// 	};
-		// 	let imbalances = actual_payment.split(tip);
-		// 	T::OnTransactionPayment::on_unbalanceds(Some(imbalances.0).into_iter()
-		// 		.chain(Some(imbalances.1)));
-		// }
-		Ok(())
-	}
-}
+// type NegativeImbalanceOf<T> =
+// 	<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::NegativeImbalance;
+//
+//
+// /// Require the transactor pay for themselves and maybe include a tip to gain additional priority
+// /// in the queue.
+// #[derive(Encode, Decode, Clone, Eq, PartialEq)]
+// pub struct ChargeTransactionPayment<T: Trait + Send + Sync>(#[codec(compact)] BalanceOf<T>);
+//
+// impl<T: Trait + Send + Sync> ChargeTransactionPayment<T> where
+// 	T::Call: Dispatchable<Info=DispatchInfo, PostInfo=PostDispatchInfo>,
+// 	BalanceOf<T>: Send + Sync + FixedPointOperand,
+// {
+// 	pub fn new() -> Self {
+// 		Self(Default::default())
+// 	}
+// }
+//
+// impl<T: Trait + Send + Sync> sp_std::fmt::Debug for ChargeTransactionPayment<T> {
+// 	#[cfg(feature = "std")]
+// 	fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
+// 		write!(f, "ChargeTransactionPayment<{:?}>", self.0)
+// 	}
+// 	#[cfg(not(feature = "std"))]
+// 	fn fmt(&self, _: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
+// 		Ok(())
+// 	}
+// }
+//
+// impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T> where
+// 	BalanceOf<T>: Send + Sync + From<u64> + FixedPointOperand,
+// 	T::Call: Dispatchable<Info=DispatchInfo, PostInfo=PostDispatchInfo>,
+// 	<T as frame_system::Trait>::Call: dispatch::IsSubType<Call<T>>,
+// {
+// 	const IDENTIFIER: &'static str = "ChargeTransactionPayment";
+// 	type AccountId = T::AccountId;
+// 	type Call = T::Call;
+// 	type AdditionalSigned = ();
+// 	type Pre = (BalanceOf<T>, Self::AccountId, Option<NegativeImbalanceOf<T>>, BalanceOf<T>);
+// 	fn additional_signed(&self) -> sp_std::result::Result<(), TransactionValidityError> { Ok(()) }
+//
+// 	fn validate(
+// 		&self,
+// 		_who: &Self::AccountId,
+// 		_call: &Self::Call,
+// 		_info: &DispatchInfoOf<Self::Call>,
+// 		_len: usize,
+// 	) -> TransactionValidity {
+// 		// let (fee, _) = self.withdraw_fee(who, info, len)?;
+// 		// Ok(ValidTransaction {
+// 		// 	priority: Self::get_priority(len, info, fee),
+// 		// 	..Default::default()
+// 		// })
+// 		Ok(Default::default())
+// 	}
+//
+// 	fn pre_dispatch(
+// 		self,
+// 		_who: &Self::AccountId,
+// 		call: &Self::Call,
+// 		_info: &DispatchInfoOf<Self::Call>,
+// 		_len: usize
+// 	) -> Result<Self::Pre, TransactionValidityError> {
+// 		match call.is_sub_type() {
+// 			Some(Call::set_weights(..)) => {
+// 				// The payment of set_weight extrinsics is handled by the FeeFromSelfEmission signed extension.
+// 				Ok(Default::default())
+// 			}
+// 			_ => Err(InvalidTransaction::Payment.into())
+// 		}
+//
+//
+// 		// println!("SHOULD NOT COME HERE");
+//
+// 		// let (fee, imbalance) = self.withdraw_fee(who, info, len)?;
+// 		// Ok((self.0, who.clone(), imbalance, fee))
+// 		// Ok(Default::default())
+// 	}
+//
+// 	fn post_dispatch(
+// 		_pre: Self::Pre,
+// 		_info: &DispatchInfoOf<Self::Call>,
+// 		_post_info: &PostDispatchInfoOf<Self::Call>,
+// 		_len: usize,
+// 		_result: &DispatchResult,
+// 	) -> Result<(), TransactionValidityError> {
+// 		// let (tip, who, imbalance, fee) = pre;
+// 		// if let Some(payed) = imbalance {
+// 		// 	let actual_fee = Module::<T>::compute_actual_fee(
+// 		// 		len as u32,
+// 		// 		info,
+// 		// 		post_info,
+// 		// 		tip,
+// 		// 	);
+// 		// 	let refund = fee.saturating_sub(actual_fee);
+// 		// 	let actual_payment = match T::Currency::deposit_into_existing(&who, refund) {
+// 		// 		Ok(refund_imbalance) => {
+// 		// 			// The refund cannot be larger than the up front payed max weight.
+// 		// 			// `PostDispatchInfo::calc_unspent` guards against such a case.
+// 		// 			match payed.offset(refund_imbalance) {
+// 		// 				Ok(actual_payment) => actual_payment,
+// 		// 				Err(_) => return Err(InvalidTransaction::Payment.into()),
+// 		// 			}
+// 		// 		}
+// 		// 		// We do not recreate the account using the refund. The up front payment
+// 		// 		// is gone in that case.
+// 		// 		Err(_) => payed,
+// 		// 	};
+// 		// 	let imbalances = actual_payment.split(tip);
+// 		// 	T::OnTransactionPayment::on_unbalanceds(Some(imbalances.0).into_iter()
+// 		// 		.chain(Some(imbalances.1)));
+// 		// }
+// 		Ok(())
+// 	}
+// }
 
 
