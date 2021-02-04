@@ -3,7 +3,7 @@ use frame_support::{
 	impl_outer_event, impl_outer_origin, parameter_types, impl_outer_dispatch,
 	weights::{Weight},
 };
-use frame_system::{self as system, ChainContext, Trait};
+use frame_system::{self as system, ChainContext};
 use pallet_balances::Call as BalancesCall;
 use pallet_balances as balances;
 // use pallet_transaction_payment as transaction_payment;
@@ -29,7 +29,6 @@ use sp_runtime::testing::Header;
 
 use frame_support::weights::{DispatchInfo, GetDispatchInfo, IdentityFee,
 constants::{BlockExecutionWeight, RocksDbWeight, WEIGHT_PER_SECOND},};
-use pallet_sudo::Event;
 
 const TEST_KEY: &[u8] = &*b":test:key:";
 
