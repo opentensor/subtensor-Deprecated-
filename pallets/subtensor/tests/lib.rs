@@ -7,6 +7,8 @@ use frame_support::weights::PostDispatchInfo;
 use sp_std::marker::PhantomData;
 use sp_runtime::traits::SignedExtension;
 use pallet_subtensor::Call as SubtensorCall;
+use pallet_balances::{Call as BalanceCall};
+use pallet_sudo::{Call as SudoCall};
 
 #[test]
 fn fee_from_emission_works() {
@@ -255,4 +257,60 @@ fn post_dispatch_deposit_to_adam_works() {
         assert!(ChargeTransactionPayment::<Test>::post_dispatch(pre, &info, &PostDispatchInfo {actual_weight: Some(0), pays_fee: Default::default()}, len, &Ok(())).is_ok());
         assert_eq!(500000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(adam.uid)); // Check that adam has more stake now.
     });
+}
+
+
+/************************************************************
+	These tests test if the sudo call and other calls
+	are handled correctly with regard to transaction fees
+************************************************************/
+
+
+#[test]
+fn test_calls_not_from_this_pallet_pay_transacion_fees_when_pays_is_yes() {
+    let source_wallet = 0;
+    let dest_wallet = 1;
+
+    let initial_balance = 1_000_000_000;
+    let amount = 500_000_000;
+
+	test_ext_with_balances(vec![(source_wallet, initial_balance)]).execute_with(|| {
+        let adam = subscribe_ok_neuron(0, 667); // Register Adam
+
+
+        let call = Call::Balances(BalanceCall::transfer(dest_wallet, Balance::from(amount as u128)));
+        let xt = TestXt::new(call, mock::sign_extra(source_wallet, 0));
+        let result = mock::Executive::apply_extrinsic(xt);
+
+		assert_ok!(result);
+
+        assert!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(adam.uid) > 0);
+        assert!(SubtensorModule::get_coldkey_balance(&source_wallet) < initial_balance - amount);
+        assert!(SubtensorModule::get_coldkey_balance(&dest_wallet) == amount);
+	});
+}
+
+#[test]
+fn test_sudo_call_does_not_pay_transaction_fee() {
+
+    let source_key_id = 8888;
+    let dest_key_id = 99889;
+    let balance = 1_000_000_000;
+    let amount = 500_000_000;
+    let sudo_key = 1;
+
+	test_ext_with_balances(vec![(source_key_id, balance)]).execute_with(|| {
+        let adam = subscribe_ok_neuron(0, 7778);
+
+        let call = Box::new(Call::SubtensorModule(SubtensorCall::add_stake(dest_key_id, amount)));
+
+        let sudo_call = Call::Sudo(SudoCall::sudo_unchecked_weight(call, 1000));
+
+        let xt = TestXt::new(sudo_call, mock::sign_extra(sudo_key, 0));
+        let result = mock::Executive::apply_extrinsic(xt);
+        assert_ok!(result);
+
+        // Verify adam has not received any monies
+        assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(adam.uid), 0);
+	});
 }

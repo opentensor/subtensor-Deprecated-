@@ -3,7 +3,7 @@ use frame_support::{
 	impl_outer_event, impl_outer_origin, parameter_types, impl_outer_dispatch,
 	weights::{Weight},
 };
-use frame_system::{self as system, ChainContext};
+use frame_system::{self as system, ChainContext, Trait};
 use pallet_balances::Call as BalancesCall;
 use pallet_balances as balances;
 // use pallet_transaction_payment as transaction_payment;
@@ -29,12 +29,14 @@ use sp_runtime::testing::Header;
 
 use frame_support::weights::{DispatchInfo, GetDispatchInfo, IdentityFee,
 constants::{BlockExecutionWeight, RocksDbWeight, WEIGHT_PER_SECOND},};
+use pallet_sudo::Event;
 
 const TEST_KEY: &[u8] = &*b":test:key:";
 
 
-type System = frame_system::Module<Test>;
-type Balances = pallet_balances::Module<Test>;
+pub type System = frame_system::Module<Test>;
+pub type Balances = pallet_balances::Module<Test>;
+pub type Sudo = pallet_sudo::Module<Test>;
 
 /// An index to a block.
 pub type BlockNumber = u64;
@@ -66,6 +68,7 @@ impl_outer_dispatch! {
 	pub enum Call for Test where origin: Origin {
 		frame_system::System,
 		pallet_balances::Balances,
+		pallet_sudo::Sudo,
 		self::SubtensorModule,
 	}
 }
@@ -132,6 +135,11 @@ impl pallet_subtensor::Trait for Test {
 	type Currency = Balances;
 	type TransactionByteFee = TransactionByteFee;
 
+}
+
+impl pallet_sudo::Trait for Test {
+	type Event = ();
+	type Call = Call;
 }
 
 parameter_types! {

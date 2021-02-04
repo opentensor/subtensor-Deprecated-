@@ -541,13 +541,13 @@ pub enum CallType {
 	AddStake,
 	RemoveStake,
 	Subscribe,
-	Unknown
+	Other
 }
 
 
 impl Default for CallType {
 	fn default() -> Self {
-		CallType::Unknown
+		CallType::Other
 	}
 }
 
@@ -565,12 +565,13 @@ impl<T: Trait + Send + Sync> sp_std::fmt::Debug for ChargeTransactionPayment<T> 
 
 impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T>
 where
+	T::Call: Dispatchable<Info=DispatchInfo, PostInfo=PostDispatchInfo>,
 	<T as frame_system::Trait>::Call: dispatch::IsSubType<Call<T>>,
 {
 	const IDENTIFIER: &'static str = "ChargeTransactionPayment";
 
 	type AccountId = T::AccountId;
-	type Call = <T as frame_system::Trait>::Call;
+	type Call = T::Call; //<T as frame_system::Trait>::Call;
 	type AdditionalSigned = ();
 	type Pre = (CallType, u64, Self::AccountId);
 	fn additional_signed(&self) -> Result<Self::AdditionalSigned, TransactionValidityError> { Ok(()) }
@@ -603,7 +604,7 @@ where
 		self,
 		who: &Self::AccountId,
 		call: &Self::Call,
-		_info: &DispatchInfoOf<Self::Call>,
+		info: &DispatchInfoOf<Self::Call>,
 		len: usize
 	) -> Result<Self::Pre, TransactionValidityError> {
 		match call.is_sub_type() {
@@ -648,28 +649,39 @@ where
 				Ok((CallType::Subscribe, 0, who.clone()))
 			}
 			_ => {
-				// @todo handle tranaction for default payments here
-				Err(TransactionValidityError::from(InvalidTransaction::Call))
+				match info.pays_fee {
+					Pays::No => Ok((CallType::Other, 0, who.clone())),
+					Pays::Yes => {
+						let transaction_fee = Module::<T>::calculate_transaction_fee(len as u64);
+						let transaction_fee_as_balance = Module::<T>::u64_to_balance( transaction_fee );
+
+						if !Module::<T>::can_remove_balance_from_coldkey_account(&who, transaction_fee_as_balance.unwrap()) {
+							Err(TransactionValidityError::from(InvalidTransaction::from(Payment.into())))
+						} else {
+							Ok((CallType::Other, transaction_fee, who.clone()))
+						}
+					}
+				}
 			}
 		}
 	}
 
 	fn post_dispatch(
 		pre: Self::Pre,
-		_info: &DispatchInfoOf<Self::Call>,
+		info: &DispatchInfoOf<Self::Call>,
 		_post_info: &PostDispatchInfoOf<Self::Call>,
 		_len: usize,
 		result: &DispatchResult,
 	) -> Result<(), TransactionValidityError> {
 
-		let payment_type = pre.0;
+		let call_type = pre.0;
 		let transaction_fee = pre.1;
 		let coldkey_id = pre.2;
 		let transaction_fee_as_balance = Module::<T>::u64_to_balance( transaction_fee ).unwrap();
 
 		match result {
 			Ok(_) => {
-				match payment_type {
+				match call_type {
 					CallType::SetWeights => {
 						Module::<T>::deposit_self_emission_into_adam(transaction_fee);
 						Ok(Default::default())
@@ -687,7 +699,17 @@ where
 					CallType::Subscribe => {
 						Ok(Default::default())
 					}
-					_ => Err(TransactionValidityError::from(InvalidTransaction::Call))
+					_ => {
+						// Default behaviour for calls not otherwise specified
+						match info.pays_fee {
+							Pays::No => Ok(Default::default()),
+							Pays::Yes => {
+								Module::<T>::remove_balance_from_coldkey_account(&coldkey_id, transaction_fee_as_balance);
+								Module::<T>::add_stake_to_neuron_hotkey_account(0, transaction_fee); // uid 0 == Adam
+								Ok(Default::default())
+							}
+						}
+					}
 				}
 			},
 			Err(_) => Ok(Default::default())
