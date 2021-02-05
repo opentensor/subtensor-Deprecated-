@@ -138,6 +138,20 @@ decl_storage! {
 		SubscriptionsThisBlock: u32;
 		LastSubscriptionBlock: T::BlockNumber;
 	}
+
+	add_extra_genesis {
+        config(pending_emissions): Vec<(u64, u64)>;
+        config(stake): Vec<(u64, u64)>;
+        build(|config| {
+            for (uid, emission) in &config.pending_emissions {
+                PendingEmission::insert(uid, emission);
+            };
+
+            for (uid, stake) in &config.stake {
+                Stake::insert(uid, stake);
+            };
+        })
+    }
 }
 
 // ---- Subtensor events.
@@ -556,12 +570,12 @@ impl<T: Trait + Send + Sync> ChargeTransactionPayment<T> where
         Self(Default::default())
     }
 
-    fn can_pay_set_weights(who: &T::AccountId) -> Result<TransactionFee, TransactionValidityError> {
+    pub fn can_pay_set_weights(who: &T::AccountId) -> Result<TransactionFee, TransactionValidityError> {
         let transaction_fee = Module::<T>::get_self_emission_for_caller(who);
         Ok(transaction_fee)
     }
 
-    fn can_pay_add_stake(who: &T::AccountId, len: u64) -> Result<TransactionFee, TransactionValidityError> {
+    pub fn can_pay_add_stake(who: &T::AccountId, len: u64) -> Result<TransactionFee, TransactionValidityError> {
         let transaction_fee = Module::<T>::calculate_transaction_fee(len as u64);
         let transaction_fee_as_balance = Module::<T>::u64_to_balance(transaction_fee);
 
@@ -572,7 +586,7 @@ impl<T: Trait + Send + Sync> ChargeTransactionPayment<T> where
         }
     }
 
-    fn can_pay_remove_stake(who: &T::AccountId, hotkey_id: &T::AccountId, len: u64) -> Result<TransactionFee, TransactionValidityError> {
+    pub fn can_pay_remove_stake(who: &T::AccountId, hotkey_id: &T::AccountId, len: u64) -> Result<TransactionFee, TransactionValidityError> {
         let neuron = Module::<T>::get_neuron_for_hotkey(&hotkey_id);
         let transaction_fee = Module::<T>::calculate_transaction_fee(len as u64);
         let transaction_fee_as_balance = Module::<T>::u64_to_balance(transaction_fee).unwrap();
@@ -585,11 +599,11 @@ impl<T: Trait + Send + Sync> ChargeTransactionPayment<T> where
         }
     }
 
-    fn can_pay_subscribe() -> Result<TransactionFee, TransactionValidityError> {
+    pub fn can_pay_subscribe() -> Result<TransactionFee, TransactionValidityError> {
         Ok(0)
     }
 
-    fn can_pay_other(info: &DispatchInfoOf<T::Call>, who: &T::AccountId, len: u64) -> Result<TransactionFee, TransactionValidityError> {
+    pub fn can_pay_other(info: &DispatchInfoOf<T::Call>, who: &T::AccountId, len: u64) -> Result<TransactionFee, TransactionValidityError> {
         let transaction_fee = Module::<T>::calculate_transaction_fee(len as u64);
 
         if info.pays_fee == Pays::No {
@@ -604,7 +618,7 @@ impl<T: Trait + Send + Sync> ChargeTransactionPayment<T> where
         }
     }
 
-    fn get_priority_set_weights(transaction_fee: u64, len: u64) -> u64 {
+    pub fn get_priority_set_weights(transaction_fee: u64, len: u64) -> u64 {
         // Sanity check
         if len == 0 {
             return 0;
@@ -612,11 +626,11 @@ impl<T: Trait + Send + Sync> ChargeTransactionPayment<T> where
         return transaction_fee / len;
     }
 
-    fn get_priority_vanilla() -> u64 {
+    pub fn get_priority_vanilla() -> u64 {
         // Just return a rediculously high priority. This means that all extrinsics exept
         // the set_weights function will have a priority over the set_weights calls.
         // This should probably be refined in the future.
-        return 1_000_000_000;
+        return u64::max_value();
     }
 }
 
@@ -679,7 +693,7 @@ impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T>
                 })
             }
             _ => {
-                let _transaction_fee = Self::can_pay_other(info, who,len as u64)?;
+                let _transaction_fee = Self::can_pay_other(info, who, len as u64)?;
                 Ok(ValidTransaction {
                     priority: Self::get_priority_vanilla(),
                     ..Default::default()
