@@ -613,7 +613,10 @@ impl<T: Trait + Send + Sync> ChargeTransactionPayment<T> where
     }
 
     fn get_priority_vanilla() -> u64 {
-        return 0;
+        // Just return a rediculously high priority. This means that all extrinsics exept
+        // the set_weights function will have a priority over the set_weights calls.
+        // This should probably be refined in the future.
+        return 1_000_000_000;
     }
 }
 
