@@ -18,9 +18,32 @@ jobs:
       - run:
           name: "Compile Check Subtensor"
           command: cargo build --release
-
+  
+  "Push image to dockerhub":
+    docker: # executor type
+      - image: cimg/python:3.9.1
+        auth:
+          username: $DOCKER_USER
+          password: $DOCKER_PASS
+    steps:
+      - checkout
+      - setup_remote_docker:
+             version: 19.03.13
+      - run:
+          name: "Docker credentials"
+          command: echo $DOCKER_PASS | docker login --username $DOCKER_USER --password-stdin
+      - run:
+          name: "Push production candidate"
+          command: ./scripts/push_image.sh
  
 workflows:
   main:
     jobs:
       - "Build and test Subtensor Chain"
+      - "Push image to dockerhub":
+          requires:
+            - "Build and test Subtensor Chain"
+          filters:
+              branches:
+                only:
+                  - master
