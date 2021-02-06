@@ -14,5 +14,5 @@ services:
       cd /subtensor
       && mkdir -p ~/.local/share/node-subtensor
       && tar -xf ./bin/release/kusanagi_genesis.tar -C ~/.local/share/node-subtensor
-      && cd /subtensor && ./bin/release/node-subtensor --dev --ws-external
+      && cd /subtensor && ./bin/release/node-subtensor --ws-external --rpc-cors=all
       "
