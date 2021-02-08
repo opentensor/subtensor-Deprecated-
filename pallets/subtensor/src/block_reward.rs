@@ -18,16 +18,10 @@ impl<T: Trait> Module<T> {
 	/// 		- The number of tokens to emit at this block as a fixed point.
 	/// 	
 	pub fn block_reward_for_blocknbr(blocknr: &<T as system::Trait>::BlockNumber) -> U64F64 {
-
-		// --- We convert the block number to u64 and then to a fixed point.
 		let elapsed_blocks_usize = TryInto::try_into(*blocknr).ok().expect("blockchain will not exceed 2^64 blocks; QED.");
-		let reward:U64F64 = Self::block_reward_for_usize(elapsed_blocks_usize);
-		reward
-	}
 
-	pub fn block_reward_for_usize(block_number_u64: usize) -> U64F64 {
 		// --- We convert the block number to a fixed point.
-		let elapsed_blocks_u64_f64 = U64F64::from_num(block_number_u64);
+		let elapsed_blocks_u64_f64 = U64F64::from_num(elapsed_blocks_usize);
 
 		// --- We get the initial block reward.
 		// Bitcoin block reward started at 50 tokens per block and the average substrate block time is 6 seconds. 
@@ -51,7 +45,7 @@ impl<T: Trait> Module<T> {
 		block_reward_shift
 	}
 
-	pub fn current_block_reward() -> U64F64{
+	pub fn get_reward_for_current_block() -> U64F64{
 		let current_block = system::Module::<T>::block_number();
 		let block_reward =  Self::block_reward_for_blocknbr(&current_block);
 

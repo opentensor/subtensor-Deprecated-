@@ -188,7 +188,7 @@ impl<T: Trait> Module<T> {
      /// At this point, the PendingEmission is reset, and this cycle starts again.
     pub fn update_pending_emissions() -> u64 {
         let mut weight = 0;
-        let block_reward = Self::current_block_reward();
+        let block_reward = Self::get_reward_for_current_block();
         let total_stake = Self::get_total_stake();
 
         if total_stake == 0 {
