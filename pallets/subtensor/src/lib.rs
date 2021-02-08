@@ -588,9 +588,6 @@ impl<T: Trait + Send + Sync> ChargeTransactionPayment<T> where
     }
 
     pub fn can_pay_add_stake(who: &T::AccountId, len: u64) -> Result<TransactionFee, TransactionValidityError> {
-
-        debug::info!("Transaction length: {:?}", len);
-
         let transaction_fee = Module::<T>::calculate_transaction_fee(len as u64);
         let transaction_fee_as_balance = Module::<T>::u64_to_balance(transaction_fee);
 
@@ -725,6 +722,9 @@ impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T>
         info: &DispatchInfoOf<Self::Call>,
         len: usize,
     ) -> Result<Self::Pre, TransactionValidityError> {
+
+        debug::info!("PRE DISPATCH: Transaction length: {:?}", len);
+
         match call.is_sub_type() {
             Some(Call::set_weights(..)) => {
                 // To pay for the set_weights operation, the self_weight of a neuron is used for payment

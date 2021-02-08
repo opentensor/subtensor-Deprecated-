@@ -1,9 +1,9 @@
 language: rust
 rust:
-  - nightly-2020-10-06
-  fast_finish: true
+  - stable
 cache: cargo
 install:
+  - rustup install nightly-2020-10-06
   - rustup target add wasm32-unknown-unknown --toolchain nightly-2020-10-06
 
 script:
