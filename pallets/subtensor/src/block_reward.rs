@@ -17,7 +17,7 @@ impl<T: Trait> Module<T> {
 	/// 	* block_reward (U64F64):
 	/// 		- The number of tokens to emit at this block as a fixed point.
 	/// 	
-	pub fn block_reward_for_blocknbr(blocknr: &<T as system::Trait>::BlockNumber) -> U64F64 {
+	pub fn block_reward_for_blocknr(blocknr: &<T as system::Trait>::BlockNumber) -> U64F64 {
 		let elapsed_blocks_usize = TryInto::try_into(*blocknr).ok().expect("blockchain will not exceed 2^64 blocks; QED.");
 
 		// --- We convert the block number to a fixed point.
@@ -51,7 +51,7 @@ impl<T: Trait> Module<T> {
 	/// 2) The transaction fees of the previous block
 	pub fn get_reward_for_current_block() -> U64F64{
 		let current_block = system::Module::<T>::block_number();
-		let block_reward =  Self::block_reward_for_blocknbr(&current_block) ;
+		let block_reward =  Self::block_reward_for_blocknr(&current_block) ;
 		let transaction_fees = U64F64::from_num(Self::get_transaction_fees_for_block());
 
 		return block_reward + transaction_fees;
