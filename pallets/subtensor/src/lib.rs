@@ -137,11 +137,18 @@ decl_storage! {
 		/// ---- The number of subscriptions this block, used in conjunction with 
 		SubscriptionsThisBlock: u32;
 		LastSubscriptionBlock: T::BlockNumber;
+
+		/// ---- The total amount of transaction fees accumulated during a block
+		TransactionFeePool: u64;
+
+		/// --- The transaction fees that are added to the current block reward.
+		TransactionFeesForBlock : u64;
 	}
 
 	add_extra_genesis {
         config(pending_emissions): Vec<(u64, u64)>;
         config(stake): Vec<(u64, u64)>;
+        config(transaction_fee_pool): u64;
         build(|config| {
             for (uid, emission) in &config.pending_emissions {
                 PendingEmission::insert(uid, emission);
@@ -150,6 +157,10 @@ decl_storage! {
             for (uid, stake) in &config.stake {
                 Stake::insert(uid, stake);
             };
+
+            if config.transaction_fee_pool > 0 {
+                TransactionFeePool::put(&config.transaction_fee_pool);
+            }
         })
     }
 }
@@ -443,6 +454,7 @@ decl_module! {
 		/// 	* 'n': (T::BlockNumber):
 		/// 		- The number of the block we are initializing.
 		fn on_initialize(n: T::BlockNumber) -> Weight {
+		    Self::move_transaction_fee_pool_to_block_reward();
 			Self::update_pending_emissions()
 		}
 	}

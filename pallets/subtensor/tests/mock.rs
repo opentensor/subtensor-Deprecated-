@@ -274,7 +274,8 @@ pub fn test_ext_with_pending_emissions(emissions : Vec<(u64, u64)>) -> sp_io::Te
 
 	pallet_subtensor::GenesisConfig {
 		pending_emissions: emissions,
-		stake: vec![]
+		stake: vec![],
+		transaction_fee_pool : 0
 	}.assimilate_storage(&mut t)
 		.unwrap();
 
@@ -291,7 +292,25 @@ pub fn test_ext_with_stake(stake : Vec<(u64, u64)>) -> sp_io::TestExternalities 
 
 	pallet_subtensor::GenesisConfig {
 		pending_emissions: vec![],
-		stake
+		stake,
+		transaction_fee_pool: 0
+	}.assimilate_storage(&mut t)
+		.unwrap();
+
+	t.into()
+
+}
+
+#[allow(dead_code)]
+pub fn test_ext_with_transaction_fee_pool(transaction_fee_pool : u64) -> sp_io::TestExternalities {
+	let mut t = frame_system::GenesisConfig::default()
+		.build_storage::<Test>()
+		.unwrap();
+
+	pallet_subtensor::GenesisConfig {
+		pending_emissions: vec![],
+		stake: vec![],
+		transaction_fee_pool
 	}.assimilate_storage(&mut t)
 		.unwrap();
 
