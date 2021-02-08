@@ -773,17 +773,17 @@ impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T>
             Ok(_) => {
                 match call_type {
                     CallType::SetWeights => {
-                        Module::<T>::deposit_self_emission_into_adam(transaction_fee);
+                        Module::<T>::update_transaction_fee_pool(transaction_fee);
                         Ok(Default::default())
                     }
                     CallType::AddStake => {
                         Module::<T>::remove_balance_from_coldkey_account(&coldkey_id, transaction_fee_as_balance);
-                        Module::<T>::add_stake_to_neuron_hotkey_account(0, transaction_fee); // uid 0 == Adam
+                        Module::<T>::update_transaction_fee_pool(transaction_fee); // uid 0 == Adam
                         Ok(Default::default())
                     }
                     CallType::RemoveStake => {
                         Module::<T>::remove_balance_from_coldkey_account(&coldkey_id, transaction_fee_as_balance);
-                        Module::<T>::add_stake_to_neuron_hotkey_account(0, transaction_fee); // uid 0 == Adam
+                        Module::<T>::update_transaction_fee_pool(transaction_fee); // uid 0 == Adam
                         Ok(Default::default())
                     }
                     CallType::Subscribe => {
@@ -795,7 +795,7 @@ impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T>
                             Pays::No => Ok(Default::default()),
                             Pays::Yes => {
                                 Module::<T>::remove_balance_from_coldkey_account(&coldkey_id, transaction_fee_as_balance);
-                                Module::<T>::add_stake_to_neuron_hotkey_account(0, transaction_fee); // uid 0 == Adam
+                                Module::<T>::update_transaction_fee_pool(transaction_fee); // uid 0 == Adam
                                 Ok(Default::default())
                             }
                         }

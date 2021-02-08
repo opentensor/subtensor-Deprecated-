@@ -33,10 +33,7 @@ fn test_add_stake_dispatch_info_ok() {
 ************************************************************/
 
 #[test]
-fn test_add_stake_transaction_fee_ends_up_as_adam_stake() {
-
-	let adam_coldkey = 666;
-	let adam_hotkey = 0;
+fn test_add_stake_transaction_fee_ends_up_in_transaction_fee_pool() {
 	let test_neuron_cold_key = 1;
 	let test_neuron_hot_key = 2;
 
@@ -44,9 +41,6 @@ fn test_add_stake_transaction_fee_ends_up_as_adam_stake() {
 	let balances = vec![(test_neuron_cold_key, 1_000_000_000)];
 
 	mock::test_ext_with_balances(balances).execute_with(|| {
-		// Register adam
-		let adam_neuron = subscribe_ok_neuron(adam_hotkey, adam_coldkey);
-
 		// Register neuron_1
 		let test_neuron = subscribe_ok_neuron(test_neuron_hot_key, test_neuron_cold_key);
 
@@ -63,10 +57,10 @@ fn test_add_stake_transaction_fee_ends_up_as_adam_stake() {
 		assert_ok!(result);
 
 		let end_balance = SubtensorModule::get_coldkey_balance(&test_neuron_cold_key);
-		let adam_stake = SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(adam_neuron.uid);
+		let transaction_fee_pool = SubtensorModule::get_transaction_fee_pool();
 
 		assert_eq!(end_balance, 499_997_100);
-		assert_eq!(adam_stake, 2900);
+		assert_eq!(transaction_fee_pool, 2900);
 	});
 }
 
@@ -252,7 +246,7 @@ fn test_remove_stake_ok_transaction_fee_ends_up_in_adam_account() {
 		let result = mock::Executive::apply_extrinsic(xt);
 		assert_ok!(result);
 
-		assert!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(0) > 0);
+		assert!(SubtensorModule::get_transaction_fee_pool() > 0);
 	});
 }
 

@@ -30,49 +30,44 @@ fn test_set_weights_dispatch_info_ok() {
 
 
 #[test]
-fn test_set_weights_adam_receives_funds() {
+fn test_set_weights_transaction_fee_pool_receives_funds() {
 	new_test_ext().execute_with(|| {
 		let w_uids = vec![1, 2]; // When applied to neuron_1, this will set 50% to himself and 50% to neuron_2
 		let w_vals = vec![50, 50];
 
-		let adam_id = 0;
 		let neuron_1_id = 1;
 		let neuron_2_id = 2;
 
-		let _neuron_adam =  subscribe_ok_neuron(adam_id, 666); // uid 0
+		let _adam    = subscribe_ok_neuron(0, 666);
 		let _neuron1 = subscribe_ok_neuron(neuron_1_id, 666); // uid 1
 		let _neuron2 = subscribe_ok_neuron(neuron_2_id, 666);
 
 		// Add 1 Tao to neuron 1. He now hold 100% of the stake, so will get the full emission,
 		// also he only has a self_weight.
-		SubtensorModule::add_stake_to_neuron_hotkey_account(neuron_1_id, 1_000_000_000);
+		SubtensorModule::add_stake_to_neuron_hotkey_account(_neuron1.uid, 1_000_000_000);
 
 		// Move to block, to build up pending emission
 		mock::run_to_block(1); // This will emit .5 TAO to neuron 1, since he has 100% of the total stake
-		// Verify adam's stake == 0
-		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(adam_id), 0);
+		// Verify transacion fee pool == 0
+		assert_eq!(SubtensorModule::get_transaction_fee_pool(), 0);
 
 		// Define the call
 		let call = Call::SubtensorModule(SubtensorCall::set_weights(w_uids, w_vals));
 
 		// Setup the extrinsic
-		let xt = TestXt::new(call, mock::sign_extra(neuron_1_id,0)); // Apply t
+		let xt = TestXt::new(call, mock::sign_extra(_neuron1.uid,0)); // Apply t
 
 		// Execute. This will trigger the set_weights function to emit, before the new weights are set.
 		// Resulting in Adam getting his full emission.
 		let result = mock::Executive::apply_extrinsic(xt);
 
-
 		// Verfify success
 		assert_ok!(result);
 
-		// let trans_err = TransactionValidityError::Unknown(UnknownTransaction::CannotLookup);
-		// let res : Result<Result<(), DispatchError>, TransactionValidityError> = Result::Err(trans_err);
-
-		let adam_new_stake = SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(adam_id);
+		let transaction_fees_pool = SubtensorModule::get_transaction_fee_pool();
 		let neuron_1_new_stake = SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron_1_id);
 
-		assert_eq!(adam_new_stake, 500_000_000);
+		assert_eq!(transaction_fees_pool, 500_000_000);
 		assert_eq!(neuron_1_new_stake, 1_000_000_000);  // Neuron 1 maintains its stake
 	});
 }

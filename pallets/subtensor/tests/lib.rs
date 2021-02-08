@@ -516,16 +516,15 @@ fn test_post_dispatch_does_not_deposit_to_adam_on_error() {
 
         let post_dispatch_result = ChargeTransactionPayment::<Test>::post_dispatch(pre_dispatch_data, &info, &post_dispatch_info, len, &pre_dispatch_result);
         assert_ok!(post_dispatch_result);
-
         assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(adam_id), 0);
     });
 }
 
 #[test]
-fn post_dispatch_deposit_to_adam_works() {
+fn post_dispatch_deposit_to_transaction_fee_pool_works() {
     new_test_ext().execute_with(|| {
-        let adam_account_id = 0;
-        let adam = subscribe_neuron(adam_account_id, 10, 666, 4, 0, 66);
+        // let adam_account_id = 0;
+        // let adam = subscribe_neuron(adam_account_id, 10, 666, 4, 0, 66);
         let hotkey_account_id = 1;
         let neuron = subscribe_neuron(hotkey_account_id, 10, 666, 4, 0, 66);
         assert_ok!(SubtensorModule::set_weights(Origin::signed(hotkey_account_id), vec![neuron.uid], vec![u32::MAX]));
@@ -536,7 +535,7 @@ fn post_dispatch_deposit_to_adam_works() {
         run_to_block(1);
         let pre = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len).unwrap();
         assert!(ChargeTransactionPayment::<Test>::post_dispatch(pre, &info, &PostDispatchInfo { actual_weight: Some(0), pays_fee: Default::default() }, len, &Ok(())).is_ok());
-        assert_eq!(500000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(adam.uid)); // Check that adam has more stake now.
+        assert_eq!(SubtensorModule::get_transaction_fee_pool(), 500_000_000);
     });
 }
 
@@ -554,7 +553,7 @@ fn test_calls_not_from_this_pallet_pay_transacion_fees_when_pays_is_yes() {
     let amount = 500_000_000;
 
     test_ext_with_balances(vec![(source_wallet, initial_balance)]).execute_with(|| {
-        let adam = subscribe_ok_neuron(0, 667); // Register Adam
+        // let _adam = subscribe_ok_neuron(0, 667); // Register Adam
 
 
         let call = Call::Balances(BalanceCall::transfer(dest_wallet, Balance::from(amount as u128)));
@@ -563,7 +562,7 @@ fn test_calls_not_from_this_pallet_pay_transacion_fees_when_pays_is_yes() {
 
         assert_ok!(result);
 
-        assert!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(adam.uid) > 0);
+        assert!(SubtensorModule::get_transaction_fee_pool() > 0);
         assert!(SubtensorModule::get_coldkey_balance(&source_wallet) < initial_balance - amount);
         assert!(SubtensorModule::get_coldkey_balance(&dest_wallet) == amount);
     });
