@@ -8,7 +8,7 @@ jobs:
       - checkout
       - run:
           name: "Install necessary libraries"
-          command: sudo apt update && sudo apt install -y cmake pkg-config libssl-dev build-essential clang libclang-dev 
+          command: sudo apt update && sudo apt install -y libssl1.1 ca-certificates cmake pkg-config libssl-dev git build-essential clang libclang-dev curl
       - run:
           name: "Set up Rustup Default"
           command: rustup default nightly-2020-10-06
@@ -16,11 +16,34 @@ jobs:
           name: "Set up Rustup target"
           command: rustup target add wasm32-unknown-unknown --toolchain nightly-2020-10-06
       - run:
-          name: "Test Subtensor"
-          command: cargo test
-
+          name: "Compile Check Subtensor"
+          command: cargo build --release
+  
+  "Push image to dockerhub":
+    docker: # executor type
+      - image: cimg/python:3.9.1
+        auth:
+          username: $DOCKER_USER
+          password: $DOCKER_PASS
+    steps:
+      - checkout
+      - setup_remote_docker:
+             version: 19.03.13
+      - run:
+          name: "Docker credentials"
+          command: echo $DOCKER_PASS | docker login --username $DOCKER_USER --password-stdin
+      - run:
+          name: "Push production candidate"
+          command: ./scripts/push_image.sh
  
 workflows:
   main:
     jobs:
       - "Build and test Subtensor Chain"
+      - "Push image to dockerhub":
+          requires:
+            - "Build and test Subtensor Chain"
+          filters:
+              branches:
+                only:
+                  - master
