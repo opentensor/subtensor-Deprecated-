@@ -588,6 +588,9 @@ impl<T: Trait + Send + Sync> ChargeTransactionPayment<T> where
     }
 
     pub fn can_pay_add_stake(who: &T::AccountId, len: u64) -> Result<TransactionFee, TransactionValidityError> {
+
+        debug::info!("Transaction length: {:?}", len);
+
         let transaction_fee = Module::<T>::calculate_transaction_fee(len as u64);
         let transaction_fee_as_balance = Module::<T>::u64_to_balance(transaction_fee);
 
