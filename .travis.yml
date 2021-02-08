@@ -1,13 +1,13 @@
 language: rust
 rust:
-  - nightly
+  - stable
+  - nightly-2020-10-05
 jobs:
   fast_finish: true
 cache: cargo
 install:
   - rustup default stable
-  - rustup install nightly
-  - rustup target add wasm32-unknown-unknown --toolchain nightly
+  - rustup target add wasm32-unknown-unknown --toolchain nightly-2020-10-05
 
 script:
   - cargo test
