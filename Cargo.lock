@@ -3658,6 +3658,7 @@ dependencies = [
  "pallet-balances",
  "pallet-sudo",
  "pallet-transaction-payment 2.0.1",
+ "pallet-transaction-payment-rpc-runtime-api 2.0.0",
  "parity-scale-codec",
  "parity-util-mem",
  "rand 0.7.3",

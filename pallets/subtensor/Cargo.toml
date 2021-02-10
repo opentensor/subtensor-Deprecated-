@@ -27,6 +27,7 @@ sp-arithmetic = { version = '2.0.0', default-features = false }
 sp-runtime = { default-features = false, version = '2.0.0' }
 sp-transaction-pool = { default-features = false, version = '2.0.0' }
 pallet-balances = { default-features = false, version = '2.0.0' }
+pallet-transaction-payment-rpc-runtime-api = { default-features = false, version = "2.0.0", path="../transaction-payment/rpc/runtime-api"}
 fixed = { default-features = false, version = '1.5' }
 
 [dev-dependencies]

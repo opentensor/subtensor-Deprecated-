@@ -26,9 +26,13 @@ use sp_runtime::{
     },
 };
 
+use pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
+
 use sp_runtime::traits::{Dispatchable};
 use frame_support::traits::Get;
 use frame_support::sp_runtime::transaction_validity::ValidTransaction;
+use frame_support::sp_runtime::FixedPointOperand;
+use frame_support::dispatch::GetDispatchInfo;
 
 mod weights;
 mod staking;
@@ -566,6 +570,43 @@ impl Default for CallType {
 
 
 type TransactionFee = u64;
+
+
+
+impl<T: Trait> Module<T> where
+	BalanceOf<T>: FixedPointOperand
+{
+	/// Query the data that we know about the fee of a given `call`.
+	///
+	/// This module is not and cannot be aware of the internals of a signed extension, for example
+	/// a tip. It only interprets the extrinsic as some encoded value and accounts for its weight
+	/// and length, the runtime's extrinsic base weight, and the current fee multiplier.
+	///
+	/// All dispatchables must be annotated with weight and will have some fee info. This function
+	/// always returns.
+	pub fn query_info<Extrinsic: GetDispatchInfo>(
+		unchecked_extrinsic: Extrinsic,
+		len: u32,
+	) -> RuntimeDispatchInfo<BalanceOf<T>>
+	where
+		T: Send + Sync,
+		BalanceOf<T>: Send + Sync,
+		T::Call: Dispatchable<Info=DispatchInfo>,
+	{
+		// NOTE: we can actually make it understand `ChargeTransactionPayment`, but would be some
+		// hassle for sure. We have to make it aware of the index of `ChargeTransactionPayment` in
+		// `Extra`. Alternatively, we could actually execute the tx's per-dispatch and record the
+		// balance of the sender before and after the pipeline.. but this is way too much hassle for
+		// a very very little potential gain in the future.
+		let dispatch_info = <Extrinsic as GetDispatchInfo>::get_dispatch_info(&unchecked_extrinsic);
+
+	    let partial_fee = <BalanceOf<T>>::from(0);
+		let DispatchInfo { weight, class, .. } = dispatch_info;
+
+		RuntimeDispatchInfo { weight, class, partial_fee }
+	}
+}
+
 
 /************************************************************
 	ChargeTransactionPayment definition
