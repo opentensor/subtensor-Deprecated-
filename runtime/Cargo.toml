@@ -40,8 +40,8 @@ pallet-balances = { default-features = false, version = '2.0.0' }
 pallet-grandpa = { default-features = false, version = '2.0.0' }
 pallet-randomness-collective-flip = { default-features = false, version = '2.0.0' }
 pallet-timestamp = { default-features = false, version = '2.0.0' }
-pallet-transaction-payment = { version = "2.0.0", default-features = false }
-pallet-transaction-payment-rpc-runtime-api = { default-features = false, version = '2.0.0' }
+pallet-transaction-payment = { path = "../pallets/transaction-payment", version = "2.0.0", default-features = false }
+pallet-transaction-payment-rpc-runtime-api = { path = "../pallets/transaction-payment/rpc/runtime-api", default-features = false, version = '2.0.0' }
 pallet-scheduler = { default-features = false, version = '2.0.0' }
 sp-api = { default-features = false, version = '2.0.0' }
 sp-block-builder = { default-features = false, version = '2.0.0' }
