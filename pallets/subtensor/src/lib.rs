@@ -46,7 +46,7 @@ pub trait Trait: frame_system::Trait {
     type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 
     /// --- Currency type that will be used to place deposits on neurons
-    type Currency: Currency<Self::AccountId>;
+    type Currency: Currency<Self::AccountId> + Send + Sync;
 
     /// - The transaction fee in RAO per byte
     type TransactionByteFee: Get<BalanceOf<Self>>;
@@ -55,6 +55,8 @@ pub trait Trait: frame_system::Trait {
 // ---- Create account types for the NeuronMetadata struct.
 type AccountIdOf<T> = <T as system::Trait>::AccountId;
 type NeuronMetadataOf<T> = NeuronMetadata<AccountIdOf<T>>;
+type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+
 
 
 // ---- Neuron endpoint information
@@ -856,8 +858,6 @@ impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T>
 	Transaction payments
 ************************************************************/
 //
-type BalanceOf<T> =
-<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 
 // type NegativeImbalanceOf<T> =
 // 	<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::NegativeImbalance;

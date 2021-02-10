@@ -268,10 +268,6 @@ parameter_types! {
 
 impl pallet_transaction_payment::Trait for Runtime {
 	type Currency = Balances;
-	type OnTransactionPayment = ();
-	type TransactionByteFee = TransactionByteFee;
-	type WeightToFee = IdentityFee<Balance>;
-	type FeeMultiplierUpdate = ();
 }
 
 impl pallet_sudo::Trait for Runtime {
@@ -281,7 +277,7 @@ impl pallet_sudo::Trait for Runtime {
 
 /// Configure the subtensor pallet in pallets/subtensor.
 impl pallet_subtensor::Trait for Runtime {
-	type Currency = pallet_balances::Module<Runtime>;
+	type Currency = Balances;
 	type Event = Event;
 	type TransactionByteFee = ();
 }
@@ -328,7 +324,6 @@ construct_runtime!(
 		Aura: pallet_aura::{Module, Config<T>, Inherent},
 		Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event},
 		Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
-		// TransactionPayment: pallet_transaction_payment::{Module, Storage},
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
 		SubtensorModule: pallet_subtensor::{Module, Call, Storage, Event<T>},
 		Scheduler: pallet_scheduler::{Module, Call, Storage, Event<T>},
