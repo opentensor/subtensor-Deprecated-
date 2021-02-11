@@ -52,6 +52,7 @@ impl SubstrateCli for Cli {
 			"" => Box::new(chain_spec::kusanagi_mainnet_config()?),
 			"local" => Box::new(chain_spec::local_testnet_config()?),
 			"akira" => Box::new(chain_spec::akira_testnet_config()?),
+			"boltzmann" => Box::new(chain_spec::boltzmann_testnet_config()?),
 			path => Box::new(chain_spec::ChainSpec::from_json_file(
 				std::path::PathBuf::from(path),
 			)?),

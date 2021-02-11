@@ -190,7 +190,7 @@ pub fn kusanagi_mainnet_config() -> Result<ChainSpec, String> {
 
 
 /// *************************************
-/// AKIRA TESTNET CONFIGURATION
+/// AKIRA TEST NET CONFIGURATION
 /// *************************************
 pub fn akira_testnet_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
@@ -218,6 +218,43 @@ pub fn akira_testnet_config() -> Result<ChainSpec, String> {
 		vec![
 			MultiaddrWithPeerId::from_str("/dns4/anton.akira.bittensor.com/tcp/30333/p2p/12D3KooWAcwbhijTx8NB5P9sLGcWyf4QrhScZrqkqWsh418Nuczd").unwrap(),
 			MultiaddrWithPeerId::from_str("/dns4/skynet.akira.bittensor.com/tcp/30333/p2p/12D3KooWEr7Dq9oFJRSXZrZspibBLRySnGCDV7598xrGF8iT5DHD").unwrap()
+	    ],
+		None,
+		None,
+		None,
+		None,
+	))
+}
+
+/// *************************************
+/// BOLTZMAN TEST NET CONFIGURATION
+/// *************************************
+pub fn boltzmann_testnet_config() -> Result<ChainSpec, String> {
+	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
+
+	Ok(ChainSpec::from_genesis(
+		"Boltzmann bittensor testnet",
+		"boltzmann_testnet",
+		ChainType::Local,
+		move || network_genesis(
+			wasm_binary,
+			vec![
+				authority_keys_from_ss58("5GQzSQc8drQ1GKChbtKQ2s9Dc2hZwteUfuHCftDehErd5MB3", "5ETG9Hq8EMZgNBmCRa5XF4MCguziCc7Qz3BVRiHaUWx2THxe"), //Jarvis
+				authority_keys_from_ss58("5DtNghm6cKngWTpqZviy3miZVq2gk7pUvrSbakdvxPsRD8jf", "5D3WtdVSjKtNLJhWTP11f8DRZtkNgGCULyVqaeShjTpvf8GX"), //Genisys
+				authority_keys_from_ss58("5Cz5yvQtL1TLrrk4uAYupX1uQSpnFKjZwjn1Nkx4oPDs15F7", "5Dtb3hYftmphpcs8d1vjNwYy8egqGoNRhCiMmtyFwUhydNyJ"), //HAL
+				authority_keys_from_ss58("5FbiGgZXCEnQo5ZTp1ik8HxpHpQoajNLXZRkMea781PgEDwx", "5GoUn6QbbXrfnzpQgu69VXjaSqv6Bs7otmwcU1t2RQLtuMBy"), //WOPR
+				authority_keys_from_ss58("5HL9BPFppxCxGVjQJpiz9KeAZAbZyvAeapMkRZPwPciHshNK", "5DBesLc4iriZ69uZ44PrQFRNpCNDiTwWPE68RPG9g88vBvRJ"), //Gibson
+				authority_keys_from_ss58("5HQUAcX8odV6Y8cbhtkXKjf1DXtoc3Pi9xo2R9Najv7FR9rz", "5DptXjeyo4UkCpqkg7asLLFwvRFokE3G9YtJTJ8PVt8xsvCW")  //Glados
+			],
+			AccountId::from_ss58check("5F6ZGZp1JyLvm3iUMJfEXAM9Y5QBHQMKFq4bYNqiB2Kvw7HU").unwrap(), // Sudo
+			vec![
+				AccountId::from_ss58check("5F2P4tekJrSmcfAJAYjpvi9QFsL96veey4SA3qFyVM1ABYrd").unwrap(), // "Adam"
+			],
+			true,
+		),
+		vec![
+			MultiaddrWithPeerId::from_str("/dns4/anton.boltzmann.bittensor.com/tcp/30333/p2p/12D3KooWGUh6xiTobwyqx8podpaTjds1UBCHbsUmQbV6Hj9xLohD").unwrap(),
+			MultiaddrWithPeerId::from_str("/dns4/skynet.boltzmann.bittensor.com/tcp/30333/p2p/12D3KooWSfmdipjWmYZgwLEQ9QPVFao5i7Jn53iqXS4BJ5Wy6k2g").unwrap()
 	    ],
 		None,
 		None,
