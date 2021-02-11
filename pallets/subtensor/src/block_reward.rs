@@ -34,8 +34,6 @@ impl<T: Trait> Module<T> {
 		// The equivalent halving is (210,000 blocks) * (10 min * 60 sec / 6 sec) =  (210,000) * (100) = (21,000,000 blocks)
 		let block_halving = U64F64::from_num(21000000);
         let fractional_halvings = elapsed_blocks_u64_f64 / block_halving;
-		debug::info!("block_halving: {:?}", block_halving);
-		debug::info!("fractional_halvings: {:?}", fractional_halvings);
 
 		// --- We shift the block reward for each halving to get the actual reward at this block.
 		// NOTE: Underflow occurs in 21,000,000 * 64 blocks, essentially never QED.        

@@ -2,7 +2,6 @@ use super::*;
 
 
 impl<T: Trait> Module<T> {
-
     /***********************************************************
      * do_add_stake() - main function called from parent module
      ***********************************************************/
@@ -28,11 +27,11 @@ impl<T: Trait> Module<T> {
         // their stake or else can cheat the system by adding stake just before
         // and emission to maximize their inflation.
         // TODO(const): can we pay for this transaction through inflation.
-        Self::emit_for_neuron( &neuron );
+        Self::emit_for_neuron(&neuron);
 
         // ---- We check that the calling coldkey contains enough funds to
         // create the staking transaction.
-        let stake_as_balance = Self::u64_to_balance( stake_to_be_added );
+        let stake_as_balance = Self::u64_to_balance(stake_to_be_added);
         ensure!(stake_as_balance.is_some(), Error::<T>::CouldNotConvertToBalance);
 
         ensure!(Self::can_remove_balance_from_coldkey_account(&coldkey, stake_as_balance.unwrap()), Error::<T>::NotEnoughBalanceToStake);
@@ -44,7 +43,6 @@ impl<T: Trait> Module<T> {
 
 
         // --- ok and return.
-        debug::info!("--- Done add_stake.");
         Ok(())
     }
 
@@ -66,11 +64,10 @@ impl<T: Trait> Module<T> {
     /// - CouldNotConvertToBalance : A conversion error occured while converting stake from u64 to Balance
     ///
     pub fn do_remove_stake(origin: T::Origin, hotkey: T::AccountId, stake_to_be_removed: u64) -> dispatch::DispatchResult {
-        
+
         // ---- We check the transaction is signed by the caller
         // and retrieve the T::AccountId pubkey information.
         let coldkey = ensure_signed(origin)?;
-        debug::info!("--- Called remove_stake with {:?}, hotkey {:?} and ammount {:?}", coldkey, hotkey, stake_to_be_removed);
 
         // ---- We query the Neuron set for the NeuronMetadata stored under
         // the passed hotkey.
@@ -88,7 +85,7 @@ impl<T: Trait> Module<T> {
         // --- We call the emit function for the associated hotkey.
         // Neurons must call an emit before they remove
         // stake or they may be able to cheat their peers of inflation.
-        Self::emit_for_neuron( &neuron );
+        Self::emit_for_neuron(&neuron);
 
         // ---- We check that the hotkey has enough stake to withdraw
         // and then withdraw from the account.
@@ -104,20 +101,17 @@ impl<T: Trait> Module<T> {
 
         // ---- Emit the unstaking event.
         Self::deposit_event(RawEvent::StakeRemoved(hotkey, stake_to_be_removed));
-        debug::info!("--- Done remove_stake.");
-        
+
         // --- Done and ok.
         Ok(())
     }
-
-
 
 
     /********************************
     --==[[  Helper functions   ]]==--
     *********************************/
 
-    pub fn get_stake_of_neuron_hotkey_account_by_uid(uid : u64) -> u64 {
+    pub fn get_stake_of_neuron_hotkey_account_by_uid(uid: u64) -> u64 {
         return Stake::get(uid);
     }
 
@@ -135,7 +129,6 @@ impl<T: Trait> Module<T> {
         assert!(increment <= u64::MAX - total_stake);
 
         TotalStake::put(total_stake + increment);
-        debug::info!("Added {:?} to total stake, now {:?}", increment, TotalStake::get());
     }
 
     /// Reduces the amount of stake of the entire stake pool by the supplied amount
@@ -148,7 +141,6 @@ impl<T: Trait> Module<T> {
         assert!(decrement <= total_stake);
 
         TotalStake::put(total_stake - decrement);
-        debug::info!("Remove {:?} from total stake, now {:?} ", decrement, TotalStake::get());
     }
 
     /// Increases the amount of stake in a neuron's hotkey account by the amount provided
@@ -173,7 +165,6 @@ impl<T: Trait> Module<T> {
         let new_stake = prev_stake + amount;
 
         Stake::insert(uid, new_stake);
-        debug::info!("Added new stake: | uid: {:?} | prev stake: {:?} | increment: {:?} | new stake: {:?}|", uid, prev_stake, amount, new_stake);
 
         Self::increase_total_stake(amount);
     }
@@ -197,7 +188,6 @@ impl<T: Trait> Module<T> {
         assert!(hotkey_stake >= amount);
 
         Stake::insert(uid, hotkey_stake - amount);
-        debug::info!("Withdraw: {:?} from hotkey staking account for new ammount {:?} staked", amount, hotkey_stake - amount);
 
         Self::decrease_total_stake(amount);
     }
@@ -208,7 +198,6 @@ impl<T: Trait> Module<T> {
     ///
     pub fn add_balance_to_coldkey_account(coldkey: &T::AccountId, amount: <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance) {
         T::Currency::deposit_creating(&coldkey, amount); // Infallibe
-        debug::info!("Deposited {:?} into coldkey balance ", amount);
     }
 
     /// This removes stake from the hotkey. This should be used together with the function to store the stake
@@ -220,11 +209,9 @@ impl<T: Trait> Module<T> {
     pub fn remove_balance_from_coldkey_account(coldkey: &T::AccountId, amount: <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance) -> bool {
         return match T::Currency::withdraw(&coldkey, amount, WithdrawReasons::except(WithdrawReason::Tip), ExistenceRequirement::KeepAlive) {
             Ok(_result) => {
-                debug::info!("Withdrew {:?} from coldkey: {:?}", amount, coldkey);
                 true
-            },
+            }
             Err(error) => {
-                debug::info!("Could NOT withdraw {:?} from coldkey: {:?} for reason {:?}", amount, coldkey, error);
                 false
             }
         };
@@ -233,8 +220,8 @@ impl<T: Trait> Module<T> {
     /// Checks if the neuron as specified in the neuron parameter has subscribed with the cold key
     /// as specified in the coldkey parameter. See fn subscribe() for more info.
     ///
-    pub fn neuron_belongs_to_coldkey(neuron : &NeuronMetadataOf<T>, coldkey : &T::AccountId) -> bool {
-        return neuron.coldkey == *coldkey
+    pub fn neuron_belongs_to_coldkey(neuron: &NeuronMetadataOf<T>, coldkey: &T::AccountId) -> bool {
+        return neuron.coldkey == *coldkey;
     }
 
     /// Checks if the coldkey account has enough balance to be able to withdraw the specified amount.
@@ -246,7 +233,7 @@ impl<T: Trait> Module<T> {
         }
 
         // This bit is currently untested. @todo
-        let new_potential_balance =  current_balance - amount;
+        let new_potential_balance = current_balance - amount;
         let can_withdraw = T::Currency::ensure_can_withdraw(&coldkey, amount, WithdrawReasons::except(WithdrawReason::Tip), new_potential_balance).is_ok();
         can_withdraw
     }
@@ -260,8 +247,8 @@ impl<T: Trait> Module<T> {
     /// Checks if the hotkey account of the specified account has enough stake to be able to withdraw
     /// the requested amount.
     ///
-    pub fn has_enough_stake(neuron : &NeuronMetadataOf<T>, amount : u64) -> bool {
-        let hotkey_stake: u64 = Stake::get( neuron.uid );
+    pub fn has_enough_stake(neuron: &NeuronMetadataOf<T>, amount: u64) -> bool {
+        let hotkey_stake: u64 = Stake::get(neuron.uid);
         return hotkey_stake >= amount;
     }
 
@@ -269,14 +256,14 @@ impl<T: Trait> Module<T> {
     /// This needs to be done on subsribed, as its presence is used for
     /// uid validity checking
     ///
-    pub fn create_hotkey_account(uid : u64) {
+    pub fn create_hotkey_account(uid: u64) {
         Stake::insert(uid, 0);
     }
 
     /// Returns true if there is an entry for uid in the Stake map,
     /// false otherwise
     ///
-    pub fn has_hotkey_account(uid : &u64) -> bool {
+    pub fn has_hotkey_account(uid: &u64) -> bool {
         return Stake::contains_key(*uid);
     }
 
@@ -289,12 +276,10 @@ impl<T: Trait> Module<T> {
     ///
     /// Otherwise, it returns the result of neuron_stake / total stake
     ///
-    pub fn calculate_stake_fraction_for_neuron(neuron : &NeuronMetadataOf<T>) -> U64F64 {
+    pub fn calculate_stake_fraction_for_neuron(neuron: &NeuronMetadataOf<T>) -> U64F64 {
         let total_stake = U64F64::from_num(TotalStake::get());
         let neuron_stake = U64F64::from_num(Stake::get(neuron.uid));
 
-        debug::info!("total stake {:?}", total_stake);
-        debug::info!("neuron stake (uid: {:?}) :  {:?}", neuron.uid, neuron_stake);
 
         // Total stake is 0, this should virtually never happen, but is still here because it could
         if total_stake == U64F64::from_num(0) {
@@ -302,13 +287,11 @@ impl<T: Trait> Module<T> {
         }
 
         // Neuron stake is zero. This means there will be nothing to emit
-        if neuron_stake ==U64F64::from_num(0) {
+        if neuron_stake == U64F64::from_num(0) {
             return U64F64::from_num(0);
         }
 
         let stake_fraction = neuron_stake / total_stake;
-
-        debug::info!("Stake fraction for neuron (uid: {:?}) : {:?}", neuron.uid, stake_fraction);
 
         return stake_fraction;
     }
@@ -316,7 +299,7 @@ impl<T: Trait> Module<T> {
     /// Calculates the proportion of the stake a neuron has to the total stake.
     /// As such, the result of this function should ALWAYS be a number between
     /// 0 and 1 (inclusive).
-    pub fn calulate_stake_fraction(stake : u64, total_stake : u64) -> U64F64 {
+    pub fn calulate_stake_fraction(stake: u64, total_stake: u64) -> U64F64 {
         return U64F64::from_num(stake) / U64F64::from_num(total_stake);
     }
 }

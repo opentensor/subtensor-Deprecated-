@@ -49,7 +49,6 @@ impl<T: Trait> Module<T> {
     pub fn emit_for_neuron(neuron: &NeuronMetadataOf<T>) -> u64 {
         // --- We init the Runtimelogger for WASM debugging
         RuntimeLogger::init();
-        debug::info!("--- Calling emit, neuron_uid: {:?}", neuron.uid);
 
         // --- We calculate the total emission available to the caller.
         // the block reward is positive and non-zero, so are the stake_fraction and elapsed blocks.
@@ -114,7 +113,6 @@ impl<T: Trait> Module<T> {
         Self::update_last_emit_for_neuron(neuron.uid);
 
         // --- Return ok.
-        debug::info!("--- Done emit");
         return total_new_stake;
     }
 
@@ -248,7 +246,6 @@ impl<T: Trait> Module<T> {
         // mechanism emit call. Since he is just subscribed with zero stake,
         // this moment is considered his first emit.
         let current_block: T::BlockNumber = system::Module::<T>::block_number();
-        debug::info!("The new last emit for this caller is: {:?} ", current_block);
 
         // ---- We initialize the neuron maps with nill weights,
         // the subscription gift and the current block as last emit.

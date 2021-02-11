@@ -1,12 +1,10 @@
 use super::*;
 
 impl<T: Trait> Module<T> {
-    
     pub fn do_subscribe(origin: T::Origin, ip: u128, port: u16, ip_type: u8, modality: u8, coldkey: T::AccountId) -> dispatch::DispatchResult {
 
         // --- We check the callers (hotkey) signature.
         let hotkey_id = ensure_signed(origin)?;
-        debug::info!("--- Called subscribe with caller {:?}", hotkey_id);
 
         // --- We make validy checks on the passed data.
         ensure!(is_valid_modality(modality), Error::<T>::InvalidModality);
@@ -32,8 +30,7 @@ impl<T: Trait> Module<T> {
             Self::init_weight_matrix_for_neuron(&neuron);
 
             // --- We deposit the neuron added event.
-            Self::deposit_event(RawEvent::NeuronAdded(uid)); 
-
+            Self::deposit_event(RawEvent::NeuronAdded(uid));
         } else {
             // --- We get the uid associated with this hotkey account.
             let uid = Self::get_uid_for_hotkey(&hotkey_id);
@@ -59,7 +56,6 @@ impl<T: Trait> Module<T> {
         // Before calling this function, a check should be made to see if
         // the account_id is already used. If this is omitted, this assert breaks.
         assert_eq!(Self::is_uid_active(uid), false);
-        debug::info!("Insert new metadata with ip: {:?}, port: {:?}, ip_type: {:?}, uid: {:?}, modality: {:?}, hotkey {:?}, coldkey: {:?}", ip, port, ip_type, uid, modality, hotkey, coldkey);
         let metadata = NeuronMetadataOf::<T> {
             ip: ip,
             port: port,
@@ -77,7 +73,6 @@ impl<T: Trait> Module<T> {
         // Before calling this function, a check should be made to see if
         // the account_id is already used. If this is omitted, this assert breaks.
         assert_eq!(Self::is_uid_active(uid), true);
-        debug::info!("Updated neuron {:?}'s metadata to ip: {:?}, port: {:?}, ip_type: {:?}", uid, ip, port, ip_type);
         let old_metadata = Self::get_neuron_for_uid(uid);
         let new_metadata = NeuronMetadataOf::<T> {
             ip: ip,
@@ -98,38 +93,35 @@ impl<T: Trait> Module<T> {
         let current_block: T::BlockNumber = system::Module::<T>::block_number();
         let last_subscription: T::BlockNumber = LastSubscriptionBlock::<T>::get();
         if last_subscription < current_block {
-            SubscriptionsThisBlock::put( 1 );
-            LastSubscriptionBlock::<T>::put( current_block );      
-            return true;  
-        } 
-        else {
+            SubscriptionsThisBlock::put(1);
+            LastSubscriptionBlock::<T>::put(current_block);
+            return true;
+        } else {
             let subs_this_block = SubscriptionsThisBlock::get();
             if subs_this_block >= num_allowed_subscriptions {
                 return false;
             } else {
-                SubscriptionsThisBlock::put( subs_this_block + 1 );
-                LastSubscriptionBlock::<T>::put( current_block );   
+                SubscriptionsThisBlock::put(subs_this_block + 1);
+                LastSubscriptionBlock::<T>::put(current_block);
                 return true;
             }
         }
     }
-    
-
 }
 
 
-fn is_valid_modality(modality : u8) -> bool {
+fn is_valid_modality(modality: u8) -> bool {
     let allowed_values: Vec<u8> = vec![0];
     return allowed_values.contains(&modality);
 }
 
-fn is_valid_ip_type(ip_type : u8) -> bool {
-    let allowed_values: Vec<u8> = vec![4,6];
+fn is_valid_ip_type(ip_type: u8) -> bool {
+    let allowed_values: Vec<u8> = vec![4, 6];
     return allowed_values.contains(&ip_type);
 }
 
 // @todo (Parallax 2-1-2021) : Implement exclusion of private IP ranges
-fn is_valid_ip_address(ip_type : u8, addr : u128) -> bool {
+fn is_valid_ip_address(ip_type: u8, addr: u128) -> bool {
     if !is_valid_ip_type(ip_type) {
         return false;
     }
@@ -145,7 +137,7 @@ fn is_valid_ip_address(ip_type : u8, addr : u128) -> bool {
     }
 
     if ip_type == 6 {
-        if addr == 0x0 {return false }
+        if addr == 0x0 { return false; }
         if addr == u128::MAX { return false; }
         if addr == 1 { return false; } // IPv6 localhost
     }
@@ -159,15 +151,15 @@ mod test {
     use std::net::{Ipv6Addr, Ipv4Addr};
 
     // Generates an ipv6 address based on 8 ipv6 words and returns it as u128
-    pub fn ipv6(a: u16, b : u16, c : u16, d : u16, e : u16 ,f: u16, g: u16,h :u16) -> u128 {
-        return Ipv6Addr::new(a,b,c,d,e,f,g,h).into();
+    pub fn ipv6(a: u16, b: u16, c: u16, d: u16, e: u16, f: u16, g: u16, h: u16) -> u128 {
+        return Ipv6Addr::new(a, b, c, d, e, f, g, h).into();
     }
 
     // Generate an ipv4 address based on 4 bytes and returns the corresponding u128, so it can be fed
     // to the module::subscribe() function
-    pub fn ipv4(a: u8 ,b: u8,c : u8,d : u8) -> u128 {
-        let ipv4 : Ipv4Addr =  Ipv4Addr::new(a, b, c, d);
-        let integer : u32 = ipv4.into();
+    pub fn ipv4(a: u8, b: u8, c: u8, d: u8) -> u128 {
+        let ipv4: Ipv4Addr = Ipv4Addr::new(a, b, c, d);
+        let integer: u32 = ipv4.into();
         return u128::from(integer);
     }
 
@@ -185,32 +177,29 @@ mod test {
     fn test_is_valid_ip_type_nok() {
         assert_eq!(is_valid_ip_type(10), false);
     }
-    
+
     #[test]
     fn test_is_valid_ip_address_ipv4() {
-        assert_eq!(is_valid_ip_address(4,ipv4(8,8,8,8)), true);
+        assert_eq!(is_valid_ip_address(4, ipv4(8, 8, 8, 8)), true);
     }
 
     #[test]
     fn test_is_valid_ip_address_ipv6() {
-        assert_eq!(is_valid_ip_address(6,ipv6(1,2,3,4,5,6,7,8)), true);
-        assert_eq!(is_valid_ip_address(6,ipv6(1,2,3,4,5,6,7,8)), true);
+        assert_eq!(is_valid_ip_address(6, ipv6(1, 2, 3, 4, 5, 6, 7, 8)), true);
+        assert_eq!(is_valid_ip_address(6, ipv6(1, 2, 3, 4, 5, 6, 7, 8)), true);
     }
 
     #[test]
     fn test_is_invalid_ipv4_address() {
-        assert_eq!(is_valid_ip_address(4, ipv4(0,0,0,0)), false);
-        assert_eq!(is_valid_ip_address(4, ipv4(255,255,255,255)), false);
-        assert_eq!(is_valid_ip_address(4, ipv4(127,0,0,1)), false);
-        assert_eq!(is_valid_ip_address(4,ipv6(0xffff,2,3,4,5,6,7,8)), false);
+        assert_eq!(is_valid_ip_address(4, ipv4(0, 0, 0, 0)), false);
+        assert_eq!(is_valid_ip_address(4, ipv4(255, 255, 255, 255)), false);
+        assert_eq!(is_valid_ip_address(4, ipv4(127, 0, 0, 1)), false);
+        assert_eq!(is_valid_ip_address(4, ipv6(0xffff, 2, 3, 4, 5, 6, 7, 8)), false);
     }
 
     #[test]
     fn test_is_invalid_ipv6_addres() {
-        assert_eq!(is_valid_ip_address(6, ipv6(0,0,0,0,0,0,0,0)), false);
-        assert_eq!(is_valid_ip_address(4, ipv6(0xffff,0xffff,0xffff,0xffff,0xffff,0xffff,0xffff,0xffff)), false);
+        assert_eq!(is_valid_ip_address(6, ipv6(0, 0, 0, 0, 0, 0, 0, 0)), false);
+        assert_eq!(is_valid_ip_address(4, ipv6(0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff)), false);
     }
-
-
-
 }

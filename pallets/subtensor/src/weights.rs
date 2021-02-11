@@ -6,15 +6,12 @@ impl<T: Trait> Module<T> {
     {
         // ---- We check the caller signature
         let hotkey_id = ensure_signed(origin)?;
-        debug::info!("--- Called set_weights key {:?}, with uids: {:?} and weights: {:?}", hotkey_id, uids, values);
 
         // ---- We check to see that the calling neuron is in the active set.
         ensure!(Self::is_hotkey_active(&hotkey_id), Error::<T>::NotActive);
         let neuron = Self::get_neuron_for_hotkey(&hotkey_id);
-        debug::info!("Got metadata with uid {:?}", neuron.uid);
 
         // --- We check that the length of these two lists are equal.
-        debug::info!("uids.len= {:?}, dests.len= {:?}", uids.len(), values.len());
         ensure!(uids_match_values(&uids, &values), Error::<T>::WeightVecNotEqualSize);
 
         // --- We check if the uids vector does not contain duplicate ids
@@ -28,14 +25,11 @@ impl<T: Trait> Module<T> {
         // to ensure that the caller is pays for his previously set weights.
         // TODO(const): can we pay for this transaction through inflation.
         Self::emit_for_neuron(&neuron);
-        debug::info!("finished emit");
 
         let normalized_values = normalize(values);
-        debug::info!("normalized values {:?}", normalized_values);
 
         // --- We update the weights under the uid map.
         Self::set_new_weights(&neuron, &uids, &normalized_values);
-        debug::info!("values set.");
 
         // ---- Emit the staking event.
         Self::deposit_event(RawEvent::WeightsSet(hotkey_id));
@@ -44,9 +38,9 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
-     /********************************
-     --==[[  Helper functions   ]]==--
-    *********************************/
+    /********************************
+    --==[[  Helper functions   ]]==--
+   *********************************/
 
     /**
     * Inits new weights for the neuron.
@@ -76,13 +70,13 @@ impl<T: Trait> Module<T> {
         WeightUids::remove(neuron.uid);
     }
 
-    pub fn get_weights_for_neuron(neuron : &NeuronMetadataOf<T>) -> (Vec<u64>, Vec<u32>) {
+    pub fn get_weights_for_neuron(neuron: &NeuronMetadataOf<T>) -> (Vec<u64>, Vec<u32>) {
         (WeightUids::get(neuron.uid), WeightVals::get(neuron.uid))
     }
 
-    pub fn contains_invalid_uids(uids : &Vec<u64>) -> bool {
+    pub fn contains_invalid_uids(uids: &Vec<u64>) -> bool {
         for uid in uids {
-            if !Self::is_uid_active( *uid ) {
+            if !Self::is_uid_active(*uid) {
                 return true;
             }
         }
@@ -100,9 +94,9 @@ fn uids_match_values(uids: &Vec<u64>, values: &Vec<u32>) -> bool {
 * If it does, an attacker could
 */
 fn has_duplicate_uids(items: &Vec<u64>) -> bool {
-    let mut parsed : Vec<u64> = Vec::new();
+    let mut parsed: Vec<u64> = Vec::new();
     for item in items {
-        if parsed.contains(&item) { return true }
+        if parsed.contains(&item) { return true; }
         parsed.push(item.clone());
     }
 
@@ -155,13 +149,13 @@ mod tests {
 
     #[test]
     fn has_duplicate_elements_true() {
-        let weights = vec![1,2,3,4,4,4,4];
+        let weights = vec![1, 2, 3, 4, 4, 4, 4];
         assert_eq!(has_duplicate_uids(&weights), true);
     }
 
     #[test]
     fn has_duplicate_elements_false() {
-        let weights = vec![1,2,3,4,5];
+        let weights = vec![1, 2, 3, 4, 5];
         assert_eq!(has_duplicate_uids(&weights), false);
     }
 }
