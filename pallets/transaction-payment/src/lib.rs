@@ -35,26 +35,23 @@
 use sp_std::prelude::*;
 use codec::{Encode, Decode};
 use frame_support::{
-	decl_storage, decl_module,
-	traits::{Currency, Get, OnUnbalanced},
+	traits::{Currency},
 	weights::{
-		Weight, DispatchInfo, PostDispatchInfo, GetDispatchInfo, Pays, WeightToFeePolynomial,
-		WeightToFeeCoefficient,
+		DispatchInfo, PostDispatchInfo,
 	},
 	dispatch::DispatchResult,
 };
 use sp_runtime::{
-	FixedU128, FixedPointNumber, FixedPointOperand, Perquintill, RuntimeDebug,
+	FixedU128, FixedPointOperand,
 	transaction_validity::{
 		ValidTransaction, TransactionValidityError,
 		TransactionValidity,
 	},
 	traits::{
-		Saturating, SignedExtension, Convert, Dispatchable,
+		SignedExtension, Dispatchable,
 		DispatchInfoOf, PostDispatchInfoOf,
 	},
 };
-use pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
 
 /// Fee multiplier.
 pub type Multiplier = FixedU128;

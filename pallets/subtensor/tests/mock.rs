@@ -1,34 +1,40 @@
-use sp_runtime::{generic::Era, Perbill, traits::{BlakeTwo256, IdentityLookup}, transaction_validity::{UnknownTransaction}, ApplyExtrinsicResultWithInfo};
-use frame_support::{
-	impl_outer_event, impl_outer_origin, parameter_types, impl_outer_dispatch,
-	weights::{Weight},
+use sp_runtime::{KeyTypeId, CryptoTypeId,
+				 generic::Era, Perbill,
+				 traits::{
+					 BlakeTwo256, IdentityLookup, ValidateUnsigned, Saturating,
+				 	 self, Checkable, Applyable, OpaqueKeys,
+					 SignedExtension, Dispatchable, DispatchInfoOf, PostDispatchInfoOf
+				 },
+				 transaction_validity::{UnknownTransaction, TransactionValidity, TransactionSource, TransactionValidityError},
+				 ApplyExtrinsicResultWithInfo,
+				 testing::{Header},
+				 codec::{Codec, Encode, Decode}
 };
+
+
+use frame_support::{
+	assert_ok,
+	traits::{OnRuntimeUpgrade, OnFinalize, OnInitialize},
+	impl_outer_event, impl_outer_origin, parameter_types, impl_outer_dispatch,
+	weights::{Weight, DispatchInfo, GetDispatchInfo, IdentityFee, constants::{
+		BlockExecutionWeight, RocksDbWeight, WEIGHT_PER_SECOND}
+	}
+};
+
 use frame_system::{self as system, ChainContext};
 use pallet_balances::Call as BalancesCall;
 use pallet_balances as balances;
-// use pallet_transaction_payment as transaction_payment;
-use frame_support::traits::{OnRuntimeUpgrade, OnFinalize, OnInitialize};
 
-use frame_support::{assert_ok};
 use pallet_subtensor::{NeuronMetadata, Module};
 use std::net::{Ipv6Addr, Ipv4Addr};
 
 use serde::{Serialize, Serializer, Deserialize, de::Error as DeError, Deserializer};
 use std::{fmt::{self, Debug}, ops::Deref, cell::RefCell};
-use sp_runtime::codec::{Codec, Encode, Decode};
-use sp_runtime::traits::{
-	self, Checkable, Applyable, OpaqueKeys,
-	SignedExtension, Dispatchable, DispatchInfoOf, PostDispatchInfoOf,
-};
-use sp_runtime::traits::{ValidateUnsigned, Saturating};
-use sp_runtime::{KeyTypeId, CryptoTypeId};
-pub use sp_core::{H256, sr25519};
-use sp_core::{crypto::{CryptoType, Dummy, key_types, Public}, U256};
-use sp_runtime::transaction_validity::{TransactionValidity, TransactionSource, TransactionValidityError};
-use sp_runtime::testing::Header;
 
-use frame_support::weights::{DispatchInfo, GetDispatchInfo, IdentityFee,
-constants::{BlockExecutionWeight, RocksDbWeight, WEIGHT_PER_SECOND},};
+use sp_core::{
+	U256,
+	crypto::{CryptoType, Dummy, key_types, Public}
+};
 
 const TEST_KEY: &[u8] = &*b":test:key:";
 

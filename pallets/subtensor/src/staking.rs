@@ -211,7 +211,7 @@ impl<T: Trait> Module<T> {
             Ok(_result) => {
                 true
             }
-            Err(error) => {
+            Err(_error) => {
                 false
             }
         };

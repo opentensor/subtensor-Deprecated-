@@ -101,7 +101,6 @@ impl<T: Trait> Module<T> {
             // to deposit new funds. The self weight is purely used to pay for transactions fees.
             // The payment of the self weight is done in the post dispatch of the signed extension.
             if *dest_uid != neuron.uid {
-                debug::info!("Emitting to {:?} | weight: {:?} | amount: {:?}", dest_uid, w_ij, stake_increment);
                 Self::add_stake_to_neuron_hotkey_account(*dest_uid, stake_increment);
             }
 
@@ -158,32 +157,18 @@ impl<T: Trait> Module<T> {
         return 0
     }
 
-
-    /// Deposits emission into the adam account via the self emission of another neuron.
-    /// If Adam doesn't exist then we are burning tokens, but this should never occur since 
-    /// uid 0 is the first to be enabled.
-    pub fn deposit_self_emission_into_adam( self_emission: u64) {
-        // --- Check that adam exists.
-        let adam_uid = 0; // Adam is the first neuron on the network (it shoudl exist)
-        let is_adam_existent= Self::is_uid_active( adam_uid );
-        if !is_adam_existent { return }
-
-        // --- Let's deposit into adam.
-        Self::add_stake_to_neuron_hotkey_account( adam_uid, self_emission );
-    }
-
-     /// Sets the pending emission for all active peers based on a single block transition.
-     ///
-     /// This function is called every time a new block is started. ie, before the processing of
-     /// extrinsics happens. In essence, this function integrates the proportional block reward for
-     /// each neuron (which at a later point, can be distributed among its peers per the weights vector),
-     /// with respect to the block number.
-     /// Every block, the proportional block reward is calculated per neuron, and put in the PendingEmission
-     /// map. If a value already exists for the neuron, the new reward is added to the existing value.
-     ///
-     /// Then, when a neuron sets new weights, or when stake is added/removed, the emit_for_neuron function is
-     /// called which distributes this pending emission among the peers in the weights vector.
-     /// At this point, the PendingEmission is reset, and this cycle starts again.
+    /// Sets the pending emission for all active peers based on a single block transition.
+    ///
+    /// This function is called every time a new block is started. ie, before the processing of
+    /// extrinsics happens. In essence, this function integrates the proportional block reward for
+    /// each neuron (which at a later point, can be distributed among its peers per the weights vector),
+    /// with respect to the block number.
+    /// Every block, the proportional block reward is calculated per neuron, and put in the PendingEmission
+    /// map. If a value already exists for the neuron, the new reward is added to the existing value.
+    ///
+    /// Then, when a neuron sets new weights, or when stake is added/removed, the emit_for_neuron function is
+    /// called which distributes this pending emission among the peers in the weights vector.
+    /// At this point, the PendingEmission is reset, and this cycle starts again.
     pub fn update_pending_emissions() -> u64 {
         let mut weight = 0;
         let block_reward = Self::get_reward_for_current_block();
