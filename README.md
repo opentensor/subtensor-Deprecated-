@@ -146,7 +146,7 @@ Jan 25 17:04:39 bittensor node-subtensor[61795]: Jan 25 17:04:39.958  INFO 〽�
 Jan 25 17:04:39 bittensor node-subtensor[61795]: Jan 25 17:04:39.960  INFO Listening for new connections on 127.0.0.1:9944.
 ```
 
-Note:  
+#### Chain synchronization 
 
 Use the status command to periodically check chain synchronization. 
 
@@ -162,6 +162,16 @@ The following line indicates the chain is synched:
  Feb 11 20:59:44.569  INFO 💤 Idle (14 peers), best: #284873 (0x7de1…6f17), finalized #284672 (0xa9ec…8419), ⬇ 3.8kiB/s ⬆ 2.4kiB/s
 ```
 
+#### Switching to another network / type
+Switching to another network or node type is as easy as stopping the node, and running
+the respective installation script. This may be useful when you feel you have another experience
+with running bittensor on the akira network and want to use bittensor on the kusanagi network.
+
+```commandline
+systemctl stop subtensor
+./install_kusanagi_light.sh
+systemctl start subtensor
+```
 
 
 
