@@ -54,9 +54,10 @@ are new to bittensor/subtensor and just want to try it out.
 ## Installation
 
 There are 3 ways to run subtensor
-1) Run the Subtensor Docker container.
-2) Run the binary directly
-3) Install and run subtensor as a systemd unit
+1) [Run the Subtensor Docker container](###-run-the-subtensor-docker-container)
+2) [Install and run subtensor as a systemd unit](###-installation-as-a-systemd-service)
+3) [Run the binary directly](###-run-the-binary-directly)
+
 
 
 ### Run the Subtensor Docker container
@@ -64,7 +65,9 @@ This is arguably the easiest way to run subtensor right away without trying to i
 ```
 $ docker-compose up
 ``` 
-inside the subtensor repository. **Note that by default, this runs the development-mode chain, not the production chain. To run the production chain, remove the `--dev` flag from the run command in docker-compose.yml**.
+inside the subtensor repository.  
+**this will run subtensor as a light node on the akira test network. Keep in mind that every time
+you spin up this container, the node will have to sync its chains, which takes a couple of minutes**.
 
 
 ### Installation as a systemd service
