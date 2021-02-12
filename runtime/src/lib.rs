@@ -263,15 +263,11 @@ impl pallet_timestamp::Trait for Runtime {
 }
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = 1;
+	pub const TransactionByteFee: Balance = 100;
 }
 
 impl pallet_transaction_payment::Trait for Runtime {
 	type Currency = Balances;
-	type OnTransactionPayment = ();
-	type TransactionByteFee = TransactionByteFee;
-	type WeightToFee = IdentityFee<Balance>;
-	type FeeMultiplierUpdate = ();
 }
 
 impl pallet_sudo::Trait for Runtime {
@@ -281,8 +277,9 @@ impl pallet_sudo::Trait for Runtime {
 
 /// Configure the subtensor pallet in pallets/subtensor.
 impl pallet_subtensor::Trait for Runtime {
-	type Currency = pallet_balances::Module<Runtime>;
+	type Currency = Balances;
 	type Event = Event;
+	type TransactionByteFee = ();
 }
 
 parameter_types! {
@@ -327,9 +324,7 @@ construct_runtime!(
 		Aura: pallet_aura::{Module, Config<T>, Inherent},
 		Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event},
 		Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
-		TransactionPayment: pallet_transaction_payment::{Module, Storage},
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
-		// Include the custom logic from the subtensor pallet in the runtime.
 		SubtensorModule: pallet_subtensor::{Module, Call, Storage, Event<T>},
 		Scheduler: pallet_scheduler::{Module, Call, Storage, Event<T>},
 	}
@@ -353,8 +348,8 @@ pub type SignedExtra = (
 	frame_system::CheckEra<Runtime>,
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
-	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
-	// pallet_subtensor::FeeFromSelfEmission<Runtime>
+	pallet_transaction_payment::ChargeTransactionPaymentOld<Runtime>,
+	pallet_subtensor::ChargeTransactionPayment<Runtime>
 );
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
@@ -489,7 +484,7 @@ impl_runtime_apis! {
 			uxt: <Block as BlockT>::Extrinsic,
 			len: u32,
 		) -> pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo<Balance> {
-			TransactionPayment::query_info(uxt, len)
+			SubtensorModule::query_info(uxt, len)
 		}
 	}
 

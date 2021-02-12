@@ -17,17 +17,11 @@ impl<T: Trait> Module<T> {
 	/// 	* block_reward (U64F64):
 	/// 		- The number of tokens to emit at this block as a fixed point.
 	/// 	
-	pub fn block_reward_for_blocknbr(blocknr: &<T as system::Trait>::BlockNumber) -> U64F64 {
-
-		// --- We convert the block number to u64 and then to a fixed point.
+	pub fn block_reward_for_blocknr(blocknr: &<T as system::Trait>::BlockNumber) -> U64F64 {
 		let elapsed_blocks_usize = TryInto::try_into(*blocknr).ok().expect("blockchain will not exceed 2^64 blocks; QED.");
-		let reward:U64F64 = Self::block_reward_for_usize(elapsed_blocks_usize);
-		reward
-	}
 
-	pub fn block_reward_for_usize(block_number_u64: usize) -> U64F64 {
 		// --- We convert the block number to a fixed point.
-		let elapsed_blocks_u64_f64 = U64F64::from_num(block_number_u64);
+		let elapsed_blocks_u64_f64 = U64F64::from_num(elapsed_blocks_usize);
 
 		// --- We get the initial block reward.
 		// Bitcoin block reward started at 50 tokens per block and the average substrate block time is 6 seconds. 
@@ -49,10 +43,37 @@ impl<T: Trait> Module<T> {
 		block_reward_shift
 	}
 
-	pub fn current_block_reward() -> U64F64{
+	///
+	/// Returns the block reward for the current block. The block reward consists of 2 parts:
+	/// 1) The part that follows a logarithmic curve with respect to time.
+	/// 2) The transaction fees of the previous block
+	pub fn get_reward_for_current_block() -> U64F64{
 		let current_block = system::Module::<T>::block_number();
-		let block_reward =  Self::block_reward_for_blocknbr(&current_block);
+		let block_reward =  Self::block_reward_for_blocknr(&current_block) ;
+		let transaction_fees = U64F64::from_num(Self::get_transaction_fees_for_block());
 
-		return block_reward;
+		return block_reward + transaction_fees;
+	}
+
+	pub fn get_transaction_fees_for_block() -> u64 {
+		return TransactionFeesForBlock::get();
+	}
+
+	pub fn move_transaction_fee_pool_to_block_reward() {
+		let transaction_fees = TransactionFeePool::get();
+		TransactionFeesForBlock::put(transaction_fees);
+		Self::reset_transaction_fee_pool();
+	}
+
+	pub fn update_transaction_fee_pool(transaction_fee : u64) {
+		TransactionFeePool::mutate(|curval| *curval += transaction_fee);
+	}
+
+	pub fn reset_transaction_fee_pool() {
+		TransactionFeePool::put(0);
+	}
+
+	pub	fn get_transaction_fee_pool() -> u64 {
+		return TransactionFeePool::get();
 	}
 }

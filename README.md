@@ -36,6 +36,19 @@ Requirements:
 
 * It is assumed your default outgoing traffic policy is ACCEPT. If not, make sure outbound traffic to port 30333 is allowed.
 
+## Node types
+Subtensor can be run as two types of nodes:
+1) as a FULL node
+2) as a LIGHT node
+
+### Running as a full node
+Running as a full node means that information about blocks older than 256 blocks is discarded, however
+all extrinsics are kept. This means that a relatively large amount of data is stored on storage.
+For most users, this option is less preferred over running a light node.
+
+### Running as a light node
+A light node stores only the runtime and the current state, and therefore takes up less space
+than a full node. For most user this is the preferred mode to run subtensor is.
 
 
 ## Networks
@@ -53,9 +66,10 @@ are new to bittensor/subtensor and just want to try it out.
 ## Installation
 
 There are 3 ways to run subtensor
-1) Run the Subtensor Docker container.
-2) Run the binary directly
-3) Install and run subtensor as a systemd unit
+1) [Run the Subtensor Docker container](###-run-the-subtensor-docker-container)
+2) [Install and run subtensor as a systemd unit](###-installation-as-a-systemd-service)
+3) [Run the binary directly](###-run-the-binary-directly)
+
 
 
 ### Run the Subtensor Docker container
@@ -63,100 +77,44 @@ This is arguably the easiest way to run subtensor right away without trying to i
 ```
 $ docker-compose up
 ``` 
-inside the subtensor repository. **Note that by default, this runs the development-mode chain, not the production chain. To run the production chain, remove the `--dev` flag from the run command in docker-compose.yml**.
+inside the subtensor repository.  
+**this will run subtensor as a light node on the akira test network. Keep in mind that every time
+you spin up this container, the node will have to sync its chains, which takes a couple of minutes**.
 
 
-### Run the binary directly
-If you run the binary directly, you will have some more options, such as connecting to different chains,
-running your own chain, resetting the chain, printing debug information, etc.
-
-#### Running on the akira test net
-First of all, the genesis block of the akira network needs to be installed. This step needs to be repeated
-if you every purge the akira chain.   
-  
-Warning!!! Only do this when you are installing a fresh copy of subtensor or when you have purged the chain.
-This operation will reset the chain to 0, so your node will have to sync the chain to its current height.
-So do not do this when you are installing an update.
-```
-mkdir -p ~/.local/share/node-subtensor
-tar -xf ./bin/release/akira_genesis.tar -C ~/.local/share/node-subtensor
-```
-
-
-
-
-Then, to run subtensor on the akira network, run the following command
+### Installation as a systemd service
+There are 4 scripts available in the root dir that will setup subtensor as a systemd service
 ```commandline
-./bin/release/node-subtensor --chain akira
+./install_akira_full.sh
+./install_akira_light.sh
+./install_kusanagi_full.sh
+./insall_kusanagi_light.sh
 ```
 
-You should see output like this:
+Decide how you want to run subtensor (light/full) and to which network you want to connect.
+Then run either script as root. For example:
 ```commandline
-Jan 08 10:23:36.268  INFO Subtensor Node
-Jan 08 10:23:36.268  INFO ✌️  version 2.0.0-e76d087-x86_64-linux-gnu
-Jan 08 10:23:36.268  INFO ❤️  by bittensor, 2020-2021
-Jan 08 10:23:36.268  INFO 📋 Chain specification: Akira bittensor testnet
-Jan 08 10:23:36.268  INFO 🏷  Node name: earsplitting-tiger-7228
-Jan 08 10:23:36.268  INFO 👤 Role: FULL
-Jan 08 10:23:36.268  INFO 💾 Database: RocksDb at /home/rawa/.local/share/node-subtensor/chains/akira_testnet/db
-Jan 08 10:23:36.268  INFO ⛓  Native runtime: node-subtensor-runtime-1 (node-subtensor-client-1.tx1.au1)
-Jan 08 10:23:36.371  WARN Using default protocol ID "sup" because none is configured in the chain specs
-Jan 08 10:23:36.372  INFO 🏷  Local node identity is: 12D3KooWKpXvUKCVpHF3sXCSueZxu8fwXKPRxZMPZwj9BgUg5j2L (legacy representation: 12D3KooWKpXvUKCVpHF3sXCSueZxu8fwXKPRxZMPZwj9BgUg5j2L)
-Jan 08 10:23:36.373  INFO 📦 Highest known block at #318
-Jan 08 10:23:36.373  INFO 〽️ Prometheus server started at 127.0.0.1:9615
-Jan 08 10:23:36.375  INFO Listening for new connections on 127.0.0.1:9944.
-Jan 08 10:23:37.833  INFO 🔍 Discovered new external address for our node: /ip4/191.97.53.53/tcp/30333/p2p/12D3KooWKpXvUKCVpHF3sXCSueZxu8fwXKPRxZMPZwj9BgUg5j2L
-Jan 08 10:23:41.376  INFO ⚙️  Syncing, target=#11024 (9 peers), best: #761 (0x9e4f…5b50), finalized #512 (0x6e4f…1709), ⬇ 176.5kiB/s ⬆ 6.3kiB/s
+sudo ./install_akira_light.sh
 ```
 
-This line confirms you are running the subtensor node on the akira network:
-```commandline
-Jan 08 10:23:36.268  INFO 📋 Chain specification: Akira bittensor testnet
-```
-
-#### Running on the kusanagi main net
-First of all, the genesis block of the kusanagi network needs to be installed. This step needs to be repeated
-if you every purge the kusanagi chain.   
-   
-Warning!!! Only do this when you are installing a fresh copy of subtensor or when you have purged the chain.
-This operation will reset the chain to 0, so your node will have to sync the chain to its current height.
-So do not do this when you are installing an update.
-```
-mkdir -p ~/.local/share/node-subtensor
-tar -xf ./bin/release/kusanagi_genesis.tar -C ~/.local/share/node-subtensor
-```
-
-To run subtensor on kusanagi, run this command:
-```commandline
-./bin/release/node-subtensor
-```
-
-Take a look at this line to confirm you are running on kusanagi
-```commandline
-Jan 08 10:30:53.923  INFO 📋 Chain specification: Kusanagi bittensor main net
-```
-
-### Installation as a systemd unit
-If you install subtensor as a systemd unit, this means it will connect to the kusanagi
-main net. Do this when you are familiar with subtensor and bittensor and are ready to do
-ML on these networks. 
-
-
-To install subtensor, execute the install.sh script
-```commandline
-sudo ./install.sh
-```
+You will be prompted to continue the script.
 
 This should give the following output:
 ```shell script
+*************************************************************************
+This will install subtensor as a LIGHT node for the AKIRA network
+*************************************************************************
+
+Warning! Any chain data present for this network will be deleted.
+Press a key to continue
+
 [+] Copying ./bin/release/node-subtensor to /usr/local/bin/
-[+] Creating data dir /var/lib/subtensor                                        
-[+] Checking if kusanagi chain data is already present
-[+] kusanagi chain data is not present. This indicates a fresh install. Installing genesis block
+[+] Creating data dir /var/lib/subtensor
+[+] Checking if akira chain data is already present
+[+] Installing genesis block
 [+] Setting ownership of /var/lib/subtensor and subdirs to subtensor:subtensor
 [+] Creating unit file /etc/systemd/system/subtensor.service
 [+] Done!
-
 
 --==[[ USEFUL COMMANDS ]]==--
 Start subtensor : sudo systemctl start subtensor
@@ -169,6 +127,11 @@ Check status    : sudo systemctl status subtensor
 You can start the subtensor node using the following command:
 ```commandline
 sudo systemctl start subtensor
+```
+
+If you want to run subtensor on boot after your system restarts, issues this command:
+```commandline
+sudo systemctl enable subtensor
 ```
 
 If you use this command:
@@ -197,6 +160,143 @@ Jan 25 17:04:39 bittensor node-subtensor[61795]: Jan 25 17:04:39.957  INFO 📦 
 Jan 25 17:04:39 bittensor node-subtensor[61795]: Jan 25 17:04:39.958  INFO 〽️ Prometheus server started at 127.0.0.1:9615
 Jan 25 17:04:39 bittensor node-subtensor[61795]: Jan 25 17:04:39.960  INFO Listening for new connections on 127.0.0.1:9944.
 ```
+
+#### Chain synchronization 
+
+Use the status command to periodically check chain synchronization. 
+
+```
+ubtensor[20924]: Feb 11 20:56:14.560  INFO ⚙️  Syncing, target=#284838 (14 peers), best: #29184 (0x00e6…6a19), finalized #28672 (0xd6cc…8899), ⬇ 1.4MiB/s ⬆ 16.7kiB/s
+```
+The above line indicates that subtensor is syncing its chain with the network. target=#284838 means that the block height
+for the network is 284838. finalized #28672 means that is has synched to block 28672.
+The node becomes operational when the chain has fully synchronized.
+
+The following line indicates the chain is synched:
+```
+ Feb 11 20:59:44.569  INFO 💤 Idle (14 peers), best: #284873 (0x7de1…6f17), finalized #284672 (0xa9ec…8419), ⬇ 3.8kiB/s ⬆ 2.4kiB/s
+```
+
+#### Switching to another network / type
+Switching to another network or node type is as easy as stopping the node, and running
+the respective installation script. This may be useful when you feel you have another experience
+with running bittensor on the akira network and want to use bittensor on the kusanagi network.
+
+```commandline
+systemctl stop subtensor
+./install_kusanagi_light.sh
+systemctl start subtensor
+```
+
+
+
+
+
+
+### Run the binary directly
+If you run the binary directly, you will have some more options, such as connecting to different chains,
+running your own chain, resetting the chain, printing debug information, etc.
+
+#### Running on the akira test net
+First of all, you need to decide if you want to run a full or light node. Then, you'll need to install the genesis block.
+the genesis block of the akira network needs to be installed. This step needs to be repeated
+if you every purge the akira chain.   
+  
+Warning!!! Only do this when you are installing a fresh copy of subtensor or when you have purged the chain.
+This operation will reset the chain to 0, so your node will have to sync the chain to its current height.
+So do not do this when you are installing an update.
+
+First create the target directory:
+```
+mkdir -p ~/.local/share/node-subtensor
+```
+When you will run a full node, run this command to install the genesis block for a full node.
+```
+tar -xf ./bin/release/akira_genesis_full.tar -C ~/.local/share/node-subtensor
+```
+For a light node, run this command:
+```
+tar -xf ./bin/release/akira_genesis_light.tar -C ~/.local/share/node-subtensor
+```
+
+Then, to run subtensor on the akira network, run one of the following commands
+For a full node:
+```commandline
+./bin/release/node-subtensor --chain akira
+```
+For a light node:
+```commandline
+./bin/release/node-subtensor --chain akira --light
+```
+
+You should see output like this:
+```commandline
+Jan 08 10:23:36.268  INFO Subtensor Node
+Jan 08 10:23:36.268  INFO ✌️  version 2.0.0-e76d087-x86_64-linux-gnu
+Jan 08 10:23:36.268  INFO ❤️  by bittensor, 2020-2021
+Jan 08 10:23:36.268  INFO 📋 Chain specification: Akira bittensor testnet
+Jan 08 10:23:36.268  INFO 🏷  Node name: earsplitting-tiger-7228
+Jan 08 10:23:36.268  INFO 👤 Role: FULL
+Jan 08 10:23:36.268  INFO 💾 Database: RocksDb at /home/rawa/.local/share/node-subtensor/chains/akira_testnet/db
+Jan 08 10:23:36.268  INFO ⛓  Native runtime: node-subtensor-runtime-1 (node-subtensor-client-1.tx1.au1)
+Jan 08 10:23:36.371  WARN Using default protocol ID "sup" because none is configured in the chain specs
+Jan 08 10:23:36.372  INFO 🏷  Local node identity is: 12D3KooWKpXvUKCVpHF3sXCSueZxu8fwXKPRxZMPZwj9BgUg5j2L (legacy representation: 12D3KooWKpXvUKCVpHF3sXCSueZxu8fwXKPRxZMPZwj9BgUg5j2L)
+Jan 08 10:23:36.373  INFO 📦 Highest known block at #318
+Jan 08 10:23:36.373  INFO 〽️ Prometheus server started at 127.0.0.1:9615
+Jan 08 10:23:36.375  INFO Listening for new connections on 127.0.0.1:9944.
+Jan 08 10:23:37.833  INFO 🔍 Discovered new external address for our node: /ip4/191.97.53.53/tcp/30333/p2p/12D3KooWKpXvUKCVpHF3sXCSueZxu8fwXKPRxZMPZwj9BgUg5j2L
+Jan 08 10:23:41.376  INFO ⚙️  Syncing, target=#11024 (9 peers), best: #761 (0x9e4f…5b50), finalized #512 (0x6e4f…1709), ⬇ 176.5kiB/s ⬆ 6.3kiB/s
+```
+
+This line confirms you are running the subtensor node on the akira network:
+```commandline
+Jan 08 10:23:36.268  INFO 📋 Chain specification: Akira bittensor testnet
+```
+
+This line confirms if your are running a FULL or LIGHT node
+```commandline
+Jan 08 10:23:36.268  INFO 👤 Role: FULL
+```
+
+#### Running on the kusanagi main net
+Like with the Akira network, you'll need to decide if you want to run a full or light node.
+After this, the genesis block of the kusanagi network needs to be installed. This step needs to be repeated
+if you every purge the kusanagi chain.   
+   
+Warning!!! Only do this when you are installing a fresh copy of subtensor or when you have purged the chain.
+This operation will reset the chain to 0, so your node will have to sync the chain to its current height.
+So do not do this when you are installing an update.
+
+Create the path for the chain:
+```
+mkdir -p ~/.local/share/node-subtensor
+```
+The following commands install the genesis block  
+If you are running a full node, issue this command:
+```commandline
+tar -xf ./bin/release/kusanagi_genesis_full.tar -C ~/.local/share/node-subtensor
+```
+For a light node:
+```commandline
+tar -xf ./bin/release/kusanagi_genesis_light.tar -C ~/.local/share/node-subtensor
+```
+To run subtensor on kusanagi, run one of these commands:
+For a full node:
+```commandline
+./bin/release/node-subtensor
+```
+
+For a light node:
+```commandline
+./bin/release/node-subtensor --light
+```
+
+
+Take a look at this line to confirm you are running on kusanagi
+```commandline
+Jan 08 10:30:53.923  INFO 📋 Chain specification: Kusanagi bittensor main net
+```
+
 
 
 ## Troubleshooting
