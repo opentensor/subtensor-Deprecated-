@@ -1,0 +1,104 @@
+#!/bin/bash
+
+if [[ $EUID -ne 0 ]]; then
+   echo "This script must be run as root"
+   exit 1
+fi
+
+
+NODE_TYPE=$1
+NETWORK=$2
+
+
+DATA_DIR="/var/lib/subtensor"
+
+
+if [ "$NODE_TYPE" = "LIGHT" ] ; then
+    LIGHT_NODE_FLAG="--light"
+    NODE_TYPE_LOWERCASE="light"
+elif [ "$NODE_TYPE" = "FULL" ]; then
+    LIGHT_NODE_FLAG=""
+    NODE_TYPE_LOWERCASE="full"
+else
+    echo "[!] Unknown node type ($NODE_TYPE). Aborting"
+    exit
+fi
+
+if [ "$NETWORK" = "KUSANAGI" ] ; then
+  NETWORK_LOWERCASE='kusanagi'
+  CHAIN_DATA="$DATA_DIR/chains/kusanagi_mainnet/db"
+  AKIRA_CHAIN_FLAG=""
+elif [ "$NETWORK" = "AKIRA" ] ; then
+  NETWORK_LOWERCASE='akira'
+  CHAIN_DATA="$DATA_DIR/chains/akira_testnet/db"
+  AKIRA_CHAIN_FLAG="--chain akira"
+else
+  echo "Unkown network ($NETWORK) specified. Aborting"
+  exit
+fi
+
+CHAIN_TAR="./bin/release/$NETWORK_LOWERCASE""_genesis_$NODE_TYPE_LOWERCASE.tar"
+
+
+echo "*************************************************************************"
+echo "This will install subtensor as a $NODE_TYPE node for the $NETWORK network"
+echo "*************************************************************************"
+echo ""
+echo "Warning! Any chain data present for this network will be deleted."
+echo "Press a key to continue"
+read
+
+
+UNIT_FILE="/etc/systemd/system/subtensor.service"
+
+USERNAME="subtensor"
+BINARY="node-subtensor"
+
+echo "[+] Copying ./bin/release/node-subtensor to /usr/local/bin/"
+cp ./bin/release/$BINARY /usr/local/bin
+
+id -u $USERNAME &>/dev/null || (echo "[+] Creating user subtensor" && useradd --no-create-home --shell /bin/false $USERNAME)
+echo "[+] Creating data dir $DATA_DIR"
+mkdir -p $DATA_DIR
+
+echo "[+] Checking if $NETWORK_LOWERCASE chain data is already present"
+if [ -d $CHAIN_DATA ] ; then
+    echo "[!] $NETWORK_LOWERCASE chain data is already present, deleting .."
+    rm -rf $CHAIN_DATA
+fi
+
+echo "[+] Installing genesis block"
+tar -xf $CHAIN_TAR -C $DATA_DIR
+
+
+echo "[+] Setting ownership of $DATA_DIR and subdirs to $USERNAME:$USERNAME"
+chown -R $USERNAME:$USERNAME $DATA_DIR
+
+echo "[+] Creating unit file $UNIT_FILE"
+
+cat << EOF > $UNIT_FILE
+[Unit]
+Description=Subtensor node
+
+Wants=network.target
+After=syslog.target network-online.target
+
+[Service]
+User=$USERNAME
+Type=simple
+ExecStart=/usr/local/bin/$BINARY --base-path $DATA_DIR $LIGHT_NODE_FLAG $AKIRA_CHAIN_FLAG
+Restart=on-failure
+RestartSec=10
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+echo "[+] Done!"
+echo ""
+echo "--==[[ USEFUL COMMANDS ]]==--"
+echo "Start subtensor : sudo systemctl start subtensor"
+echo "Stop subtensor  : sudo systemctl stop subtensor"
+echo "Start on reboot : sudo systemctl enable subtensor"
+echo "Check status    : sudo systemctl status subtensor"

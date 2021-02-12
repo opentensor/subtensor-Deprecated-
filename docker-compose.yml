@@ -6,6 +6,7 @@ services:
     image: "bittensor/subtensor:latest"
     ports:
       - "9944:9944"
+      - "30333:30333"
     environment:
       - CARGO_HOME=/subtensor/.cargo
       - WASM_BUILD_TOOLCHAIN=nightly-2020-10-05
@@ -13,6 +14,6 @@ services:
     command: /bin/bash -c "
       cd /subtensor
       && mkdir -p ~/.local/share/node-subtensor
-      && tar -xf ./bin/release/kusanagi_genesis.tar -C ~/.local/share/node-subtensor
-      && cd /subtensor && ./bin/release/node-subtensor --dev --ws-external --rpc-cors=all
+      && tar -xf ./bin/release/akira_genesis_light.tar -C ~/.local/share/node-subtensor
+      && cd /subtensor && ./bin/release/node-subtensor --chain akira --light --ws-external --rpc-cors=all
       "
