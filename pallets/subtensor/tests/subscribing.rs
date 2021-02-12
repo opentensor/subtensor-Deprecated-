@@ -4,10 +4,52 @@ use frame_system::Trait;
 mod mock;
 use mock::*;
 use frame_support::sp_runtime::DispatchError;
+use pallet_subtensor::{Call as SubtensorCall};
+use frame_support::dispatch::{GetDispatchInfo, DispatchInfo};
+use frame_support::weights::{DispatchClass, Pays};
 
 /********************************************
 	subscribing::subscribe() tests
 *********************************************/
+#[test]
+fn test_subscribe_ok_dispatch_info_ok() {
+	new_test_ext().execute_with(|| {
+		let ip = ipv4(8,8,8,8);
+		let port = 8883;
+		let ip_type = 4;
+		let modality = 0;
+		let coldkey_id = 7787;
+
+        let call = Call::SubtensorModule(SubtensorCall::subscribe(ip, port, ip_type, modality, coldkey_id));
+
+		assert_eq!(call.get_dispatch_info(), DispatchInfo {
+			weight: 0,
+			class: DispatchClass::Normal,
+			pays_fee: Pays::No
+		});
+	});
+}
+
+#[test]
+fn test_subscribe_ok_no_transaction_fee_is_charged() {
+	let ip = ipv4(8,8,8,8);
+	let port = 8883;
+	let ip_type = 4;
+	let modality = 0;
+	let coldkey_id = 7787;
+
+	new_test_ext().execute_with(|| {
+        let _adam = subscribe_ok_neuron(0, coldkey_id);
+
+		let call = Call::SubtensorModule(SubtensorCall::subscribe(ip, port, ip_type, modality, coldkey_id));
+		let xt = TestXt::new(call, mock::sign_extra(coldkey_id, 0));
+		let result = mock::Executive::apply_extrinsic(xt);
+		assert_ok!(result);
+
+		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(0), 0);
+	});
+}
+
 
 
 #[test]
