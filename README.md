@@ -14,6 +14,18 @@
 * Architectures other than x86_64 are currently not supported.
 * OSs other than Linux are currently not supported.               
 
+## Architectures
+Subtensor support the following architectures:
+
+## Linux x86_64
+Requirements:
+* Linux kernel 2.6.32+,
+* glibc 2.11+
+
+## MacOS x86_64
+Requirements:
+* MacOS 10.7+ (Lion+)
+
 ## Network requirements
 * Subtensor needs access to the public internet
 * Subtensor runs on ipv4
