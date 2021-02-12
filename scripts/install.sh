@@ -1,15 +1,16 @@
 #!/bin/bash
 
-if [[ $EUID -ne 0 ]]; then
-   echo "This script must be run as root"
-   exit 1
-fi
+abort() {
+  printf "%s\n" "$1"
+  exit 1
+}
 
+if [[ $EUID -ne 0 ]]; then
+   abort "This script must be run as root"
+fi
 
 NODE_TYPE=$1
 NETWORK=$2
-
-
 DATA_DIR="/var/lib/subtensor"
 
 
@@ -52,8 +53,6 @@ read
 UNIT_FILE="/etc/systemd/system/subtensor.service"
 
 USERNAME="subtensor"
-BINARY="node-subtensor"
-
 echo "[+] Copying ./bin/release/node-subtensor to /usr/local/bin/"
 # Switch binary based on distro.
 OS="$(uname)"
@@ -61,7 +60,9 @@ if [[ "$OS" == "Linux" ]]; then
   BINARY="linux-node-subtensor"
 elif [[ "$OS" == "Darwin" ]]; then
   BINARY="mac-node-subtensor"
-fi 
+else
+  abort "There is no compatible subtensor binary for you operating system. You need to build from source."
+fi
 cp ./bin/release/$BINARY /usr/local/bin
 
 id -u $USERNAME &>/dev/null || (echo "[+] Creating user subtensor" && useradd --no-create-home --shell /bin/false $USERNAME)
@@ -83,7 +84,7 @@ chown -R $USERNAME:$USERNAME $DATA_DIR
 
 echo "[+] Creating unit file $UNIT_FILE"
 
-cat << EOF > $UNIT_FILE
+cat << EOF > $UNIT_FILEls
 [Unit]
 Description=Subtensor node
 
