@@ -55,6 +55,13 @@ USERNAME="subtensor"
 BINARY="node-subtensor"
 
 echo "[+] Copying ./bin/release/node-subtensor to /usr/local/bin/"
+# Switch binary based on distro.
+OS="$(uname)"
+if [[ "$OS" == "Linux" ]]; then
+  BINARY="linux-node-subtensor"
+elif [[ "$OS" == "Darwin" ]]; then
+  BINARY="mac-node-subtensor"
+fi 
 cp ./bin/release/$BINARY /usr/local/bin
 
 id -u $USERNAME &>/dev/null || (echo "[+] Creating user subtensor" && useradd --no-create-home --shell /bin/false $USERNAME)
