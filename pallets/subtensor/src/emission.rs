@@ -99,9 +99,10 @@ impl<T: Trait> Module<T> {
 
             // --- We check if the weight is a self loop. In this case, the emission does not proceed
             // to deposit new funds. The self weight is purely used to pay for transactions fees.
-            //if *dest_uid != neuron.uid {
-            Self::add_stake_to_neuron_hotkey_account(*dest_uid, stake_increment);
-            //}
+            // The payment of the self weight is done in the post dispatch of the signed extension.
+            if *dest_uid != neuron.uid {
+                Self::add_stake_to_neuron_hotkey_account(*dest_uid, stake_increment);
+            }
 
             // --- We increase the total stake emitted.
             total_new_stake += stake_increment;
@@ -114,62 +115,63 @@ impl<T: Trait> Module<T> {
         return total_new_stake;
     }
 
-    // pub fn get_self_emission_for_caller( caller: &T::AccountId) -> u64 {
-    //
-    //     // --- We get the neuron associated with the calling hotkey account.
-    //     let neuron = Self::get_neuron_for_hotkey( caller );
-    //
-    //     // --- Non active uids have zero emission.
-	// 	let is_existent_neuron = Self::is_uid_active(neuron.uid);
-	// 	if !is_existent_neuron { return 0 }
-    //
-    //     // --- How much total remaining emission is available for this neuron.
-    //     let pending_emission_for_neuron = Self::get_pending_emission_for_neuron( neuron.uid );
-    //
-    //     // --- We get the callers weights.
-    //     let (weight_uids,  weight_vals) = Self::get_weights_for_neuron( &neuron );
-    //
-    //     // - The emission for the neuron calling this function must be greater than zero
-    //     // - The vectors containing the account ids and values of the destination neurons must be
-    //     // non zero. If either of these requirements are not met, emission is zero.
-    //     if !Self::can_emission_proceed(&pending_emission_for_neuron, &weight_uids, &weight_vals) {
-    //         return 0;
-    //     }
-    //
-    //     // --- We iterate through the weights to find the self-weight. The self emission
-    //     // is easily computed as pending_emission * normalize_self_weight.
-    //     for (i, dest_uid) in weight_uids.iter().enumerate() {
-    //
-    //         // Is this the self weight.
-    //         if *dest_uid == neuron.uid {
-    //             // Normalize the self weight.
-    //             let w_ii = normalize(weight_vals[i]);
-    //
-    //             // Compute the stake increment emission.dest_uid
-    //             let stake_increment = Self::calculate_stake_increment(pending_emission_for_neuron, w_ii);
-    //
-    //             return stake_increment
-    //         }
-    //     }
-    //     // No self weight?
-    //     return 0
-    // }
+    pub fn get_self_emission_for_caller( caller: &T::AccountId) -> u64 {
 
-     /// Sets the pending emission for all active peers based on a single block transition.
-     ///
-     /// This function is called every time a new block is started. ie, before the processing of
-     /// extrinsics happens. In essence, this function integrates the proportional block reward for
-     /// each neuron (which at a later point, can be distributed among its peers per the weights vector),
-     /// with respect to the block number.
-     /// Every block, the proportional block reward is calculated per neuron, and put in the PendingEmission
-     /// map. If a value already exists for the neuron, the new reward is added to the existing value.
-     ///
-     /// Then, when a neuron sets new weights, or when stake is added/removed, the emit_for_neuron function is
-     /// called which distributes this pending emission among the peers in the weights vector.
-     /// At this point, the PendingEmission is reset, and this cycle starts again.
+        // --- We get the neuron associated with the calling hotkey account.
+        let neuron = Self::get_neuron_for_hotkey( caller );
+
+        // --- Non active uids have zero emission.
+		let is_existent_neuron = Self::is_uid_active(neuron.uid);
+		if !is_existent_neuron { return 0 }
+
+        // --- How much total remaining emission is available for this neuron.
+        let pending_emission_for_neuron = Self::get_pending_emission_for_neuron( neuron.uid );
+
+        // --- We get the callers weights.
+        let (weight_uids,  weight_vals) = Self::get_weights_for_neuron( &neuron );
+
+        // - The emission for the neuron calling this function must be greater than zero
+        // - The vectors containing the account ids and values of the destination neurons must be
+        // non zero. If either of these requirements are not met, emission is zero.
+        if !Self::can_emission_proceed(&pending_emission_for_neuron, &weight_uids, &weight_vals) {
+            return 0;
+        }
+
+
+        // --- We iterate through the weights to find the self-weight. The self emission
+        // is easily computed as pending_emission * normalize_self_weight.
+        for (i, dest_uid) in weight_uids.iter().enumerate() {
+
+            // Is this the self weight.
+            if *dest_uid == neuron.uid {
+                // Normalize the self weight.
+                let w_ii = normalize(weight_vals[i]);
+
+                // Compute the stake increment emission.dest_uid
+                let stake_increment = Self::calculate_stake_increment(pending_emission_for_neuron, w_ii);
+
+                return stake_increment
+            }
+        }
+        // No self weight?
+        return 0
+    }
+
+    /// Sets the pending emission for all active peers based on a single block transition.
+    ///
+    /// This function is called every time a new block is started. ie, before the processing of
+    /// extrinsics happens. In essence, this function integrates the proportional block reward for
+    /// each neuron (which at a later point, can be distributed among its peers per the weights vector),
+    /// with respect to the block number.
+    /// Every block, the proportional block reward is calculated per neuron, and put in the PendingEmission
+    /// map. If a value already exists for the neuron, the new reward is added to the existing value.
+    ///
+    /// Then, when a neuron sets new weights, or when stake is added/removed, the emit_for_neuron function is
+    /// called which distributes this pending emission among the peers in the weights vector.
+    /// At this point, the PendingEmission is reset, and this cycle starts again.
     pub fn update_pending_emissions() -> u64 {
         let mut weight = 0;
-        let block_reward = Self::current_block_reward();
+        let block_reward = Self::get_reward_for_current_block();
         let total_stake = Self::get_total_stake();
 
         if total_stake == 0 {
@@ -181,6 +183,7 @@ impl<T: Trait> Module<T> {
             let stake_fraction = Self::calulate_stake_fraction(neuron_stake, total_stake);
             let new_emission = Self::calculate_new_emission(block_reward, stake_fraction);
             Self::update_pending_emission_for_neuron(uid, new_emission);
+
             weight += 1;
         }
         weight
@@ -255,6 +258,7 @@ impl<T: Trait> Module<T> {
         assert!(stake_fraction <=1);
 
         let new_emission = block_reward * stake_fraction;
+
         return new_emission.to_num::<u64>();
     }
 

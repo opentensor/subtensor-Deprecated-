@@ -29,7 +29,7 @@ node-subtensor-runtime = { path = '../runtime', version = '1.0.1' }
 # Substrate dependencies
 frame-benchmarking = '2.0.0'
 frame-benchmarking-cli = '2.0.0'
-pallet-transaction-payment-rpc = '2.0.0'
+pallet-transaction-payment-rpc = { path = "../pallets/transaction-payment/rpc", version = '2.0.0'}
 sc-basic-authorship = '0.8.0'
 sc-cli = { features = ['wasmtime'], version = '0.8.0' }
 sc-client-api = '2.0.0'

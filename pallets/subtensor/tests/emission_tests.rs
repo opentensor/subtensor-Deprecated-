@@ -37,44 +37,6 @@ fn test_emit_does_not_exist() {
 	});
 }
 
-// Tests that the self emission returns the correct values with a single node.
-#[test]
-fn test_self_emission() {
-	new_test_ext().execute_with(|| {
-        // Let's subscribe a new neuron to the chain.
-        let hotkey:u64 = 1;
-        let stake:u64 = 1000000000;
-        let neuron = random_neuron_with_stake(hotkey, stake, ipv4(8,8,8,8), 1, 4, 0, 1);
-
-        // Let's set this neuron's weights. (0,0) = 1
-		let weight_uids = vec![neuron.uid];
-		let weight_values = vec![u32::MAX]; 
-        assert_ok!(SubtensorModule::set_weights(<<Test as Trait>::Origin>::signed(hotkey), weight_uids.clone(), weight_values.clone()));
-        assert_eq!(SubtensorModule::get_weights_for_neuron(&neuron), (weight_uids, weight_values)); // Check the weights are set.
-
-        // Left's call an emit.
-        let total_emission:u64 = SubtensorModule::emit_for_neuron(&neuron);
-        assert_eq!(total_emission, 0);
-        assert_eq!(stake, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that the stake is there.
-
-        // Increase the block number to trigger emit. It starts at block 0.
-        run_to_block(1);
-        
-        // Let's call an emit. Causes the new node to mint 500000000 to himself.
-        let total_emission:u64 = SubtensorModule::emit_for_neuron(&neuron);
-        assert_eq!(total_emission, 500000000);
-        assert_eq!(1500000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that the stake is there.
-
-        // Increase the block number to trigger emit. It starts at block 0.
-        run_to_block(2);
-
-        let total_emission:u64 = SubtensorModule::emit_for_neuron(&neuron);
-        assert_eq!(total_emission, 500000000);
-        assert_eq!(2000000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that the stake is there.
-          
-	});
-}
-
 
 // Tests that emitting twice in the same block does not increase the stake emitted.
 #[test]
@@ -173,7 +135,9 @@ fn test_self_weight() {
         // Let's call emit again.
         let total_emission:u64 = SubtensorModule::emit_for_neuron(&neuron);
         assert_eq!(total_emission, 500000000);
-        assert_eq!(1500000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that the stake is there.
+
+        // Verify that the self emission does not got to the neuron itself
+        assert_eq!(1_000_000_000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that the stake is there.
 
         // Increase the block number by 1
         run_to_block(2);
@@ -181,7 +145,9 @@ fn test_self_weight() {
         // Let's call emit again.
         let total_emission:u64 = SubtensorModule::emit_for_neuron(&neuron);
         assert_eq!(total_emission, 500000000);
-        assert_eq!(2000000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that the stake is there.
+
+        // Verify that the self emission does not got to the neuron itself
+        assert_eq!(1_000_000_000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that the stake is there.
 
 	});
 }
