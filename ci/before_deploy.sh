@@ -15,7 +15,7 @@ main() {
             ;;
     esac
 
-    test -f Cargo.lock || cargo generate-lockfile
+#    test -f Cargo.lock || cargo generate-lockfile
 
     # TODO Update this to build the artifacts that matter to you
 #    cargo build --target $TARGET --release
