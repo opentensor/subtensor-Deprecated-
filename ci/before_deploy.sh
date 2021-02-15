@@ -22,7 +22,7 @@ main() {
 
 
     # TODO Update this to package the right artifacts
-    cp target/$TARGET/release/node-subtensor $stage/
+#    cp target/$TARGET/release/node-subtensor $stage/
     cp $src/bin/genesis/*.tar $stage
 
     cd $stage
