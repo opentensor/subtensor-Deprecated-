@@ -1,44 +1,19 @@
-dist: trusty
 language: rust
 rust:
   - 1.47.0
-services: docker
-sudo: required
-env:
-  global:
-  - CRATE_NAME=subtensor
-  - secure: bffQ2E+jL9EZF708e8VsGM3mFhnGeiqIcr9Vq+FTKdFlCxIw52MrPWLAv3bBRhHjjruhXUQYv+CgBjCX3txX9dypwrIzEi3IdlIRiG0yVfz3eB8TZURSa3iD9mgVPhq2U9/NrHY8e/u7rXmWFQiaPT8pRYBbGr85co2tDkEK6q9K3Ks4bhYVIxGjulmQDlHrDRRWQ8y2U5hpsVAjzMkzdonVwhQZ0SuF7hsZA67+eKzwi3ENpE5edGw8wuKigoFcMDe0XJ0tJf9tujn7g04//Cr/GTLhDW03xTUUDYlIEv+quoqhCL2ZKxWnxBuvvV3jMz/KxOsBJbAE/pRHGLe9SxZwBwuHcyLj+U6jTAoALDSq7bJdib85rvx+UTNg9f8rcnZY3kN7hle9ZjSX9yYZoQSm8Xb52sEE0Ib/L/whLZvcEDAwLkm88Bpru3HNE49EBE+hgR44zfT6Cra+ns7Ert0AYCKLIYser5VrBS5Y5Gmryk43zwrpJ7mPiGgX2fAwgh48gM4VIpDcHM+AwfIE6GTUV+YmSdJLJ3GcOEPDiS1Y8sMFvVk08iJvvBu1qVJ9vpQ2gcaFlR6I0/oySPiaMDVj4MxGoNMYtXUQi594UWII4KkoqTilShcNNq2M4lG/lcQdLXfOOGtzfm4pS+WdQk9CtlNYXd3EyRN64FO7U/U=
+cache: cargo
+
 matrix:
   include:
   - env: TARGET=x86_64-unknown-linux-gnu
   - env: TARGET=x86_64-apple-darwin
     os: osx
-before_install:
-- set -e
-- rustup self update
+
 install:
-- rustup install nightly-2020-10-01
-- rustup target add wasm32-unknown-unknown --toolchain nightly-2020-10-01
-- sh ci/install.sh
-#- source ~/.cargo/env || true
+  - rustup install nightly-2020-10-01
+  - rustup target add wasm32-unknown-unknown --toolchain nightly-2020-10-01
+
 script:
-- bash ci/script.sh
-after_script: set +e
-before_deploy:
-- sh ci/before_deploy.sh
-deploy:
-  api_key:
-    secure: A9v3PIzQQ4U08OHFmDPQzNXbNHEb7YHyLXCvMF+dXFuNSvhUNlmQYykxqUf3dvikhJL2/bsZ14umm7ni7fQh0tGwJ4+lPpNzYAcweGgNXnWvjTpY6ovuRbr3gs4/srkyxp/GBDmSW5L8wFN3hKCB+Lm0YnIPB9IA2afP8a30+8VTXT9nv7pNqGny4ilN41ycr4DZi3sQoXdbruy7ClN7gsWW/GUiudBccHVIjmTapOFKLwZHODaUl/1/RDWQzh+i+17e1ivXuJPktDSrqmHPTZ15OjklnHKd6t179ry6VkGRg4R/R/YukVIqGzeaXGWAwdAQ5gE8cjGZghJLVi2jkDBJ85z8MvT+zLZLyliiuhLc/X8y7mkE1n0FKFtXXzFVt0l7V1LaEKbIbiV6XX3jsir4qgkqWjPHBZqO5mkGNFS16Dmt30/ZtEPAzXiINFXbWuWrpQ/LZ4NSto8IMrRTcoyDbAga/KYxJiNIeVuCe1E9dbytDM7K0GLtxJTul/WnnSeI6r//EFyC4bxYjyHhCXaag4q14KM+ak4rB0QgxsYzyGuh2MqyCoVj8YJLjLdKnL/SV7W7LPD40xlxvI6VCYTVi2ILHwL6vCxpukXYteX0c5IAIWkISDKu6nNBEgmCHXXPSqYSrgE5g7/QoCQHI8++nR8iKe0s7TWxZRydby8=
-  file_glob: true
-  file: "$CRATE_NAME-$TRAVIS_TAG-$TARGET.*"
-  on:
-    condition: "$TRAVIS_RUST_VERSION = stable"
-    tags: true
-  provider: releases
-  skip_cleanup: true
-cache: cargo
-before_cache:
-- chmod -R a+r $HOME/.cargo
-notifications:
-  email:
-    on_success: never
+#  - cargo test
+  - cargo build --release --target $TARGET
+
