@@ -12,6 +12,9 @@ env:
 matrix:
   include:
   - env: TARGET=x86_64-unknown-linux-gnu
+  - env: TARGET=x86_64-apple-darwin
+    os: osx
+
 install:
 - rustup install nightly-2020-10-01
 - rustup target add wasm32-unknown-unknown --toolchain nightly-2020-10-01
@@ -29,3 +32,4 @@ deploy:
   provider: releases
   skip_cleanup: true
   draft: true
+  name: "draft-$CRATE_NAME-$TRAVIS_BRANCH-$TARGET"
