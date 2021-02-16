@@ -28,7 +28,8 @@ deploy:
   file_glob: true
   file: "$CRATE_NAME-$TRAVIS_BRANCH-$TARGET.*"
   on:
-    all_branches: true
+    branch: master
+    tags: true
   provider: releases
   skip_cleanup: true
   draft: true
