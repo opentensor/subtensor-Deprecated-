@@ -21,13 +21,12 @@ echo "*************************************************************************"
 echo "This will install subtensor as a FULL node for the AKIRA network"
 echo "*************************************************************************"
 echo ""
-echo "Warning! Any chain data present for this network will be deleted."
 echo "Press a key to continue"
 read
 
 
 echo "[+] Copying ./$BINARY to /usr/local/bin/"
-cp .$BINARY /usr/local/bin
+cp ./$BINARY /usr/local/bin
 
 id -u $USERNAME &>/dev/null || (echo "[+] Creating user subtensor" && useradd --no-create-home --shell /bin/false $USERNAME)
 echo "[+] Creating data dir $DATA_DIR"
@@ -38,7 +37,7 @@ if [ -d $CHAIN_DATA ] ; then
     echo "[!] $NETWORK chain data is already present, skipping initialization of genesis block."
 else
     echo "[+] $NETWORK chain data is not present. This indicates a fresh install. Installing genesis block"
-    tar -xf .$CHAIN_TAR -C $DATA_DIR
+    tar -xf $CHAIN_TAR -C $DATA_DIR
 fi
 
 echo "[+] Setting ownership of $DATA_DIR and subdirs to $USERNAME:$USERNAME"
