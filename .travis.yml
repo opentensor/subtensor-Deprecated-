@@ -32,4 +32,4 @@ deploy:
   provider: releases
   skip_cleanup: true
   draft: true
-  name: "draft-$CRATE_NAME-$TRAVIS_BRANCH-$TARGET"
+  name: "draft-$CRATE_NAME-$TRAVIS_BRANCH"
