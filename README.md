@@ -14,6 +14,18 @@
 * Architectures other than x86_64 are currently not supported.
 * OSs other than Linux are currently not supported.               
 
+## Architectures
+Subtensor support the following architectures:
+
+## Linux x86_64
+Requirements:
+* Linux kernel 2.6.32+,
+* glibc 2.11+
+
+## MacOS x86_64
+Requirements:
+* MacOS 10.7+ (Lion+)
+
 ## Network requirements
 * Subtensor needs access to the public internet
 * Subtensor runs on ipv4
@@ -25,19 +37,12 @@
 * It is assumed your default outgoing traffic policy is ACCEPT. If not, make sure outbound traffic to port 30333 is allowed.
 
 ## Node types
-Subtensor can be run as two types of nodes:
-1) as a FULL node
-2) as a LIGHT node
+Subtensor can currenly only be ran as a FULL node, as support for LIGHT nodes is experimental
 
 ### Running as a full node
 Running as a full node means that information about blocks older than 256 blocks is discarded, however
 all extrinsics are kept. This means that a relatively large amount of data is stored on storage.
 For most users, this option is less preferred over running a light node.
-
-### Running as a light node
-A light node stores only the runtime and the current state, and therefore takes up less space
-than a full node. For most user this is the preferred mode to run subtensor is.
-
 
 ## Networks
 We currently operate two different subtensor networks, each with their own chain.
@@ -50,6 +55,17 @@ Akira is our staging network. This is the network which we will use to test new 
 before they are updated to the kusanagi main net. We urge you to use this network when you
 are new to bittensor/subtensor and just want to try it out. 
 
+
+## Downloading subtensor
+1) Go to the [latest release page](https://github.com/opentensor/subtensor/releases/latest)
+2) Open the assets dropdown
+3) Create a directory in which the tarball can be untarred 
+4) Download the tarball corresponding to your OS and architecture into the created directory
+5) Untar the the tarball  
+from a shell:
+```commandline
+tar -xzf <filename>
+```
 
 ## Installation
 
@@ -66,23 +82,23 @@ This is arguably the easiest way to run subtensor right away without trying to i
 $ docker-compose up
 ``` 
 inside the subtensor repository.  
-**this will run subtensor as a light node on the akira test network. Keep in mind that every time
+**this will run subtensor as a full node on the akira test network. Keep in mind that every time
 you spin up this container, the node will have to sync its chains, which takes a couple of minutes**.
 
 
 ### Installation as a systemd service
-There are 4 scripts available in the root dir that will setup subtensor as a systemd service
+Note. This type of installation is only available on linux.
+
+There are 2 scripts available in the subtensor dir that will setup subtensor as a systemd service
 ```commandline
-./install_akira_full.sh
-./install_akira_light.sh
-./install_kusanagi_full.sh
-./insall_kusanagi_light.sh
+./install_akira_systemd.sh
+./install_kusanagi_systemd.sh
 ```
 
-Decide how you want to run subtensor (light/full) and to which network you want to connect.
+Decide how you want to run subtensor (to which network you want to connect).
 Then run either script as root. For example:
 ```commandline
-sudo ./install_akira_light.sh
+sudo ./install_akira_systemd.sh
 ```
 
 You will be prompted to continue the script.
@@ -90,10 +106,9 @@ You will be prompted to continue the script.
 This should give the following output:
 ```shell script
 *************************************************************************
-This will install subtensor as a LIGHT node for the AKIRA network
+This will install subtensor as a FULL node for the AKIRA network
 *************************************************************************
 
-Warning! Any chain data present for this network will be deleted.
 Press a key to continue
 
 [+] Copying ./bin/release/node-subtensor to /usr/local/bin/
@@ -165,20 +180,6 @@ The following line indicates the chain is synched:
  Feb 11 20:59:44.569  INFO 💤 Idle (14 peers), best: #284873 (0x7de1…6f17), finalized #284672 (0xa9ec…8419), ⬇ 3.8kiB/s ⬆ 2.4kiB/s
 ```
 
-#### Switching to another network / type
-Switching to another network or node type is as easy as stopping the node, and running
-the respective installation script. This may be useful when you feel you have another experience
-with running bittensor on the akira network and want to use bittensor on the kusanagi network.
-
-```commandline
-systemctl stop subtensor
-./install_kusanagi_light.sh
-systemctl start subtensor
-```
-
-
-
-
 
 
 ### Run the binary directly
@@ -186,8 +187,7 @@ If you run the binary directly, you will have some more options, such as connect
 running your own chain, resetting the chain, printing debug information, etc.
 
 #### Running on the akira test net
-First of all, you need to decide if you want to run a full or light node. Then, you'll need to install the genesis block.
-the genesis block of the akira network needs to be installed. This step needs to be repeated
+First of all, you'll need to install the genesis block of the akira network. This step needs to be repeated
 if you every purge the akira chain.   
   
 Warning!!! Only do this when you are installing a fresh copy of subtensor or when you have purged the chain.
@@ -200,21 +200,12 @@ mkdir -p ~/.local/share/node-subtensor
 ```
 When you will run a full node, run this command to install the genesis block for a full node.
 ```
-tar -xf ./bin/release/akira_genesis_full.tar -C ~/.local/share/node-subtensor
-```
-For a light node, run this command:
-```
-tar -xf ./bin/release/akira_genesis_light.tar -C ~/.local/share/node-subtensor
+tar -xf ./akira_genesis.tar -C ~/.local/share/node-subtensor
 ```
 
-Then, to run subtensor on the akira network, run one of the following commands
-For a full node:
+Then, to run subtensor on the akira network, run the following command
 ```commandline
 ./bin/release/node-subtensor --chain akira
-```
-For a light node:
-```commandline
-./bin/release/node-subtensor --chain akira --light
 ```
 
 You should see output like this:
@@ -241,14 +232,9 @@ This line confirms you are running the subtensor node on the akira network:
 Jan 08 10:23:36.268  INFO 📋 Chain specification: Akira bittensor testnet
 ```
 
-This line confirms if your are running a FULL or LIGHT node
-```commandline
-Jan 08 10:23:36.268  INFO 👤 Role: FULL
-```
 
 #### Running on the kusanagi main net
-Like with the Akira network, you'll need to decide if you want to run a full or light node.
-After this, the genesis block of the kusanagi network needs to be installed. This step needs to be repeated
+Like on the Akira network, the genesis block of the kusanagi network needs to be installed. This step needs to be repeated
 if you every purge the kusanagi chain.   
    
 Warning!!! Only do this when you are installing a fresh copy of subtensor or when you have purged the chain.
@@ -262,23 +248,14 @@ mkdir -p ~/.local/share/node-subtensor
 The following commands install the genesis block  
 If you are running a full node, issue this command:
 ```commandline
-tar -xf ./bin/release/kusanagi_genesis_full.tar -C ~/.local/share/node-subtensor
+tar -xf ./kusanagi_genesis.tar -C ~/.local/share/node-subtensor
 ```
-For a light node:
-```commandline
-tar -xf ./bin/release/kusanagi_genesis_light.tar -C ~/.local/share/node-subtensor
-```
+
 To run subtensor on kusanagi, run one of these commands:
 For a full node:
 ```commandline
 ./bin/release/node-subtensor
 ```
-
-For a light node:
-```commandline
-./bin/release/node-subtensor --light
-```
-
 
 Take a look at this line to confirm you are running on kusanagi
 ```commandline

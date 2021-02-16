@@ -9,8 +9,8 @@ if [[ $EUID -ne 0 ]]; then
    abort "This script must be run as root"
 fi
 
-NODE_TYPE=$1
-NETWORK=$2
+NODE_TYPE="FULL"
+NETWORK=$1
 DATA_DIR="/var/lib/subtensor"
 
 
@@ -38,7 +38,7 @@ else
   exit
 fi
 
-CHAIN_TAR="./bin/release/$NETWORK_LOWERCASE""_genesis_$NODE_TYPE_LOWERCASE.tar"
+CHAIN_TAR="./$NETWORK_LOWERCASE""_genesis.tar"
 
 
 echo "*************************************************************************"
@@ -57,13 +57,13 @@ echo "[+] Copying ./bin/release/node-subtensor to /usr/local/bin/"
 # Switch binary based on distro.
 OS="$(uname)"
 if [[ "$OS" == "Linux" ]]; then
-  BINARY="linux-node-subtensor"
+  BINARY="./bin/linux_x86_64/node-subtensor"
 elif [[ "$OS" == "Darwin" ]]; then
-  BINARY="mac-node-subtensor"
+  BINARY="./bin/macos_x86_64/node-subtensor"
 else
   abort "There is no compatible subtensor binary for you operating system. You need to build from source."
 fi
-cp ./bin/release/$BINARY /usr/local/bin
+cp $BINARY /usr/local/bin
 
 id -u $USERNAME &>/dev/null || (echo "[+] Creating user subtensor" && useradd --no-create-home --shell /bin/false $USERNAME)
 echo "[+] Creating data dir $DATA_DIR"
@@ -84,7 +84,7 @@ chown -R $USERNAME:$USERNAME $DATA_DIR
 
 echo "[+] Creating unit file $UNIT_FILE"
 
-cat << EOF > $UNIT_FILEls
+cat << EOF > $UNIT_FILE
 [Unit]
 Description=Subtensor node
 
@@ -94,7 +94,7 @@ After=syslog.target network-online.target
 [Service]
 User=$USERNAME
 Type=simple
-ExecStart=/usr/local/bin/$BINARY --base-path $DATA_DIR $LIGHT_NODE_FLAG $AKIRA_CHAIN_FLAG
+ExecStart=/usr/local/bin/node-subtensor --base-path $DATA_DIR $AKIRA_CHAIN_FLAG
 Restart=on-failure
 RestartSec=10
 KillMode=process

@@ -1,0 +1,19 @@
+version: "3.2"
+
+services:
+  dev:
+    container_name: node-subtensor
+    image: "bittensor/subtensor:latest"
+    ports:
+      - "9944:9944"
+      - "30333:30333"
+    environment:
+      - CARGO_HOME=/subtensor/.cargo
+      - WASM_BUILD_TOOLCHAIN=nightly-2020-10-05
+
+    command: /bin/bash -c "
+      cd /subtensor
+      && mkdir -p ~/.local/share/node-subtensor
+      && tar -xf ./akira_genesis_light.tar -C ~/.local/share/node-subtensor
+      && cd /subtensor && ./bin/release/node-subtensor --chain akira --ws-external --rpc-cors=all
+      "

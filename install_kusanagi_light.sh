@@ -1,4 +1,0 @@
-NODE_TYPE="LIGHT"
-NETWORK="KUSANAGI"
-
-bash ./scripts/install.sh $NODE_TYPE $NETWORK
