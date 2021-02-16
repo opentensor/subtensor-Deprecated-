@@ -24,6 +24,7 @@ main() {
     # TODO Update this to package the right artifacts
 #    cp target/$TARGET/release/node-subtensor $stage/
     cp $src/bin/genesis/*.tar $stage
+    cp $src/scripts/install/$TARGET/* $stage
 
     cd $stage
     tar czf $src/$CRATE_NAME-$TRAVIS_BRANCH-$TARGET.tar.gz *
