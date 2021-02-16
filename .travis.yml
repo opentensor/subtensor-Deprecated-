@@ -19,7 +19,7 @@ install:
 - rustup install nightly-2020-10-01
 - rustup target add wasm32-unknown-unknown --toolchain nightly-2020-10-01
 script:
-- ls
+- cargo test
 before_deploy:
 - sh ci/before_deploy.sh
 deploy:

@@ -15,14 +15,13 @@ main() {
             ;;
     esac
 
-#    test -f Cargo.lock || cargo generate-lockfile
+    test -f Cargo.lock || cargo generate-lockfile
 
     # TODO Update this to build the artifacts that matter to you
-#    cargo build --target $TARGET --release
-
+    cargo build --target $TARGET --release
 
     # TODO Update this to package the right artifacts
-#    cp target/$TARGET/release/node-subtensor $stage/
+    cp target/$TARGET/release/node-subtensor $stage/
     cp $src/bin/genesis/*.tar $stage
     cp $src/scripts/install/$TARGET/* $stage
 
