@@ -37,19 +37,12 @@ Requirements:
 * It is assumed your default outgoing traffic policy is ACCEPT. If not, make sure outbound traffic to port 30333 is allowed.
 
 ## Node types
-Subtensor can be run as two types of nodes:
-1) as a FULL node
-2) as a LIGHT node
+Subtensor can currenly only be ran as a FULL node, as support for LIGHT nodes is experimental
 
 ### Running as a full node
 Running as a full node means that information about blocks older than 256 blocks is discarded, however
 all extrinsics are kept. This means that a relatively large amount of data is stored on storage.
 For most users, this option is less preferred over running a light node.
-
-### Running as a light node
-A light node stores only the runtime and the current state, and therefore takes up less space
-than a full node. For most user this is the preferred mode to run subtensor is.
-
 
 ## Networks
 We currently operate two different subtensor networks, each with their own chain.
@@ -62,6 +55,17 @@ Akira is our staging network. This is the network which we will use to test new 
 before they are updated to the kusanagi main net. We urge you to use this network when you
 are new to bittensor/subtensor and just want to try it out. 
 
+
+## Downloading subtensor
+1) Go to the [latest release page](https://github.com/opentensor/subtensor/releases/latest)
+2) Open the assets dropdown
+3) Create a directory in which the tarball can be untarred 
+4) Download the tarball corresponding to your OS and architecture into the created directory
+5) Untar the the tarball  
+from a shell:
+```commandline
+tar -xzf <filename>
+```
 
 ## Installation
 
@@ -83,6 +87,8 @@ you spin up this container, the node will have to sync its chains, which takes a
 
 
 ### Installation as a systemd service
+Note. This type of installation is only available on linux.
+
 There are 4 scripts available in the root dir that will setup subtensor as a systemd service
 ```commandline
 ./install_akira_full.sh
