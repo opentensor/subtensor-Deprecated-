@@ -55,38 +55,51 @@ Akira is our staging network. This is the network which we will use to test new 
 before they are updated to the kusanagi main net. We urge you to use this network when you
 are new to bittensor/subtensor and just want to try it out. 
 
-
 ## Downloading subtensor
+Before downloading, you need to decide if you are going to run subtensor in a docker container, or if
+you want to do a standalone (all architectures), or systemd installation (linux only) installation.
+
 1) Go to the [latest release page](https://github.com/opentensor/subtensor/releases/latest)
 2) Open the assets dropdown
 3) Create a directory in which the tarball can be untarred 
-4) Download the tarball corresponding to your OS and architecture into the created directory
+4) If you want to run subtensor as a docker container, download subtensor-vX.X.X-x86_64_docker.tar.gz into the created directory.
+4) If you want to run standalone, or as systemd server, download the tarball corresponding to your OS and architecture into the created directory
 5) Untar the the tarball  
 from a shell:
 ```commandline
 tar -xzf <filename>
 ```
 
+
 ## Installation
 
 There are 3 ways to run subtensor
-1) [Run the Subtensor Docker container](###-run-the-subtensor-docker-container)
-2) [Install and run subtensor as a systemd unit](###-installation-as-a-systemd-service)
-3) [Run the binary directly](###-run-the-binary-directly)
+1) [Run the Subtensor Docker container](#run-the-subtensor-docker-container)
+2) [Install and run subtensor as a systemd unit](#installation-as-a-systemd-service)
+3) [Run the binary directly](#run-the-binary-directly)
 
 
 
-### Run the Subtensor Docker container
-This is arguably the easiest way to run subtensor right away without trying to install it directly into your machine, simply create a new terminal and run:
+
+
+### Run the Subtensor Docker container (Linux, MacOS)
+This is arguably the easiest way to run subtensor right away without trying to install it directly into your machine, simply create a new terminal and run on of the following commands:
+To run a node on the AKIRA network:
 ```
-$ docker-compose up
+$ docker-compose -f ./docker-compose-akira.yml up 
 ``` 
-inside the subtensor repository.  
+
+To run a node on the KUSANAGI network:
+```
+$ docker-compose -f ./docker-compose-kusanagi.yml up 
+``` 
+
+  
 **this will run subtensor as a full node on the akira test network. Keep in mind that every time
 you spin up this container, the node will have to sync its chains, which takes a couple of minutes**.
 
 
-### Installation as a systemd service
+### Installation as a systemd service (Linux only)
 Note. This type of installation is only available on linux.
 
 There are 2 scripts available in the subtensor dir that will setup subtensor as a systemd service
@@ -182,7 +195,7 @@ The following line indicates the chain is synched:
 
 
 
-### Run the binary directly
+### Run the binary directly (Linux, MacOS)
 If you run the binary directly, you will have some more options, such as connecting to different chains,
 running your own chain, resetting the chain, printing debug information, etc.
 
@@ -194,15 +207,10 @@ Warning!!! Only do this when you are installing a fresh copy of subtensor or whe
 This operation will reset the chain to 0, so your node will have to sync the chain to its current height.
 So do not do this when you are installing an update.
 
-First create the target directory:
+Run the installation script:
+``` commandline
+./install_akira.sh
 ```
-mkdir -p ~/.local/share/node-subtensor
-```
-When you will run a full node, run this command to install the genesis block for a full node.
-```
-tar -xf ./akira_genesis.tar -C ~/.local/share/node-subtensor
-```
-
 Then, to run subtensor on the akira network, run the following command
 ```commandline
 ./bin/release/node-subtensor --chain akira
@@ -241,20 +249,15 @@ Warning!!! Only do this when you are installing a fresh copy of subtensor or whe
 This operation will reset the chain to 0, so your node will have to sync the chain to its current height.
 So do not do this when you are installing an update.
 
-Create the path for the chain:
-```
-mkdir -p ~/.local/share/node-subtensor
-```
-The following commands install the genesis block  
-If you are running a full node, issue this command:
+Install subtensor:
 ```commandline
-tar -xf ./kusanagi_genesis.tar -C ~/.local/share/node-subtensor
+./install_kusanagi.sh
 ```
 
-To run subtensor on kusanagi, run one of these commands:
+To run subtensor on kusanagi, run this command
 For a full node:
 ```commandline
-./bin/release/node-subtensor
+./node-subtensor
 ```
 
 Take a look at this line to confirm you are running on kusanagi
