@@ -62,7 +62,7 @@ you want to do a standalone (all architectures), or systemd installation (linux 
 1) Go to the [latest release page](https://github.com/opentensor/subtensor/releases/latest)
 2) Open the assets dropdown
 3) Create a directory in which the tarball can be untarred 
-4) If you want to run subtensor as a docker container, download subtensor-vX.X.X-x86_64_docker.tar.gz into the created directory.
+4) If you want to run subtensor as a docker container, download subtensor-vX.X.X-x86_64-docker.tar.gz into the created directory.
 4) If you want to run standalone, or as systemd server, download the tarball corresponding to your OS and architecture into the created directory
 5) Untar the the tarball  
 from a shell:
