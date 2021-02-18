@@ -15,7 +15,7 @@ ENV RUST_BACKTRACE 1
 
 ARG DEBIAN_FRONTEND=noninteractive
 # install tools and dependencies
-RUN apt-get update && apt-get install -y libssl1.1 ca-certificates cmake pkg-config libssl-dev git build-essential clang libclang-dev curl
+RUN apt-get update && apt-get install -y libssl1.1 ca-certificates cmake pkg-config libssl-dev git build-essential clang libclang-dev curl wget
 
 # add substrate binary to docker image
 RUN mkdir /subtensor
