@@ -20,5 +20,5 @@ set -ex
 
 # we don't run the "test phase" when doing deploys
 if [ -z $TRAVIS_TAG ]; then
-    cargo test
+    cargo test --release
 fi
