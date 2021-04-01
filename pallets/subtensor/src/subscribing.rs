@@ -6,6 +6,9 @@ impl<T: Trait> Module<T> {
         // --- We check the callers (hotkey) signature.
         let hotkey_id = ensure_signed(origin)?;
 
+        // --- We check if the hotkey is active, and if the passed coldkey is linked to the hotkey
+        ensure!(Self::specified_coldkey_is_linked_to_hotkey_if_active(&hotkey_id, &coldkey), Error::<T>::NonAssociatedColdKey);
+
         // --- We make validy checks on the passed data.
         ensure!(is_valid_modality(modality), Error::<T>::InvalidModality);
         ensure!(is_valid_ip_type(ip_type), Error::<T>::InvalidIpType);
@@ -51,6 +54,16 @@ impl<T: Trait> Module<T> {
     /********************************
      --==[[  Helper functions   ]]==--
     *********************************/
+
+    pub fn specified_coldkey_is_linked_to_hotkey_if_active(hotkey : &T::AccountId, coldkey : &T::AccountId) -> bool {
+        if !Self::is_hotkey_active(hotkey) {
+            return true;
+        }
+
+        // Hotkey is active, so we are able to find the neuron associated with it
+        let neuron = Self::get_neuron_for_hotkey(hotkey);
+        Self::neuron_belongs_to_coldkey(&neuron, coldkey)
+    }
 
     pub fn add_neuron_to_metagraph(ip: u128, port: u16, ip_type: u8, modality: u8, coldkey: T::AccountId, hotkey: T::AccountId, uid: u64) -> NeuronMetadataOf<T> {
         // Before calling this function, a check should be made to see if

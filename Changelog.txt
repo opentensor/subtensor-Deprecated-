@@ -1,0 +1,10 @@
+--==[ v1.1.0 ]==--
+
+Features:
++ Transaction fees.
+Transaction fees for add_stake, unstake and transfer functions are now set at 100 Rao per byte.
+
+Bugfixes:
++ subscribe function now checks if the coldkey that is sent with the request matches the coldkey with which the hotkey is subscribed, in case of a resubscription
+
+

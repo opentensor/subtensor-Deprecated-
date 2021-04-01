@@ -242,7 +242,7 @@ decl_error! {
 		/// already exists in the active set.
 		AlreadyActive,
 
-		/// ---- Thrown when a stake or unstake request is made by a coldkey
+		/// ---- Thrown when a stake, unstake or subscribe request is made by a coldkey
 		/// which is not associated with the hotkey account. 
 		/// See: fn add_stake and fn remove_stake.
 		NonAssociatedColdKey,

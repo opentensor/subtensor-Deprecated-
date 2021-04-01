@@ -114,6 +114,45 @@ fn test_subscriptions_per_block() {
 	});
 }
 
+#[test]
+fn test_active_hotkey_with_wrong_coldkey() {
+	new_test_ext().execute_with(|| {
+		let hotkey_account_id = 1;
+		let ip = ipv4(8,8,8,8);
+		let ip_type = 4;
+		let port = 1337;
+		let modality = 0;
+		let coldkey_account_id_a = 667; // Neighbour of the beast, har har
+		let coldkey_account_id_b = 668; // The other neighbor, much nicer guy this one.
+
+		// This line links the hotkey to the coldkey on first subscription
+		let result = SubtensorModule::subscribe(<<Test as Trait>::Origin>::signed(hotkey_account_id), ip, port, ip_type, modality, coldkey_account_id_a);
+		assert_ok!(result);
+
+		let result = SubtensorModule::subscribe(<<Test as Trait>::Origin>::signed(hotkey_account_id), ip, port, ip_type, modality, coldkey_account_id_b);
+		assert_eq!(result, Err(Error::<Test>::NonAssociatedColdKey.into()));
+	});
+}
+
+#[test]
+fn test_active_hotkey_with_right_coldkey() {
+	new_test_ext().execute_with(|| {
+		let hotkey_account_id = 1;
+		let ip = ipv4(8,8,8,8);
+		let ip_type = 4;
+		let port = 1337;
+		let modality = 0;
+		let coldkey_account_id = 667;
+
+		// This line links the hotkey to the coldkey on first subscription
+		let result = SubtensorModule::subscribe(<<Test as Trait>::Origin>::signed(hotkey_account_id), ip, port, ip_type, modality, coldkey_account_id);
+		assert_ok!(result);
+
+		let result = SubtensorModule::subscribe(<<Test as Trait>::Origin>::signed(hotkey_account_id), ip, port, ip_type, modality, coldkey_account_id);
+		assert_ok!(result);
+	});
+}
+
 
 #[test]
 fn test_invalid_modality() {
@@ -240,7 +279,7 @@ fn test_subscribe_update_coldkey_modality_not_changed_ok() {
 		assert_ok!(SubtensorModule::subscribe(<<Test as Trait>::Origin>::signed(hotkey_account_id), ip, port, ip_type, modality, coldkey_account_id));
 
 		// Subscribe again, this time an update. hotkey and cold key are the same.
-		let new_coldkey_account_id = 668; // The other neighbor, much nicer guy this one.
+		let new_coldkey_account_id = 667;
  		let new_ip = ipv6(0,0,0,0,0,0,1,1);  // off by one.
 		let new_ip_type = 6; // change to 6.
 		let new_port = port + 1; // off by one.
@@ -399,3 +438,5 @@ fn test_get_next_uid() {
 		assert_eq!(SubtensorModule::get_next_uid(), 2) // One more
 	});
 }
+
+
