@@ -19,7 +19,8 @@ install:
 - rustup install nightly-2020-10-01
 - rustup target add wasm32-unknown-unknown --toolchain nightly-2020-10-01
 script:
-- bash ci/script.sh
+- travis_wait timeout 1800 cargo build --target $TARGET --release ||  true
+- travis_wait timeout 1800 cargo test --release || true
 before_deploy:
 - sh ci/before_deploy.sh
 deploy:
