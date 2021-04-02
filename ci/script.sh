@@ -20,5 +20,6 @@ set -ex
 
 # we don't run the "test phase" when doing deploys
 if [ -z $TRAVIS_TAG ]; then
-    cargo test --release
+    timeout 1800 cargo build --target $TARGET --release ||  true
+    timeout 1800 cargo test --release || true
 fi
