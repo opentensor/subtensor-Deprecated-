@@ -625,7 +625,7 @@ impl<T: Trait + Send + Sync> ChargeTransactionPayment<T> where
     }
 
     pub fn can_pay_set_weights(who: &T::AccountId) -> Result<TransactionFee, TransactionValidityError> {
-        let transaction_fee = Module::<T>::get_self_emission_for_caller(who);
+        let transaction_fee = Module::<T>::get_transaction_fee_for_emission(who);
         Ok(transaction_fee)
     }
 
