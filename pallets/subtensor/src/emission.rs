@@ -102,6 +102,10 @@ impl<T: Trait> Module<T> {
             // The payment of the self weight is done in the post dispatch of the signed extension.
             if *dest_uid != neuron.uid {
                 Self::add_stake_to_neuron_hotkey_account(*dest_uid, stake_increment);
+            } else {
+                // The self weight is used to pay the transaction fee with. 99% goes back into the neuron
+                // 1% is used for the transaction fee
+                Self::add_stake_to_neuron_hotkey_account(*dest_uid, Self::get_self_emission_minus_transaction_fee(stake_increment));
             }
 
             // --- We increase the total stake emitted.
@@ -141,7 +145,6 @@ impl<T: Trait> Module<T> {
         // --- We iterate through the weights to find the self-weight. The self emission
         // is easily computed as pending_emission * normalize_self_weight.
         for (i, dest_uid) in weight_uids.iter().enumerate() {
-
             // Is this the self weight.
             if *dest_uid == neuron.uid {
                 // Normalize the self weight.
@@ -155,6 +158,24 @@ impl<T: Trait> Module<T> {
         }
         // No self weight?
         return 0
+    }
+
+    /// Returns the transaction fee for the emission.
+    /// This is defined at 1% of the total value of the self-emission
+    pub fn get_transaction_fee_for_emission(caller: &T::AccountId) -> u64 {
+        let conversion_factor :U64F64 = U64F64::from_num(0.01);
+        let result = U64F64::from_num(Self::get_self_emission_for_caller(caller)) * conversion_factor;
+
+        return result.round().to_num::<u64>();
+    }
+
+    /// Return part of the self-emission that should go to the neuron's own stake account
+    /// Currently defined as 99% of the total self-emission
+    pub fn get_self_emission_minus_transaction_fee(stake_increment : u64) -> u64 {
+        let conversion_factor :U64F64 = U64F64::from_num(0.99);
+        let result = U64F64::from_num(stake_increment) * conversion_factor;
+
+        return result.round().to_num::<u64>();
     }
 
     /// Sets the pending emission for all active peers based on a single block transition.
