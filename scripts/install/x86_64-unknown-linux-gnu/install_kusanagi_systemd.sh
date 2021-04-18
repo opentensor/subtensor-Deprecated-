@@ -42,6 +42,12 @@ fi
 
 echo "[+] Setting ownership of $DATA_DIR and subdirs to $USERNAME:$USERNAME"
 chown -R $USERNAME:$USERNAME $DATA_DIR
+chown $USERNAME:$USERNAME /usr/local/bin/$BINARY
+
+echo "[+] Setting correct file permissions"
+chmod u=rwX,go= -R $DATA_DIR
+chmod 700 /usr/local/bin/$BINARY
+
 
 echo "[+] Creating unit file $UNIT_FILE"
 
