@@ -152,7 +152,7 @@ fn fee_from_emission_priority_with_neuron_and_adam() {
         assert_eq!(1_000_000_000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that his stake has not increased.
 
         let _total_emission: u64 = SubtensorModule::emit_for_neuron(&neuron); // actually do the emission.
-        assert_eq!(1_495_000_000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that his stake has increased (he is *not* adam)
+        assert_eq!(1_500_000_000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that his stake has increased (he is *not* adam)
     });
 }
 
