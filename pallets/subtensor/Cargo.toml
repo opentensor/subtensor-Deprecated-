@@ -5,7 +5,7 @@ edition = '2018'
 homepage = 'https://www.bittensor.com'
 license = 'MIT'
 name = 'pallet-subtensor'
-version = '1.0.1'
+version = '1.1.0'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
@@ -27,7 +27,7 @@ sp-arithmetic = { version = '2.0.0', default-features = false }
 sp-runtime = { default-features = false, version = '2.0.0' }
 sp-transaction-pool = { default-features = false, version = '2.0.0' }
 pallet-balances = { default-features = false, version = '2.0.0' }
-pallet-transaction-payment-rpc-runtime-api = { default-features = false, version = "2.0.0", path="../transaction-payment/rpc/runtime-api"}
+pallet-transaction-payment-rpc-runtime-api = { default-features = false, version = "1.1.0", path="../transaction-payment/rpc/runtime-api"}
 fixed = { default-features = false, version = '1.5' }
 
 [dev-dependencies]
