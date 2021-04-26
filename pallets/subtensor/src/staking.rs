@@ -41,7 +41,6 @@ impl<T: Trait> Module<T> {
         // ---- Emit the staking event.
         Self::deposit_event(RawEvent::StakeAdded(hotkey, stake_to_be_added));
 
-
         // --- ok and return.
         Ok(())
     }

@@ -811,23 +811,28 @@ impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T>
     ) -> Result<(), TransactionValidityError> {
         let call_type = pre.0;
         let transaction_fee = pre.1;
-        let coldkey_id = pre.2;
+        let account_id = pre.2;
         let transaction_fee_as_balance = Module::<T>::u64_to_balance(transaction_fee).unwrap();
 
         match result {
             Ok(_) => {
                 match call_type {
                     CallType::SetWeights => {
+                        // account_id = hotkey_id, since this method is called with the hotkey
+                        let uid = Module::<T>::get_uid_for_hotkey(&account_id);
+                        Module::<T>::remove_stake_from_neuron_hotkey_account(uid, transaction_fee);
                         Module::<T>::update_transaction_fee_pool(transaction_fee);
                         Ok(Default::default())
                     }
                     CallType::AddStake => {
-                        Module::<T>::remove_balance_from_coldkey_account(&coldkey_id, transaction_fee_as_balance);
+                        // account_id = coldkey_id, since this method is called with the coldkey
+                        Module::<T>::remove_balance_from_coldkey_account(&account_id, transaction_fee_as_balance);
                         Module::<T>::update_transaction_fee_pool(transaction_fee); // uid 0 == Adam
                         Ok(Default::default())
                     }
                     CallType::RemoveStake => {
-                        Module::<T>::remove_balance_from_coldkey_account(&coldkey_id, transaction_fee_as_balance);
+                        // account_id = coldkey_id, since this method is called with the coldkey
+                        Module::<T>::remove_balance_from_coldkey_account(&account_id, transaction_fee_as_balance);
                         Module::<T>::update_transaction_fee_pool(transaction_fee); // uid 0 == Adam
                         Ok(Default::default())
                     }
@@ -839,7 +844,7 @@ impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T>
                         match info.pays_fee {
                             Pays::No => Ok(Default::default()),
                             Pays::Yes => {
-                                Module::<T>::remove_balance_from_coldkey_account(&coldkey_id, transaction_fee_as_balance);
+                                Module::<T>::remove_balance_from_coldkey_account(&account_id, transaction_fee_as_balance);
                                 Module::<T>::update_transaction_fee_pool(transaction_fee); // uid 0 == Adam
                                 Ok(Default::default())
                             }

@@ -136,9 +136,8 @@ fn test_self_weight() {
         let total_emission:u64 = SubtensorModule::emit_for_neuron(&neuron);
         assert_eq!(total_emission, 500_000_000);
 
-        // Verify that 99% of the self emissison goes to the neuron
-        // 1_000_000_000 + 500_000_000 * 0.99 = 1_495_000_000
-        assert_eq!(1_495_000_000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that the stake is there.
+        // Verify that 100% of the self emissison goes to the neuron
+        assert_eq!(1_500_000_000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that the stake is there.
 
         // Increase the block number by 1
         run_to_block(2);
@@ -149,7 +148,7 @@ fn test_self_weight() {
 
         // Verify that 99% of the self emissison goes to the neuron
         // 1_490_000_000 + 500_000_000 * 0.99 = 1_990_000_000
-        assert_eq!(1_990_000_000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that the stake is there.
+        assert_eq!(2_000_000_000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that the stake is there.
 
 	});
 }
