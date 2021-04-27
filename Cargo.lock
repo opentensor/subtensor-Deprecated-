@@ -3285,7 +3285,7 @@ dependencies = [
 
 [[package]]
 name = "node-subtensor"
-version = "1.0.2"
+version = "1.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-benchmarking-cli",
@@ -3322,7 +3322,7 @@ dependencies = [
 
 [[package]]
 name = "node-subtensor-runtime"
-version = "1.0.2"
+version = "1.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-executive",
@@ -3339,8 +3339,8 @@ dependencies = [
  "pallet-subtensor",
  "pallet-sudo",
  "pallet-timestamp",
- "pallet-transaction-payment 2.0.0",
- "pallet-transaction-payment-rpc-runtime-api 2.0.0",
+ "pallet-transaction-payment 1.1.0",
+ "pallet-transaction-payment-rpc-runtime-api 1.1.0",
  "parity-scale-codec",
  "serde",
  "sp-api",
@@ -3649,7 +3649,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-subtensor"
-version = "1.0.1"
+version = "1.1.0"
 dependencies = [
  "fixed",
  "frame-executive",
@@ -3658,7 +3658,7 @@ dependencies = [
  "pallet-balances",
  "pallet-sudo",
  "pallet-transaction-payment 2.0.1",
- "pallet-transaction-payment-rpc-runtime-api 2.0.0",
+ "pallet-transaction-payment-rpc-runtime-api 1.1.0",
  "parity-scale-codec",
  "parity-util-mem",
  "rand 0.7.3",
@@ -3677,7 +3677,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-sudo"
-version = "1.0.2"
+version = "1.1.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -3710,12 +3710,12 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-payment"
-version = "2.0.0"
+version = "1.1.0"
 dependencies = [
  "frame-support",
  "frame-system",
  "pallet-balances",
- "pallet-transaction-payment-rpc-runtime-api 2.0.0",
+ "pallet-transaction-payment-rpc-runtime-api 1.1.0",
  "parity-scale-codec",
  "serde",
  "smallvec 1.4.1",
@@ -3734,7 +3734,7 @@ checksum = "3a34775aaf85a16cb1db44a1bef33c4ce6ef327fedb0c8eda7543991ccee7f73"
 dependencies = [
  "frame-support",
  "frame-system",
- "pallet-transaction-payment-rpc-runtime-api 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-transaction-payment-rpc-runtime-api 2.0.0",
  "parity-scale-codec",
  "serde",
  "smallvec 1.4.1",
@@ -3746,12 +3746,12 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-payment-rpc"
-version = "2.0.0"
+version = "1.1.0"
 dependencies = [
  "jsonrpc-core",
  "jsonrpc-core-client",
  "jsonrpc-derive",
- "pallet-transaction-payment-rpc-runtime-api 2.0.0",
+ "pallet-transaction-payment-rpc-runtime-api 1.1.0",
  "parity-scale-codec",
  "serde",
  "sp-api",
@@ -3763,7 +3763,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-payment-rpc-runtime-api"
-version = "2.0.0"
+version = "1.1.0"
 dependencies = [
  "frame-support",
  "parity-scale-codec",

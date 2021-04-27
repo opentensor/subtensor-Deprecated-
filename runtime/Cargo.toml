@@ -5,7 +5,7 @@ homepage = 'https://bittensor.com'
 license = 'MIT'
 name = 'node-subtensor-runtime'
 repository = 'https://github.com/opentensor/subtensor/'
-version = '1.0.2'
+version = '1.1.0'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
@@ -25,8 +25,10 @@ hex-literal = { optional = true, version = '0.3.1' }
 serde = { features = ['derive'], optional = true, version = '1.0.101' }
 
 # local dependencies
-pallet-subtensor = { path = '../pallets/subtensor', default-features = false, version = '1.0.1' }
+pallet-subtensor = { path = '../pallets/subtensor', default-features = false, version = '1.1.0' }
 pallet-sudo = { path = '../pallets/sudo', default-features = false, version = '1.0.1' }
+pallet-transaction-payment = { path = "../pallets/transaction-payment", version = "1.1.0", default-features = false }
+pallet-transaction-payment-rpc-runtime-api = { path = "../pallets/transaction-payment/rpc/runtime-api", default-features = false, version = '1.1.0' }
 
 # Substrate dependencies
 frame-benchmarking = { default-features = false, optional = true, version = '2.0.0' }
@@ -40,8 +42,6 @@ pallet-balances = { default-features = false, version = '2.0.0' }
 pallet-grandpa = { default-features = false, version = '2.0.0' }
 pallet-randomness-collective-flip = { default-features = false, version = '2.0.0' }
 pallet-timestamp = { default-features = false, version = '2.0.0' }
-pallet-transaction-payment = { path = "../pallets/transaction-payment", version = "2.0.0", default-features = false }
-pallet-transaction-payment-rpc-runtime-api = { path = "../pallets/transaction-payment/rpc/runtime-api", default-features = false, version = '2.0.0' }
 pallet-scheduler = { default-features = false, version = '2.0.0' }
 sp-api = { default-features = false, version = '2.0.0' }
 sp-block-builder = { default-features = false, version = '2.0.0' }
