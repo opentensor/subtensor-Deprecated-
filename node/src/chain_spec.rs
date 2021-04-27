@@ -1,7 +1,7 @@
 use sp_core::{Pair, Public, sr25519};
 use node_subtensor_runtime::{
 	AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig,
-	SudoConfig, SystemConfig, Signature
+	SudoConfig, SystemConfig, WASM_BINARY, Signature
 };
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_finality_grandpa::AuthorityId as GrandpaId;
@@ -11,7 +11,6 @@ use sp_core::crypto::Ss58Codec;
 use sc_service::config::MultiaddrWithPeerId;
 use sp_runtime::sp_std::str::FromStr;
 
-const WASM_BINARY: Option<&[u8]> = Some(include_bytes!("genesis_runtime.wasm"));
 
 // The URL for the telemetry server.
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
