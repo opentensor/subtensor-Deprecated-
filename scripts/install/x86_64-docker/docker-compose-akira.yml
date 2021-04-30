@@ -1,0 +1,20 @@
+version: "3.2"
+
+services:
+  dev:
+    container_name: node-subtensor
+    image: "bittensor/subtensor:latest"
+    ports:
+      - "9944:9944"
+      - "30333:30333"
+
+    command: /bin/bash -c "
+      mkdir subtensor-v1.0.1
+      && cd subtensor-v1.0.1
+      && apt install wget -y
+      && wget https://github.com/opentensor/subtensor/releases/download/v1.0.1/subtensor-v1.0.1-x86_64-linux-unknown-gnu.tar.gz -O subtensor-v1.0.1-x86_64-linux-unknown-gnu.tar.gz
+      && tar -xzf subtensor-v1.0.1-x86_64-linux-unknown-gnu.tar.gz
+      && mkdir -p ~/.local/share/node-subtensor
+      && tar -xf ./akira_genesis.tar -C ~/.local/share/node-subtensor
+      && ./node-subtensor --chain akira
+      "

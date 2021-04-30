@@ -1,0 +1,49 @@
+language: rust
+rust:
+- 1.47.0
+cache: cargo
+before_cache:
+- chmod -R a+r $HOME/.cargo
+
+env:
+  global:
+  - CRATE_NAME=subtensor
+
+matrix:
+  include:
+  - env: TARGET=x86_64-unknown-linux-gnu
+  - env: TARGET=x86_64-apple-darwin
+    os: osx
+
+install:
+- rustup install nightly-2020-10-01
+- rustup target add wasm32-unknown-unknown --toolchain nightly-2020-10-01
+script:
+- travis_wait 30 cargo build --target $TARGET --release ||  true
+- travis_wait 30 cargo test --release || true
+before_deploy:
+- sh ci/before_deploy.sh
+deploy:
+#  - api_key:
+#      secure: "doNmvxM8ZWSM7fIOT7CIL910HoyfW6xS8VqFnykWwaBB/5cBHgPO5rQsy+SQd6ZF+jpNVny6P7o1SEGtuhSLsHdGxjPNjShvMU9YpIVlgbaimZLSwbr+i3giOhJruNdO03bNDbq/Z63GrpXOv/eYiYXAKKH1bvVnLEc8ljc5wUDqQOvqUx3avKLBLWTXwFvE26bVebqwLqGyS6LMj/ONIX/CbTW7TUBb3ajb/6bRQSIRplr0CeqnndkmksXF9Eu+wjcLSlySH8utBYnWmBtTVdklyyDW477PNuJaunLEXCDXhAtzMT7eW8XfcYeOPRMGR6ZGBl3P+47UlQDRvNf7W9y7d1IPl2+MvxaUbOwmZXGXLh8xStyrk8wFxnVA/meVRIU8DJkv2X8svqFbnNj3WLRSMEbUcBArmFgLZrQq/MRYKIz09JFWDhOjcOvcHcAHq3/XiDDLAmFZ+VMSuWLVmkNkWGBTRd9lmriRn9d8CMJJL2VnKqVKrO7VkiUGsB9XQD2NSc5MsWTef+vfQviAOQIbHV30Zamt44y3pFEed+NooL3OIq2VBbX7g1kPG9lOEiRxoV3iLFa3QMaj4LRRdSJnlxk+fWa0t+VanWrf19Xk0sS/OFsw4gHhF/AdpZErgg3U2xfzsGwlArez/emCdbmusjpi3Jy1659f1qxwHAw="
+#    file_glob: true
+#    file: "$CRATE_NAME-$TRAVIS_BRANCH-$TARGET.tar.gz"
+#    on:
+#      branch: master
+#    provider: releases
+#    skip_cleanup: true
+#    draft: true
+#    name: "draft-$CRATE_NAME-$TRAVIS_BRANCH"
+#
+
+  - api_key:
+      secure: "doNmvxM8ZWSM7fIOT7CIL910HoyfW6xS8VqFnykWwaBB/5cBHgPO5rQsy+SQd6ZF+jpNVny6P7o1SEGtuhSLsHdGxjPNjShvMU9YpIVlgbaimZLSwbr+i3giOhJruNdO03bNDbq/Z63GrpXOv/eYiYXAKKH1bvVnLEc8ljc5wUDqQOvqUx3avKLBLWTXwFvE26bVebqwLqGyS6LMj/ONIX/CbTW7TUBb3ajb/6bRQSIRplr0CeqnndkmksXF9Eu+wjcLSlySH8utBYnWmBtTVdklyyDW477PNuJaunLEXCDXhAtzMT7eW8XfcYeOPRMGR6ZGBl3P+47UlQDRvNf7W9y7d1IPl2+MvxaUbOwmZXGXLh8xStyrk8wFxnVA/meVRIU8DJkv2X8svqFbnNj3WLRSMEbUcBArmFgLZrQq/MRYKIz09JFWDhOjcOvcHcAHq3/XiDDLAmFZ+VMSuWLVmkNkWGBTRd9lmriRn9d8CMJJL2VnKqVKrO7VkiUGsB9XQD2NSc5MsWTef+vfQviAOQIbHV30Zamt44y3pFEed+NooL3OIq2VBbX7g1kPG9lOEiRxoV3iLFa3QMaj4LRRdSJnlxk+fWa0t+VanWrf19Xk0sS/OFsw4gHhF/AdpZErgg3U2xfzsGwlArez/emCdbmusjpi3Jy1659f1qxwHAw="
+    file_glob: true
+    file: "$CRATE_NAME-$TRAVIS_TAG-$TARGET.tar.gz"
+    on:
+      tags: true
+    provider: releases
+    skip_cleanup: true
+    draft: false
+    prerelease: true
+    name: "$CRATE_NAME-$TRAVIS_TAG"
