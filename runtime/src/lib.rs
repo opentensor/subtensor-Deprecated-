@@ -105,7 +105,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("node-subtensor-runtime"), // Don't change this. It'll fuck up chain upgrades
 	impl_name: create_runtime_str!("node-subtensor-client"), // I guess the same goes for this
 	authoring_version: 1,
-	spec_version: 4,
+	spec_version: 5,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -162,7 +162,7 @@ parameter_types! {
 	/// Assume 10% of weight for average on_initialize calls.
 	pub MaximumExtrinsicWeight: Weight = AvailableBlockRatio::get()
 		.saturating_sub(Perbill::from_percent(10)) * MaximumBlockWeight::get();
-	pub const MaximumBlockLength: u32 = 5 * 1024 * 10;
+	pub const MaximumBlockLength: u32 = 1 * 1024 * 1024;  // For the love of god, don't make this smaller.
 	pub const Version: RuntimeVersion = VERSION;
 }
 
