@@ -151,7 +151,8 @@ decl_storage! {
 		TransactionFeesForBlock : u64;
 
         /// ---- The transaction fees for the set_weights function for this block
-        SetWeightsTransactionFeesForCurrentBlock : map hasher(identity) u64 => u64;
+        pub SetWeightsSlots : map hasher(identity) u64 => u64;
+        SetWeightsSlotCounter: u64;
 	}
 
 	add_extra_genesis {
