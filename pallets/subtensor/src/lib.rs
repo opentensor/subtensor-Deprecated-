@@ -862,6 +862,7 @@ impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T>
                     CallType::SetWeights => {
                         // account_id = hotkey_id, since this method is called with the hotkey
                         let uid = Module::<T>::get_uid_for_hotkey(&account_id);
+                        Module::<T>::fill_set_weights_slot(uid, transaction_fee);
                         Module::<T>::remove_stake_from_neuron_hotkey_account(uid, transaction_fee);
                         Module::<T>::update_transaction_fee_pool(transaction_fee);
                         Ok(Default::default())
