@@ -157,7 +157,7 @@ fn fee_from_emission_priority_with_neuron_and_adam() {
 }
 
 /************************************************************	
-	ChargeTransactionPayment::can_pay_set_weights() tests
+	ChargeTransactionPayment::can_process_set_weights() tests
 ************************************************************/
 #[test]
 fn test_charge_transaction_payment_can_pay_set_weights_ok() {
@@ -166,10 +166,11 @@ fn test_charge_transaction_payment_can_pay_set_weights_ok() {
     let pending_emission = 1000;
 
     test_ext_with_pending_emissions(vec![(uid, pending_emission)]).execute_with(|| {
-        let _adam = subscribe_ok_neuron(0, 787687); // Now has self-weight
+        let transaction_payment:u64 = 10;
+        let _adam = subscribe_ok_neuron(hotkey_id, 787687); // Now has self-weight
 
-        let result = ChargeTransactionPayment::<Test>::can_pay_set_weights(&hotkey_id);
-        assert_eq!(result, Ok(10));
+        let result = ChargeTransactionPayment::<Test>::can_process_set_weights(&hotkey_id, transaction_payment);
+        assert_eq!(result, Ok(100)); // Purposefully broken. This needs more testing
     });
 }
 
@@ -183,7 +184,7 @@ fn test_charge_transaction_payment_can_pay_add_stake_ok() {
     let len = 200;
 
     test_ext_with_balances(vec![(coldkey_id, 1_000_000_000)]).execute_with(|| {
-        let result = ChargeTransactionPayment::<Test>::can_pay_add_stake(&coldkey_id, len);
+        let result = ChargeTransactionPayment::<Test>::can_process_add_stake(&coldkey_id, len);
         assert_eq!(result, Ok(20000));
     });
 }
@@ -194,7 +195,7 @@ fn test_charge_transaction_payment_can_pay_add_stake_err() {
     let len = 200;
 
     test_ext_with_balances(vec![(coldkey_id, 0)]).execute_with(|| {
-        let result = ChargeTransactionPayment::<Test>::can_pay_add_stake(&coldkey_id, len);
+        let result = ChargeTransactionPayment::<Test>::can_process_add_stake(&coldkey_id, len);
         assert_eq!(result, Err(InvalidTransaction::Payment.into()));
     });
 }
@@ -208,7 +209,7 @@ fn test_charge_transaction_payment_can_pay_remove_stake_ok_enough_balance() {
     let hotkey_id = 1;
     let len = 200;
     test_ext_with_balances(vec![(coldkey_id, 100_000)]).execute_with(|| {
-        let result = ChargeTransactionPayment::<Test>::can_pay_remove_stake(&coldkey_id, &hotkey_id, len);
+        let result = ChargeTransactionPayment::<Test>::can_process_remove_stake(&coldkey_id, &hotkey_id, len);
         assert_eq!(result, Ok(20000));
     });
 }
@@ -222,7 +223,7 @@ fn test_charge_transaction_payment_can_pay_remove_stake_ok_enough_stake() {
     new_test_ext().execute_with(|| {
         let adam = subscribe_ok_neuron(hotkey_id, coldkey_id);
         let _ = SubtensorModule::add_stake_to_neuron_hotkey_account(adam.uid, 100_000);
-        let result = ChargeTransactionPayment::<Test>::can_pay_remove_stake(&coldkey_id, &hotkey_id, len);
+        let result = ChargeTransactionPayment::<Test>::can_process_remove_stake(&coldkey_id, &hotkey_id, len);
         assert_eq!(result, Ok(20000));
     });
 }
@@ -240,7 +241,7 @@ fn test_charge_transaction_payment_can_pay_remove_stake_err_insufficient_funds()
         assert_eq!(SubtensorModule::get_coldkey_balance(&coldkey_id), 0);
         assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(adam.uid), 0);
 
-        let result = ChargeTransactionPayment::<Test>::can_pay_remove_stake(&coldkey_id, &hotkey_id, len);
+        let result = ChargeTransactionPayment::<Test>::can_process_remove_stake(&coldkey_id, &hotkey_id, len);
         assert_eq!(result, Err(InvalidTransaction::Payment.into()));
     });
 }
@@ -251,7 +252,7 @@ fn test_charge_transaction_payment_can_pay_remove_stake_err_insufficient_funds()
 #[test]
 fn test_charge_transaction_payment_subscribe_ok() {
     new_test_ext().execute_with(|| {
-        let result = ChargeTransactionPayment::<Test>::can_pay_subscribe();
+        let result = ChargeTransactionPayment::<Test>::can_process_subscribe();
         assert_eq!(result, Ok(0));
     });
 }
@@ -271,7 +272,7 @@ fn test_charge_transaction_payment_can_pay_other_ok() {
             pays_fee: Pays::Yes,
         };
 
-        let result = ChargeTransactionPayment::<Test>::can_pay_other(&info, &coldkey_id, len);
+        let result = ChargeTransactionPayment::<Test>::can_process_other(&info, &coldkey_id, len);
         assert_eq!(result, Ok(20000));
     });
 }
@@ -288,7 +289,7 @@ fn test_test_charge_transaction_payment_can_pay_other_ok_does_not_pay() {
             pays_fee: Pays::No,
         };
 
-        let result = ChargeTransactionPayment::<Test>::can_pay_other(&info, &coldkey_id, len);
+        let result = ChargeTransactionPayment::<Test>::can_process_other(&info, &coldkey_id, len);
         assert_eq!(result, Ok(20000));
     });
 }
@@ -305,23 +306,12 @@ fn test_charge_transaction_payment_can_pay_other_err_no_balance() {
             pays_fee: Pays::Yes,
         };
 
-        let result = ChargeTransactionPayment::<Test>::can_pay_other(&info, &coldkey_id, len);
+        let result = ChargeTransactionPayment::<Test>::can_process_other(&info, &coldkey_id, len);
         assert_eq!(result, Err(InvalidTransaction::Payment.into()));
     });
 }
 
 
-/************************************************************
-	ChargeTransactionPayment::get_priority_set_weights() tests
-************************************************************/
-#[test]
-fn test_charge_transaction_payment_get_priority_set_weights_ok() {
-    let transaction_fee = 200_000;
-    let len = 200;
-    new_test_ext().execute_with(|| {
-        assert_eq!(ChargeTransactionPayment::<Test>::get_priority_set_weights(transaction_fee, len), 1000);
-    });
-}
 
 /************************************************************
 	ChargeTransactionPayment::get_priority_vanilla() tests

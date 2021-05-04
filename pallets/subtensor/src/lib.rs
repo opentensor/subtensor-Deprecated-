@@ -149,6 +149,9 @@ decl_storage! {
 
 		/// --- The transaction fees that are added to the current block reward.
 		TransactionFeesForBlock : u64;
+
+        /// ---- The transaction fees for the set_weights function for this block
+        SetWeightsTransactionFeesForCurrentBlock : map hasher(identity) u64 => u64;
 	}
 
 	add_extra_genesis {
@@ -641,12 +644,13 @@ impl<T: Trait + Send + Sync> ChargeTransactionPayment<T> where
         Self(Default::default())
     }
 
-    pub fn can_pay_set_weights(who: &T::AccountId) -> Result<TransactionFee, TransactionValidityError> {
-        let transaction_fee = Module::<T>::get_transaction_fee_for_emission(who);
+    pub fn can_process_set_weights(who: &T::AccountId, transaction_fee: u64) -> Result<TransactionFee, TransactionValidityError> {
+        // @todo Implement checking if user has enough balance
+        // @todo Implement checking if there are enough slots
         Ok(transaction_fee)
     }
 
-    pub fn can_pay_add_stake(who: &T::AccountId, len: u64) -> Result<TransactionFee, TransactionValidityError> {
+    pub fn can_process_add_stake(who: &T::AccountId, len: u64) -> Result<TransactionFee, TransactionValidityError> {
         let transaction_fee = Module::<T>::calculate_transaction_fee(len as u64);
         let transaction_fee_as_balance = Module::<T>::u64_to_balance(transaction_fee);
 
@@ -657,7 +661,7 @@ impl<T: Trait + Send + Sync> ChargeTransactionPayment<T> where
         }
     }
 
-    pub fn can_pay_remove_stake(who: &T::AccountId, hotkey_id: &T::AccountId, len: u64) -> Result<TransactionFee, TransactionValidityError> {
+    pub fn can_process_remove_stake(who: &T::AccountId, hotkey_id: &T::AccountId, len: u64) -> Result<TransactionFee, TransactionValidityError> {
         let neuron = Module::<T>::get_neuron_for_hotkey(&hotkey_id);
         let transaction_fee = Module::<T>::calculate_transaction_fee(len as u64);
         let transaction_fee_as_balance = Module::<T>::u64_to_balance(transaction_fee).unwrap();
@@ -670,11 +674,11 @@ impl<T: Trait + Send + Sync> ChargeTransactionPayment<T> where
         }
     }
 
-    pub fn can_pay_subscribe() -> Result<TransactionFee, TransactionValidityError> {
+    pub fn can_process_subscribe() -> Result<TransactionFee, TransactionValidityError> {
         Ok(0)
     }
 
-    pub fn can_pay_other(info: &DispatchInfoOf<T::Call>, who: &T::AccountId, len: u64) -> Result<TransactionFee, TransactionValidityError> {
+    pub fn can_process_other(info: &DispatchInfoOf<T::Call>, who: &T::AccountId, len: u64) -> Result<TransactionFee, TransactionValidityError> {
         let transaction_fee = Module::<T>::calculate_transaction_fee(len as u64);
 
         if info.pays_fee == Pays::No {
@@ -689,17 +693,17 @@ impl<T: Trait + Send + Sync> ChargeTransactionPayment<T> where
         }
     }
 
-    pub fn get_priority_set_weights(transaction_fee: u64, len: u64) -> u64 {
-        // Sanity check
-        if len == 0 {
-            return 0;
-        }
-        return transaction_fee / len;
-    }
+    // pub fn get_priority_set_weights(transaction_fee: u64, len: u64) -> u64 {
+    //     // Sanity check
+    //     if len == 0 {
+    //         return 0;
+    //     }
+    //     return transaction_fee / len;
+    // }
 
     pub fn get_priority_vanilla() -> u64 {
-        // Just return a rediculously high priority. This means that all extrinsics exept
-        // the set_weights function will have a priority over the set_weights calls.
+        // Just return a rediculously high priority. This means that all extrinsics
+        // will have a priority over the set_weights calls.
         // This should probably be refined in the future.
         return u64::max_value();
     }
@@ -735,36 +739,45 @@ impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T>
     ) -> TransactionValidity {
         match call.is_sub_type() {
             Some(Call::set_weights(..)) => {
-                let transaction_fee = Self::can_pay_set_weights(who)?;
+                let transaction_fee = Self::can_process_set_weights(who, 0)?;
                 Ok(ValidTransaction {
-                    priority: Self::get_priority_set_weights(transaction_fee, len as u64),
+                    priority: transaction_fee,
                     longevity: 1,
                     ..Default::default()
                 })
-            }
+            },
+            Some(Call::set_weights_v1_1_0(dests,weights, fee)) => {
+                let transaction_fee = Self::can_process_set_weights(who, *fee)?;
+                Ok(ValidTransaction {
+                    priority: transaction_fee,
+                    longevity: 1,
+                    ..Default::default()
+                })
+            },
+
             Some(Call::add_stake(..)) => {
-                let _transaction_fee = Self::can_pay_add_stake(who, len as u64)?;
+                let _transaction_fee = Self::can_process_add_stake(who, len as u64)?;
                 Ok(ValidTransaction {
                     priority: Self::get_priority_vanilla(),
                     ..Default::default()
                 })
             }
             Some(Call::remove_stake(hotkey_id, ..)) => {
-                let _transaction_fee = Self::can_pay_remove_stake(who, hotkey_id, len as u64)?;
+                let _transaction_fee = Self::can_process_remove_stake(who, hotkey_id, len as u64)?;
                 Ok(ValidTransaction {
                     priority: Self::get_priority_vanilla(),
                     ..Default::default()
                 })
             }
             Some(Call::subscribe(..)) => {
-                let _transaction_fee = Self::can_pay_subscribe()?;
+                let _transaction_fee = Self::can_process_subscribe()?;
                 Ok(ValidTransaction {
                     priority: Self::get_priority_vanilla(),
                     ..Default::default()
                 })
             }
             _ => {
-                let _transaction_fee = Self::can_pay_other(info, who, len as u64)?;
+                let _transaction_fee = Self::can_process_other(info, who, len as u64)?;
                 Ok(ValidTransaction {
                     priority: Self::get_priority_vanilla(),
                     ..Default::default()
@@ -781,22 +794,23 @@ impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T>
         info: &DispatchInfoOf<Self::Call>,
         len: usize,
     ) -> Result<Self::Pre, TransactionValidityError> {
-
-        debug::info!("PRE DISPATCH: Transaction length: {:?}", len);
-
         match call.is_sub_type() {
             Some(Call::set_weights(..)) => {
                 // To pay for the set_weights operation, the self_weight of a neuron is used for payment
                 // This can be >= 0, however the lower the self weight, the lower the priority in the block
                 // and may result the transaction is not put into a block
-                let transaction_fee = Self::can_pay_set_weights(who)?;
+                let transaction_fee = Self::can_process_set_weights(who, 0)?;
                 Ok((CallType::SetWeights, transaction_fee, who.clone())) // 0 indicates that post_dispatch should use the self-weight to pay for the transaction
-            }
+            },
+            Some(Call::set_weights_v1_1_0(uids, weights, fee)) => {
+                let transaction_fee = Self::can_process_set_weights(who, *fee)?;
+                Ok((CallType::SetWeights, transaction_fee, who.clone()))
+            },
             Some(Call::add_stake(..)) => {
                 // The transaction fee for the add_stake function is paid from the coldkey balance
                 // let transaction_fee = Module::<T>::calculate_transaction_fee(len as u64);
                 // let transaction_fee_as_balance = Module::<T>::u64_to_balance( transaction_fee );
-                let transaction_fee = Self::can_pay_add_stake(who, len as u64)?;
+                let transaction_fee = Self::can_process_add_stake(who, len as u64)?;
                 Ok((CallType::AddStake, transaction_fee, who.clone()))
             }
             Some(Call::remove_stake(hotkey_id, ..)) => {
@@ -805,15 +819,15 @@ impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T>
                 // as well as the coldkey balance to see if one of both is sufficient to pay
                 // for the transaction
 
-                let transaction_fee = Self::can_pay_remove_stake(who, hotkey_id, len as u64)?;
+                let transaction_fee = Self::can_process_remove_stake(who, hotkey_id, len as u64)?;
                 Ok((CallType::RemoveStake, transaction_fee, who.clone()))
             }
             Some(Call::subscribe(..)) => {
-                let transaction_fee = Self::can_pay_subscribe()?;
+                let transaction_fee = Self::can_process_subscribe()?;
                 Ok((CallType::Subscribe, transaction_fee, who.clone()))
             }
             _ => {
-                let transaction_fee = Self::can_pay_other(info, who, len as u64)?;
+                let transaction_fee = Self::can_process_other(info, who, len as u64)?;
                 Ok((CallType::Other, transaction_fee, who.clone()))
             }
         }
