@@ -84,6 +84,21 @@ impl<T: Trait> Module<T> {
 
         return false;
     }
+
+    // @todo implement, unit test
+    pub fn has_available_set_weights_slot() -> bool {
+        false
+    }
+
+    // @todo implement, unit test
+    pub fn fill_set_weights_slot(uid : u64, transaction_fee: u64) {
+        // false
+    }
+
+    // @todo implement, unit test
+    pub fn clear_set_weights_slots() {
+        // false
+    }
 }
 
 fn uids_match_values(uids: &Vec<u64>, values: &Vec<u32>) -> bool {

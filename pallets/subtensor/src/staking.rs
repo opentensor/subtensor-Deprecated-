@@ -110,7 +110,7 @@ impl<T: Trait> Module<T> {
     --==[[  Helper functions   ]]==--
     *********************************/
 
-    pub fn get_stake_of_neuron_hotkey_account_by_uid(uid: u64) -> u64 {
+    pub fn get_neuron_stake(uid: u64) -> u64 {
         return Stake::get(uid);
     }
 

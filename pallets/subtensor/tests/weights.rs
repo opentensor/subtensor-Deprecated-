@@ -77,7 +77,7 @@ fn test_set_weights_transaction_fee_pool_and_neuron_receive_funds() {
 		assert_ok!(result);
 
 		let transaction_fees_pool = SubtensorModule::get_transaction_fee_pool();
-		let neuron_1_new_stake = SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron_1_id);
+		let neuron_1_new_stake = SubtensorModule::get_neuron_stake(neuron_1_id);
 
 		assert_eq!(transaction_fees_pool, expected_transaction_fee_pool);
 		assert_eq!(neuron_1_new_stake, expected_neuron_1_stake);  // Neuron 1 maintains his original stake + 99% of the block reward
@@ -119,7 +119,7 @@ fn set_weights_ok_no_weights() {
 		// Dispatch a signed extrinsic, setting weights.
 		assert_ok!(SubtensorModule::set_weights(Origin::signed(hotkey_account_id), weights_keys, weight_values));
 		assert_eq!(SubtensorModule::get_weights_for_neuron(&neuron), (expect_keys, expect_values));
-		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid), expect_stake);
+		assert_eq!(SubtensorModule::get_neuron_stake(neuron.uid), expect_stake);
 		assert_eq!(SubtensorModule::get_total_stake(), expect_total_stake);
 	});
 }
@@ -161,7 +161,7 @@ fn set_weights_ok_with_weights() {
 
 		let mut stakes: Vec<u64> = vec![];
 		for neuron in neurons {
-			stakes.push(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid));
+			stakes.push(SubtensorModule::get_neuron_stake(neuron.uid));
 		}
 
 		assert_eq!(stakes[0], initial_stakes[0]); // Stake of sender should remain unchanged

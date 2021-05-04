@@ -644,9 +644,19 @@ impl<T: Trait + Send + Sync> ChargeTransactionPayment<T> where
         Self(Default::default())
     }
 
-    pub fn can_process_set_weights(who: &T::AccountId, transaction_fee: u64) -> Result<TransactionFee, TransactionValidityError> {
-        // @todo Implement checking if user has enough balance
-        // @todo Implement checking if there are enough slots
+    pub fn can_process_set_weights(hotkey_id: &T::AccountId, transaction_fee: u64) -> Result<TransactionFee, TransactionValidityError> {
+        let neuron = Module::<T>::get_neuron_for_hotkey(hotkey_id);
+
+        // Check if there is a slot available for the set_weights operation
+        if !Module::<T>::has_available_set_weights_slot() {
+            return Err(InvalidTransaction::Payment.into());
+        }
+
+        // Check balance
+        if !Module::<T>::has_enough_stake(&neuron, transaction_fee) {
+            return Err(InvalidTransaction::Payment.into());
+        }
+
         Ok(transaction_fee)
     }
 

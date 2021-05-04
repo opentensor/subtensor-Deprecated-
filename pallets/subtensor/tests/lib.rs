@@ -98,7 +98,7 @@ fn fee_from_emission_priority_with_neuron_and_weights_and_stake_and_run_to_block
         assert_eq!(ChargeTransactionPayment::<Test>(PhantomData).validate(&hotkey_account_id, &call, &info, len).unwrap().priority, 0);
         run_to_block(1);
         assert_eq!(ChargeTransactionPayment::<Test>(PhantomData).validate(&hotkey_account_id, &call, &info, len).unwrap().priority, 500_000);
-        assert_eq!(1_000_000_000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that his stake has increased with 99% of the BR
+        assert_eq!(1_000_000_000, SubtensorModule::get_neuron_stake(neuron.uid)); // Check that his stake has increased with 99% of the BR
         let _total_emission: u64 = SubtensorModule::emit_for_neuron(&neuron); // actually do the emission.
     });
 }
@@ -127,7 +127,7 @@ fn test_emission_low_priority_but_emission_goes_to_user() {
         run_to_block(1);
         assert_eq!(ChargeTransactionPayment::<Test>(PhantomData).validate(&hotkey_account_id_2, &call, &info, len).unwrap().priority, 0);
         let _total_emission: u64 = SubtensorModule::emit_for_neuron(&neuron_2); // actually do the emission.
-        assert_eq!(500000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron_3.uid));
+        assert_eq!(500000000, SubtensorModule::get_neuron_stake(neuron_3.uid));
     });
 }
 
@@ -149,10 +149,10 @@ fn fee_from_emission_priority_with_neuron_and_adam() {
         assert_eq!(ChargeTransactionPayment::<Test>(PhantomData).validate(&hotkey_account_id, &call, &info, len).unwrap().priority, 0);
         run_to_block(1);
         assert_eq!(ChargeTransactionPayment::<Test>(PhantomData).validate(&hotkey_account_id, &call, &info, len).unwrap().priority, 500_000);
-        assert_eq!(1_000_000_000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that his stake has not increased.
+        assert_eq!(1_000_000_000, SubtensorModule::get_neuron_stake(neuron.uid)); // Check that his stake has not increased.
 
         let _total_emission: u64 = SubtensorModule::emit_for_neuron(&neuron); // actually do the emission.
-        assert_eq!(1_500_000_000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that his stake has increased (he is *not* adam)
+        assert_eq!(1_500_000_000, SubtensorModule::get_neuron_stake(neuron.uid)); // Check that his stake has increased (he is *not* adam)
     });
 }
 
@@ -239,7 +239,7 @@ fn test_charge_transaction_payment_can_pay_remove_stake_err_insufficient_funds()
         let adam = subscribe_ok_neuron(hotkey_id, coldkey_id);
 
         assert_eq!(SubtensorModule::get_coldkey_balance(&coldkey_id), 0);
-        assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(adam.uid), 0);
+        assert_eq!(SubtensorModule::get_neuron_stake(adam.uid), 0);
 
         let result = ChargeTransactionPayment::<Test>::can_process_remove_stake(&coldkey_id, &hotkey_id, len);
         assert_eq!(result, Err(InvalidTransaction::Payment.into()));
@@ -487,7 +487,7 @@ fn test_post_dispatch_does_not_deposit_to_adam_on_error() {
         let _adam = subscribe_ok_neuron(adam_id, 667);
 
         // Adam should have no stake before operation
-        let result = SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(adam_id);
+        let result = SubtensorModule::get_neuron_stake(adam_id);
         assert_eq!(result, 0);
 
         let pre_dispatch_result = Err(Error::<Test>::DuplicateUids.into());
@@ -500,7 +500,7 @@ fn test_post_dispatch_does_not_deposit_to_adam_on_error() {
 
         let post_dispatch_result = ChargeTransactionPayment::<Test>::post_dispatch(pre_dispatch_data, &info, &post_dispatch_info, len, &pre_dispatch_result);
         assert_ok!(post_dispatch_result);
-        assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(adam_id), 0);
+        assert_eq!(SubtensorModule::get_neuron_stake(adam_id), 0);
     });
 }
 
@@ -572,6 +572,6 @@ fn test_sudo_call_does_not_pay_transaction_fee() {
         assert_ok!(result);
 
         // Verify adam has not received any monies
-        assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(adam.uid), 0);
+        assert_eq!(SubtensorModule::get_neuron_stake(adam.uid), 0);
     });
 }

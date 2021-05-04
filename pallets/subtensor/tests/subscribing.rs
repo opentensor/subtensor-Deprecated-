@@ -46,7 +46,7 @@ fn test_subscribe_ok_no_transaction_fee_is_charged() {
 		let result = mock::Executive::apply_extrinsic(xt);
 		assert_ok!(result);
 
-		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(0), 0);
+		assert_eq!(SubtensorModule::get_neuron_stake(0), 0);
 	});
 }
 
@@ -88,7 +88,7 @@ fn test_subscribe_ok() {
 		assert_eq!(SubtensorModule::has_hotkey_account(&neuron.uid), true);
 
 		// Check if the balance of this hotkey account == 0
-		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid), 0);
+		assert_eq!(SubtensorModule::get_neuron_stake(neuron.uid), 0);
 	});
 }
 
@@ -229,7 +229,7 @@ fn test_subscribe_update_ok() {
 		assert_eq!(SubtensorModule::has_hotkey_account(&neuron.uid), true);
 
 		// Check if the balance of this hotkey account == 0
-		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid), 0);
+		assert_eq!(SubtensorModule::get_neuron_stake(neuron.uid), 0);
 
 		// Subscribe again, this time an update. hotkey and cold key are the same.
  		let new_ip = ipv6(0,0,0,0,0,0,1,1);  // off by one.
@@ -260,7 +260,7 @@ fn test_subscribe_update_ok() {
 		assert_eq!(SubtensorModule::has_hotkey_account(&neuron.uid), true);
 
 		// Check the stake is unchanged.
-		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid), 0);
+		assert_eq!(SubtensorModule::get_neuron_stake(neuron.uid), 0);
 
 	});
 }
@@ -308,7 +308,7 @@ fn test_subscribe_update_coldkey_modality_not_changed_ok() {
 		assert_eq!(SubtensorModule::has_hotkey_account(&neuron.uid), true);
 
 		// Check the stake is unchanged.
-		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid), 0);
+		assert_eq!(SubtensorModule::get_neuron_stake(neuron.uid), 0);
 
 	});
 }
