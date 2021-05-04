@@ -248,8 +248,10 @@ decl_error! {
 		NonAssociatedColdKey,
 
 		/// ---- Thrown when the caller requests removing more stake then there exists 
-		/// in the staking account. See: fn remove_stake.
-		NotEnoughStaketoWithdraw,
+		/// in the staking account. See: fn remove_stake().
+		/// Also thrown when caller tries to set weights, but has insufficient stake
+		/// See: fn do_set_weights()
+		NotEnoughStake,
 
 		///  ---- Thrown when the caller requests adding more stake than there exists
 		/// in the cold key account. See: fn add_stake
@@ -269,12 +271,22 @@ decl_error! {
 impl<T: Trait> Printable for Error<T> {
     fn print(&self) {
         match self {
+            Error::InvalidIpType => "Invalid ip type. Must be 4 (IPv4) or 6 (IPv6)".print(),
+            Error::InvalidIpAddress => "Invalid IP address".print(),
+            Error::InvalidModality => "Invalid modality. Must be 0 or 1".print(),
+            Error::ToManySubscriptionsThisBlock => "The maximum amount of allowed subscription for this block has been exceeded".print(),
+            Error::DuplicateUids => "The supplied weights contain duplicated uids".print(),
+            Error::InvalidUid => "The supplied weights contain a uid that does not exist in the metagraph".print(),
             Error::AlreadyActive => "The node with the supplied public key is already active".print(),
             Error::NotActive => "The node with the supplied public key is not active".print(),
             Error::NothingToEmit => "There is nothing to emit".print(),
             Error::WeightVecNotEqualSize => "The vec of keys and the vec of values are not of the same size".print(),
             Error::NonAssociatedColdKey => "The used cold key is not associated with the hot key acccount".print(),
-            _ => "Invalid Error Case".print(),
+            Error::NotEnoughStake => "The hotkey does not contain sufficient stake to execute this function".print(),
+            Error::NotEnoughBalanceToStake => "The coldkey does not contain enough balance to stake".print(),
+            Error::BalanceWithdrawalError => "An error occured while withdrawingbalance".print(),
+            Error::CouldNotConvertToBalance => "Conversion error".print(),
+            _ => "An unknown error has occured:".print(),
         }
     }
 }
@@ -335,8 +347,13 @@ decl_module! {
 		///
 		#[weight = (0, DispatchClass::Normal, Pays::No)]
 		pub fn set_weights(origin, dests: Vec<u64>, weights: Vec<u32>) -> dispatch::DispatchResult {
-			Self::do_set_weights(origin, dests, weights)
+			Self::do_set_weights(origin, dests, weights, 0)
 		}
+
+        #[weight = (0, DispatchClass::Normal, Pays::No)]
+        pub fn set_weights_v1_1_0(origin, dests: Vec<u64>, weights: Vec<u32>, fee: u64) -> dispatch::DispatchResult {
+            Self::do_set_weights(origin, dests, weights, fee)
+        }
 
 		/// --- Adds stake to a neuron account. The call is made from the
 		/// coldkey account linked in the neurons's NeuronMetadata.
@@ -398,7 +415,7 @@ decl_module! {
 		/// 	* 'NonAssociatedColdKey':
 		/// 		- When the calling coldkey is not associated with the hotkey account.
 		///
-		/// 	* 'NotEnoughStaketoWithdraw':
+		/// 	* 'NotEnoughStake':
 		/// 		- When the amount to unstake exceeds the quantity staked in the
 		/// 		associated hotkey staking account.
 		///

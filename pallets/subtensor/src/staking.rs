@@ -59,7 +59,7 @@ impl<T: Trait> Module<T> {
     /// It throws the following errors if there is something wrong
     /// - NotActive : The suplied hotkey is not in use. This ususally means a node that uses this key has not subscribed yet, or has unsubscribed
     /// - NonAssociatedColdKey : The supplied hotkey account id is not subscribed using the supplied cold key
-    /// - NotEnoughStaketoWithdraw : The ammount of stake available in the hotkey account is lower than the requested amount
+    /// - NotEnoughStake : The ammount of stake available in the hotkey account is lower than the requested amount
     /// - CouldNotConvertToBalance : A conversion error occured while converting stake from u64 to Balance
     ///
     pub fn do_remove_stake(origin: T::Origin, hotkey: T::AccountId, stake_to_be_removed: u64) -> dispatch::DispatchResult {
@@ -88,7 +88,7 @@ impl<T: Trait> Module<T> {
 
         // ---- We check that the hotkey has enough stake to withdraw
         // and then withdraw from the account.
-        ensure!(Self::has_enough_stake(&neuron, stake_to_be_removed), Error::<T>::NotEnoughStaketoWithdraw);
+        ensure!(Self::has_enough_stake(&neuron, stake_to_be_removed), Error::<T>::NotEnoughStake);
         let stake_to_be_added_as_currency = Self::u64_to_balance(stake_to_be_removed);
         ensure!(stake_to_be_added_as_currency.is_some(), Error::<T>::CouldNotConvertToBalance);
 

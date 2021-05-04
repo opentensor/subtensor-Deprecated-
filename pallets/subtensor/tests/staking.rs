@@ -373,7 +373,7 @@ fn test_remove_stake_no_enough_stake() {
 		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid), 0);
 
 		let result = SubtensorModule::remove_stake(<<Test as Trait>::Origin>::signed(coldkey_id), hotkey_id, amount);
-		assert_eq!(result, Err(Error::<Test>::NotEnoughStaketoWithdraw.into()));
+		assert_eq!(result, Err(Error::<Test>::NotEnoughStake.into()));
 	});
 }
 
