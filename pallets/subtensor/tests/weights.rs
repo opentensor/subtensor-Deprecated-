@@ -11,6 +11,22 @@ use fixed::types::U64F64;
 
 
 
+#[test]
+fn test_set_weights_slots_are_cleared_every_block() {
+	new_test_ext().execute_with(|| {
+	    assert_eq!(SubtensorModule::get_set_weights_slot_counter(), 0);
+		// Fill some slots
+		for i in 0..5{
+			SubtensorModule::fill_set_weights_slot(i, 5_000);
+		}
+
+		assert_eq!(SubtensorModule::get_set_weights_slot_counter(), 5);
+		run_to_block(1);
+
+		assert_eq!(SubtensorModule::get_set_weights_slot_counter(), 0);
+	});
+}
+
 
 /***************************
   pub fn set_weights() tests
@@ -321,6 +337,73 @@ fn test_do_set_weights_err_invalid_uid() {
 	});
 }
 
+
+/*********************************************
+  pub fn has_available_set_weights_slot tests
+*********************************************/
+#[test]
+fn test_has_available_set_weights_slot_yes() {
+	new_test_ext().execute_with(|| {
+	    assert_eq!(SubtensorModule::get_set_weights_slot_counter(), 0);
+		assert!(SubtensorModule::has_available_set_weights_slot());
+	});
+}
+
+#[test]
+fn test_has_available_set_weights_slot_no() {
+	new_test_ext().execute_with(|| {
+		// Fill 100 slots
+		for i in 0..100 {
+			SubtensorModule::fill_set_weights_slot(i, 5_000);
+		}
+
+		assert!(!SubtensorModule::has_available_set_weights_slot());
+	});
+}
+
+/********************************************
+  pub fn inc_set_weights_slot_counter tests
+********************************************/
+
+#[test]
+fn test_inc_set_weights_slot_counter() {
+	new_test_ext().execute_with(|| {
+		assert_eq!(SubtensorModule::get_set_weights_slot_counter(), 0);
+		SubtensorModule::inc_set_weights_slot_counter();
+		assert_eq!(SubtensorModule::get_set_weights_slot_counter(), 1);
+	});
+}
+
+
+/************************************
+  pub fn fill_set_weights_slot tests
+*************************************/
+#[test]
+fn test_fill_set_weights_slot() {
+	new_test_ext().execute_with(|| {
+		assert_eq!(SubtensorModule::get_set_weights_slot_counter(), 0);
+		SubtensorModule::fill_set_weights_slot(30, 5_000);
+		assert_eq!(SubtensorModule::get_set_weights_slot_counter(), 1);
+	});
+}
+
+
+/*************************************
+  pub fn clear_set_weights_slots tests
+**************************************/
+#[test]
+fn test_clear_set_weights_slots() {
+	new_test_ext().execute_with(|| {
+		for i in 0..5 {
+			SubtensorModule::fill_set_weights_slot(i, 5_000);
+		}
+
+		assert_eq!(SubtensorModule::get_set_weights_slot_counter(), 5);
+
+		SubtensorModule::clear_set_weights_slots();
+		assert_eq!(SubtensorModule::get_set_weights_slot_counter(), 0);
+	});
+}
 
 
 

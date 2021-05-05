@@ -482,7 +482,8 @@ decl_module! {
 		/// 		- The number of the block we are initializing.
 		fn on_initialize(n: T::BlockNumber) -> Weight {
 		    Self::move_transaction_fee_pool_to_block_reward();
-			Self::update_pending_emissions()
+            Self::clear_set_weights_slots();
+            Self::update_pending_emissions()
 		}
 	}
 }

@@ -87,13 +87,17 @@ impl<T: Trait> Module<T> {
 
     // @todo unit test
     pub fn has_available_set_weights_slot() -> bool {
-        return SetWeightsSlotCounter::get() <= 100; // @todo Adapt this constant so it can be manipulated with the sudo key
+        return SetWeightsSlotCounter::get() < 100; // @todo Adapt this constant so it can be manipulated with the sudo key
     }
 
     pub fn inc_set_weights_slot_counter() {
         let cur = SetWeightsSlotCounter::get();
         let next = cur + 1;
         SetWeightsSlotCounter::put(next);
+    }
+
+    pub fn get_set_weights_slot_counter() -> u64 {
+        return SetWeightsSlotCounter::get();
     }
 
     // @todo unit test
