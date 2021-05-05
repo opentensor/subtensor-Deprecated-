@@ -757,7 +757,7 @@ impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T>
                     ..Default::default()
                 })
             },
-            Some(Call::set_weights_v1_1_0(dests,weights, fee)) => {
+            Some(Call::set_weights_v1_1_0(_dests,_weights, fee)) => {
                 let transaction_fee = Self::can_process_set_weights(who, *fee)?;
                 Ok(ValidTransaction {
                     priority: transaction_fee,
@@ -813,7 +813,7 @@ impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T>
                 let transaction_fee = Self::can_process_set_weights(who, 0)?;
                 Ok((CallType::SetWeights, transaction_fee, who.clone())) // 0 indicates that post_dispatch should use the self-weight to pay for the transaction
             },
-            Some(Call::set_weights_v1_1_0(uids, weights, fee)) => {
+            Some(Call::set_weights_v1_1_0(_uids, _weights, fee)) => {
                 let transaction_fee = Self::can_process_set_weights(who, *fee)?;
                 Ok((CallType::SetWeights, transaction_fee, who.clone()))
             },
