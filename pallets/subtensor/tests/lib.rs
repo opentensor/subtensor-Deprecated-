@@ -170,8 +170,8 @@ fn test_charge_transaction_payment_can_processes_set_weights_ok() {
 
     // @todo Figure out whu test_ext_with_stake does no work
     test_ext_with_stake(vec![(0, stake)]).execute_with(|| {
-        let _neuron = subscribe_ok_neuron(hotkey_id, coldkey_id); // Now has self-weight
-        SubtensorModule::add_stake_to_neuron_hotkey_account(_neuron.uid, stake);
+        let neuron = subscribe_ok_neuron(hotkey_id, coldkey_id); // Now has self-weight
+        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, stake);
 
         let transaction_payment:u64 = 10;
         let result = ChargeTransactionPayment::<Test>::can_process_set_weights(&hotkey_id, transaction_payment);
