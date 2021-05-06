@@ -657,6 +657,32 @@ fn test_pre_dispatch_remove_stake_failed() {
 	});}
 
 
+#[test]
+fn test_pre_dispatch_subscribe_success() {
+    let hotkey_id = 1;
+    let coldkey_id = 2 ;
+    let ip = ipv4(8,8,8,8);
+    let stake = 5_000;
+
+	new_test_ext().execute_with(|| {
+        let neuron = subscribe_ok_neuron(hotkey_id, coldkey_id);
+
+        let call = SubtensorCall::subscribe(ip,666,4,0,coldkey_id).into();
+        let info = DispatchInfo::default();
+        let len = 10;
+
+        // This call fails because there is not enough balance in the cold key account nor enough stake
+        let result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_id, &call, &info, len);
+        assert_ok!(&result);
+
+        let result_data = result.unwrap();
+        assert_eq!(result_data.0, CallType::Subscribe);
+        assert_eq!(result_data.1, 0);
+        assert_eq!(result_data.2, hotkey_id);
+	});
+}
+
+
 
 
 
