@@ -13,7 +13,6 @@ use pallet_balances::{Call as BalanceCall};
 use pallet_sudo::{Call as SudoCall};
 use sp_runtime::transaction_validity::{InvalidTransaction, ValidTransaction};
 use frame_support::dispatch::GetDispatchInfo;
-use frame_support::traits::WithdrawReason::TransactionPayment;
 
 #[test]
 fn fee_from_emission_works() {
@@ -645,7 +644,7 @@ fn test_pre_dispatch_remove_stake_failed() {
     let stake = 5_000;
 
 	new_test_ext().execute_with(|| {
-        let neuron = subscribe_ok_neuron(hotkey_id, coldkey_id);
+        let _neuron = subscribe_ok_neuron(hotkey_id, coldkey_id);
 
         let call = SubtensorCall::remove_stake(hotkey_id, stake).into();
         let info = DispatchInfo::default();
@@ -662,10 +661,9 @@ fn test_pre_dispatch_subscribe_success() {
     let hotkey_id = 1;
     let coldkey_id = 2 ;
     let ip = ipv4(8,8,8,8);
-    let stake = 5_000;
 
 	new_test_ext().execute_with(|| {
-        let neuron = subscribe_ok_neuron(hotkey_id, coldkey_id);
+        let _neuron = subscribe_ok_neuron(hotkey_id, coldkey_id);
 
         let call = SubtensorCall::subscribe(ip,666,4,0,coldkey_id).into();
         let info = DispatchInfo::default();
