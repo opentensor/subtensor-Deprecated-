@@ -85,7 +85,6 @@ impl<T: Trait> Module<T> {
         return false;
     }
 
-    // @todo unit test
     pub fn has_available_set_weights_slot() -> bool {
         return SetWeightsSlotCounter::get() < 100; // @todo Adapt this constant so it can be manipulated with the sudo key
     }
@@ -100,13 +99,11 @@ impl<T: Trait> Module<T> {
         return SetWeightsSlotCounter::get();
     }
 
-    // @todo unit test
     pub fn fill_set_weights_slot(uid : u64, transaction_fee: u64) {
         SetWeightsSlots::insert(uid,transaction_fee);
         Self::inc_set_weights_slot_counter();
     }
 
-    // @todo unit test
     pub fn clear_set_weights_slots() {
         SetWeightsSlots::drain();
         SetWeightsSlotCounter::put(0); // Reset counter

@@ -373,6 +373,32 @@ fn test_charge_transaction_payment_validate_set_weights_ok() {
 }
 
 #[test]
+fn test_charge_transaction_payment_validate_set_weights_v1_1_0_ok() {
+	new_test_ext().execute_with(|| {
+        let uid = 0;
+        let coldkey_id = 0;
+        let len = 200;
+        let transaction_fee = 500;
+        let initial_stake = 1_000_000_000;
+
+        test_ext_with_pending_emissions(vec![(uid, 100_000)]).execute_with(|| {
+            let adam = subscribe_ok_neuron(0, coldkey_id);
+            SubtensorModule::add_stake_to_neuron_hotkey_account(adam.uid, initial_stake);
+
+            let call: mock::Call = SubtensorCall::set_weights_v1_1_0(vec![0], vec![0], transaction_fee).into();
+            let info = call.get_dispatch_info();
+
+            let result = ChargeTransactionPayment::<Test>(PhantomData).validate(&coldkey_id, &call, &info, len);
+            assert_eq!(result, Ok(ValidTransaction {
+                priority: transaction_fee, // Priority == transaction fee
+                longevity: 1,
+                ..Default::default()
+            }))
+        });
+	});
+}
+
+#[test]
 fn test_charge_transaction_payment_validate_add_stake_ok() {
     let coldkey_id = 0;
     let hotkey_id = 33;

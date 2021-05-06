@@ -5,7 +5,6 @@ use pallet_subtensor::{Call as SubtensorCall, Error};
 use frame_support::weights::{GetDispatchInfo, DispatchInfo, DispatchClass, Pays};
 use frame_support::{assert_ok};
 use sp_runtime::DispatchError;
-use fixed::types::U64F64;
 
 
 
