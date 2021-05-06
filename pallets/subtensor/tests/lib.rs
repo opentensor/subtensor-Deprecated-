@@ -13,6 +13,7 @@ use pallet_balances::{Call as BalanceCall};
 use pallet_sudo::{Call as SudoCall};
 use sp_runtime::transaction_validity::{InvalidTransaction, ValidTransaction};
 use frame_support::dispatch::GetDispatchInfo;
+use frame_support::traits::WithdrawReason::TransactionPayment;
 
 #[test]
 fn fee_from_emission_works() {
@@ -72,7 +73,7 @@ fn fee_from_emission_priority_with_neuron_and_weights_and_stake() {
         let weight_uids = vec![neuron.uid];
         let weight_values = vec![u32::MAX];
         assert_ok!(SubtensorModule::set_weights(Origin::signed(hotkey_account_id), weight_uids.clone(), weight_values.clone()));
-        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, 100000000); // Add the stake.
+        SubtensorModule::add_stake_to_neuron(neuron.uid, 100000000); // Add the stake.
 
         let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
         let info = DispatchInfo::default();
@@ -98,7 +99,7 @@ fn test_emission_low_priority_but_emission_goes_to_user() {
         let weight_uids = vec![neuron_3.uid];
         let weight_values = vec![u32::MAX];
         assert_ok!(SubtensorModule::set_weights(Origin::signed(hotkey_account_id_2), weight_uids.clone(), weight_values.clone()));
-        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron_2.uid, 100000000); // Add the stake.
+        SubtensorModule::add_stake_to_neuron(neuron_2.uid, 100000000); // Add the stake.
 
         let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
         let info = DispatchInfo::default();
@@ -121,7 +122,7 @@ fn fee_from_emission_priority_with_neuron_and_adam() {
         let weight_uids = vec![neuron.uid];
         let weight_values = vec![u32::MAX];
         assert_ok!(SubtensorModule::set_weights(Origin::signed(hotkey_account_id), weight_uids.clone(), weight_values.clone()));
-        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, 1_000_000_000); // Add the stake.
+        SubtensorModule::add_stake_to_neuron(neuron.uid, 1_000_000_000); // Add the stake.
 
         let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
         let info = DispatchInfo::default();
@@ -151,7 +152,7 @@ fn test_charge_transaction_payment_can_processes_set_weights_ok() {
     // @todo Figure out whu test_ext_with_stake does no work
     test_ext_with_stake(vec![(0, stake)]).execute_with(|| {
         let neuron = subscribe_ok_neuron(hotkey_id, coldkey_id); // Now has self-weight
-        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, stake);
+        SubtensorModule::add_stake_to_neuron(neuron.uid, stake);
 
         let result = ChargeTransactionPayment::<Test>::can_process_set_weights(&hotkey_id, transaction_payment);
         assert_eq!(result, Ok(10));
@@ -189,7 +190,7 @@ fn test_charge_transaction_payment_can_process_set_weights_failed_no_slots() {
         let neuron = subscribe_ok_neuron(hotkey_id, coldkey_id); // Now has self-weight
 
         // Make sure we have enough stake, so that this won't be a problem.
-        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, stake);
+        SubtensorModule::add_stake_to_neuron(neuron.uid, stake);
 
         let result = ChargeTransactionPayment::<Test>::can_process_set_weights(&hotkey_id, transaction_payment);
         assert_eq!(result, Err(InvalidTransaction::Payment.into()));
@@ -244,7 +245,7 @@ fn test_charge_transaction_payment_can_process_remove_stake_ok_enough_stake() {
 
     new_test_ext().execute_with(|| {
         let adam = subscribe_ok_neuron(hotkey_id, coldkey_id);
-        let _ = SubtensorModule::add_stake_to_neuron_hotkey_account(adam.uid, 100_000);
+        let _ = SubtensorModule::add_stake_to_neuron(adam.uid, 100_000);
         let result = ChargeTransactionPayment::<Test>::can_process_remove_stake(&coldkey_id, &hotkey_id, len);
         assert_eq!(result, Ok(20000));
     });
@@ -383,7 +384,7 @@ fn test_charge_transaction_payment_validate_set_weights_v1_1_0_ok() {
 
         test_ext_with_pending_emissions(vec![(uid, 100_000)]).execute_with(|| {
             let adam = subscribe_ok_neuron(0, coldkey_id);
-            SubtensorModule::add_stake_to_neuron_hotkey_account(adam.uid, initial_stake);
+            SubtensorModule::add_stake_to_neuron(adam.uid, initial_stake);
 
             let call: mock::Call = SubtensorCall::set_weights_v1_1_0(vec![0], vec![0], transaction_fee).into();
             let info = call.get_dispatch_info();
@@ -481,21 +482,96 @@ fn test_charge_transaction_payment_validate_other_ok() {
 
 // @todo extend the pre_dispatch tests
 #[test]
-fn pre_dispatch_set_weights_success() {
+fn test_pre_dispatch_set_weights_success() {
+    let hotkey_account_id = 1;
+    let coldkey_account_id = 42;
+
     new_test_ext().execute_with(|| {
-        let hotkey_account_id = 1;
-        let neuron = subscribe_neuron(hotkey_account_id, 10, 666, 4, 0, 66);
-        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, 1_000_000_000); // Add the stake.
+        let _neuron = subscribe_ok_neuron(hotkey_account_id, coldkey_account_id);
         let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
         let info = DispatchInfo::default();
         let len = 10;
 
-        let result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len).unwrap();
-        assert_eq!(result.0, CallType::SetWeights);
-        assert_eq!(result.1, 0);
-        assert_eq!(result.2, hotkey_account_id);
+        let result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len);
+        assert_ok!(&result);
+
+        let result_data = result.unwrap();
+
+        assert_eq!(result_data.0, CallType::SetWeights);
+        assert_eq!(result_data.1, 0);
+        assert_eq!(result_data.2, hotkey_account_id);
     });
 }
+
+#[test]
+fn test_pre_dispatch_set_weights_failed() {
+    let hotkey_account_id = 1;
+    let coldkey_account_id = 42;
+
+    new_test_ext().execute_with(|| {
+        // Fill available set_weights_slots, to prevent call from succeeding
+        fill_set_weights_slots(100);
+
+        let _neuron = subscribe_ok_neuron(hotkey_account_id, coldkey_account_id);
+        let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
+        let info = DispatchInfo::default();
+        let len = 10;
+
+        let result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len);
+        assert_eq!(result, Err(InvalidTransaction::Payment.into()));
+    });
+}
+
+
+#[test]
+fn test_pre_dispatch_set_weights_v1_1_0_ok() {
+    let hotkey_account_id = 1;
+    let coldkey_account_id = 42;
+    let transaction_fee = 5_000;
+    let initial_stake = 1_000_000;
+
+    new_test_ext().execute_with(|| {
+        let neuron = subscribe_ok_neuron(hotkey_account_id, coldkey_account_id);
+        SubtensorModule::add_stake_to_neuron(neuron.uid, initial_stake);
+
+        let call = SubtensorCall::set_weights_v1_1_0(vec![0], vec![0], transaction_fee).into();
+        let info = DispatchInfo::default();
+        let len = 10;
+
+        let result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len);
+        assert_ok!(&result);
+
+        let result_data = result.unwrap();
+
+        assert_eq!(result_data.0, CallType::SetWeights);
+        assert_eq!(result_data.1, transaction_fee);
+        assert_eq!(result_data.2, hotkey_account_id);
+    });
+}
+
+#[test]
+fn test_pre_dispatch_set_weights_v1_1_0_failed() {
+    let hotkey_account_id = 1;
+    let coldkey_account_id = 42;
+    let transaction_fee = 50;
+    let initial_stake = 1_000_000;
+
+    new_test_ext().execute_with(|| {
+        // Fill available set_weights_slots, to prevent call from succeeding
+        fill_set_weights_slots(100);
+
+        let neuron = subscribe_ok_neuron(hotkey_account_id, coldkey_account_id);
+        SubtensorModule::add_stake_to_neuron(neuron.uid, initial_stake);
+        let call = SubtensorCall::set_weights_v1_1_0(vec![0], vec![0], transaction_fee).into();
+        let info = DispatchInfo::default();
+        let len = 10;
+
+        let result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len);
+        assert_eq!(result, Err(InvalidTransaction::Payment.into()));
+    });
+}
+
+
 
 #[test]
 fn post_dispatch_works() {
@@ -506,14 +582,14 @@ fn post_dispatch_works() {
         let _adam = subscribe_ok_neuron(adam_id, 667);
         let neuron = subscribe_neuron(hotkey_account_id, 10, 666, 4, 0, 66);
         assert_ok!(SubtensorModule::set_weights(Origin::signed(hotkey_account_id), vec![neuron.uid], vec![u32::MAX]));
-        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, 1000000000); // Add the stake.
+        SubtensorModule::add_stake_to_neuron(neuron.uid, 1000000000); // Add the stake.
         let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
         let info = DispatchInfo::default();
         let len = 10;
         run_to_block(1);
 
         let result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len);
-        assert_ok!(result);
+        assert_ok!(&result);
 
         let pre = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len).unwrap();
         // assert!(ChargeTransactionPayment::<Test>::post_dispatch(pre, &info, &PostDispatchInfo {actual_weight: Some(0), pays_fee: Default::default()}, len, &Ok(())).is_ok());

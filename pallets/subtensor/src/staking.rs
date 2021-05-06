@@ -36,7 +36,7 @@ impl<T: Trait> Module<T> {
 
         ensure!(Self::can_remove_balance_from_coldkey_account(&coldkey, stake_as_balance.unwrap()), Error::<T>::NotEnoughBalanceToStake);
         ensure!(Self::remove_balance_from_coldkey_account(&coldkey, stake_as_balance.unwrap()) == true, Error::<T>::BalanceWithdrawalError);
-        Self::add_stake_to_neuron_hotkey_account(neuron.uid, stake_to_be_added);
+        Self::add_stake_to_neuron(neuron.uid, stake_to_be_added);
 
         // ---- Emit the staking event.
         Self::deposit_event(RawEvent::StakeAdded(hotkey, stake_to_be_added));
@@ -152,7 +152,7 @@ impl<T: Trait> Module<T> {
     /// is calculated and this should always <= 1. Having this function be atomic, fills this
     /// requirement.
     ///
-    pub fn add_stake_to_neuron_hotkey_account(uid: u64, amount: u64) {
+    pub fn add_stake_to_neuron(uid: u64, amount: u64) {
         assert!(Self::is_uid_active(uid));
 
         let prev_stake: u64 = Stake::get(uid);

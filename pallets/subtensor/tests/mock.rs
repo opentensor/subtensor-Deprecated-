@@ -339,6 +339,13 @@ pub fn subscribe_ok_neuron(hotkey_account_id : u64,  coldkey_account_id : u64) -
 }
 
 #[allow(dead_code)]
+pub fn fill_set_weights_slots(amount : u64) {
+	for i in 0..amount {
+		SubtensorModule::fill_set_weights_slot(i, 5_000);
+	}
+}
+
+#[allow(dead_code)]
 pub fn run_to_block(n: u64) {
     while System::block_number() < n {
         SubtensorModule::on_finalize(System::block_number());

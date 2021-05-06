@@ -12,7 +12,7 @@ fn random_neuron_with_stake(hotkey:u64, stake_to_init: u64, ip:u128, port:u16, i
     let neuron = SubtensorModule::get_neuron_for_hotkey(&hotkey);
 
     // Let's give this neuron an initial stake.
-    SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, stake_to_init); // Add the stake.
+    SubtensorModule::add_stake_to_neuron(neuron.uid, stake_to_init); // Add the stake.
     assert_eq!(stake_to_init, SubtensorModule::get_neuron_stake(neuron.uid)); // Check that the stake is there.
     neuron
 }
@@ -192,7 +192,7 @@ fn test_many_with_weights() {
             weight_vals.push(vals);
 	}
 	for (i, neuron) in neurons.iter().enumerate() {
-	        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, stakes[i]);
+	        SubtensorModule::add_stake_to_neuron(neuron.uid, stakes[i]);
         }
         for (i, neuron) in neurons.iter().enumerate() {
 		assert_ok!(SubtensorModule::set_weights(<<Test as Trait>::Origin>::signed(neuron.uid), weight_uids[i].clone(), weight_vals[i].clone()));
@@ -231,8 +231,8 @@ fn test_emission_after_many_blocks_one_edge() {
         let neuron_a = subscribe_ok_neuron(1,1);
         let neuron_b = subscribe_ok_neuron(2,2);
 
-        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron_a.uid, 1_000_000_000);
-        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron_b.uid, 1_000_000_000);
+        SubtensorModule::add_stake_to_neuron(neuron_a.uid, 1_000_000_000);
+        SubtensorModule::add_stake_to_neuron(neuron_b.uid, 1_000_000_000);
 
         assert_eq!(SubtensorModule::get_total_stake(), 2_000_000_000);
 
@@ -298,7 +298,7 @@ fn test_emission_after_many_blocks() {
                 }
         // Assign stake to each neuron
         for (i, neuron) in neurons.iter().enumerate() {
-                SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, stakes[i]);
+                SubtensorModule::add_stake_to_neuron(neuron.uid, stakes[i]);
         }
 
         // Set the weights

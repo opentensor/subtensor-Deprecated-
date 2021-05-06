@@ -68,7 +68,7 @@ fn test_set_weights_focus_on_transaction_fees() {
 		// Add 1 Tao to neuron 1. He now hold 100% of the stake, so will get the full emission,
 		// also he only has a self_weight.
 
-		SubtensorModule::add_stake_to_neuron_hotkey_account(_neuron1.uid, neuron_1_stake);
+		SubtensorModule::add_stake_to_neuron(_neuron1.uid, neuron_1_stake);
 
 		// Move to block, to build up pending emission
 		mock::run_to_block(1); // This will emit .5 TAO to neuron 1, since he has 100% of the total stake
@@ -139,7 +139,7 @@ fn test_set_weights_v1_1_0_focus_on_transaction_fees() {
 		// Add 1 Tao to neuron 1. He now hold 100% of the stake, so will get the full emission,
 		// also he only has a self_weight.
 
-		SubtensorModule::add_stake_to_neuron_hotkey_account(_neuron1.uid, neuron_1_stake);
+		SubtensorModule::add_stake_to_neuron(_neuron1.uid, neuron_1_stake);
 
 		// Move to block, to build up pending emission
 		mock::run_to_block(1); // This will emit .5 TAO to neuron 1, since he has 100% of the total stake
@@ -206,7 +206,7 @@ fn do_set_weights_ok_no_weights() {
 		let neuron = subscribe_neuron(hotkey_account_id, 10, 666, 4, 0, 66);
 
 		// Let's give it some stake.
-		SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, initial_stake);
+		SubtensorModule::add_stake_to_neuron(neuron.uid, initial_stake);
 
 		// Dispatch a signed extrinsic, setting weights.
 		assert_ok!(SubtensorModule::do_set_weights(Origin::signed(hotkey_account_id), weights_keys, weight_values, 0));
@@ -244,7 +244,7 @@ fn do_set_weights_ok_with_weights() {
 
 		// Dish out the stake for all neurons
 		for (i, neuron) in neurons.iter().enumerate() {
-			SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, initial_stakes[i]);
+			SubtensorModule::add_stake_to_neuron(neuron.uid, initial_stakes[i]);
 		}
 
 		// Perform tests
