@@ -571,6 +571,43 @@ fn test_pre_dispatch_set_weights_v1_1_0_failed() {
     });
 }
 
+#[test]
+fn test_pre_dispatch_add_stake_success() {
+    let hotkey_id = 1;
+    let coldkey_id = 2 ;
+    let coldkey_balance = 1_000_000_000;
+    let stake = 5_000;
+
+	test_ext_with_balances(vec![(coldkey_id, coldkey_balance)]).execute_with(|| {
+	    let _neuron = subscribe_ok_neuron(hotkey_id, coldkey_id);
+        let call = SubtensorCall::add_stake(hotkey_id, stake).into();
+        let info = DispatchInfo::default();
+        let len = 10;
+
+        let result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&coldkey_id, &call, &info, len);
+        assert_ok!(&result);
+	});
+}
+
+#[test]
+fn test_pre_dispatch_add_stake_failed() {
+    let hotkey_id = 1;
+    let coldkey_id = 2 ;
+    let stake = 5_000;
+
+    new_test_ext().execute_with(|| {
+	    let neuron = subscribe_ok_neuron(hotkey_id, coldkey_id);
+        let call = SubtensorCall::add_stake(hotkey_id, stake).into();
+        let info = DispatchInfo::default();
+        let len = 10;
+
+        // This test should fail because the coldkey does not have any balance
+        let result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&coldkey_id, &call, &info, len);
+        assert_eq!(result, Err(InvalidTransaction::Payment.into()));
+	});
+
+}
+
 
 
 #[test]

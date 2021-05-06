@@ -58,9 +58,11 @@ fn test_add_stake_transaction_fee_ends_up_in_transaction_fee_pool() {
 
 		let end_balance = SubtensorModule::get_coldkey_balance(&test_neuron_cold_key);
 		let transaction_fee_pool = SubtensorModule::get_transaction_fee_pool();
+		let end_stake = SubtensorModule::get_neuron_stake(test_neuron.uid);
 
 		assert_eq!(end_balance, 499_997_100);
 		assert_eq!(transaction_fee_pool, 2900);
+		assert_eq!(end_stake, 500_000_000);
 	});
 }
 

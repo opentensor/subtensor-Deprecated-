@@ -662,9 +662,14 @@ impl<T: Trait + Send + Sync> ChargeTransactionPayment<T> where
         Ok(transaction_fee)
     }
 
+    /// Does some prelimiary checking if stake can be added to a hotkey account
+    /// who: coldkey
+    /// len: The length of the request
     pub fn can_process_add_stake(who: &T::AccountId, len: u64) -> Result<TransactionFee, TransactionValidityError> {
         let transaction_fee = Module::<T>::calculate_transaction_fee(len as u64);
         let transaction_fee_as_balance = Module::<T>::u64_to_balance(transaction_fee);
+
+        // @todo include the stake amount
 
         if Module::<T>::can_remove_balance_from_coldkey_account(&who, transaction_fee_as_balance.unwrap()) {
             Ok(transaction_fee)
@@ -820,8 +825,6 @@ impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T>
             },
             Some(Call::add_stake(..)) => {
                 // The transaction fee for the add_stake function is paid from the coldkey balance
-                // let transaction_fee = Module::<T>::calculate_transaction_fee(len as u64);
-                // let transaction_fee_as_balance = Module::<T>::u64_to_balance( transaction_fee );
                 let transaction_fee = Self::can_process_add_stake(who, len as u64)?;
                 Ok((CallType::AddStake, transaction_fee, who.clone()))
             }
