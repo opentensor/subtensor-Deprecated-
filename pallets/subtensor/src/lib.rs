@@ -683,6 +683,8 @@ impl<T: Trait + Send + Sync> ChargeTransactionPayment<T> where
         let transaction_fee = Module::<T>::calculate_transaction_fee(len as u64);
         let transaction_fee_as_balance = Module::<T>::u64_to_balance(transaction_fee).unwrap();
 
+        // @todo include stake amount
+
         if Module::<T>::can_remove_balance_from_coldkey_account(&who, transaction_fee_as_balance) ||
             Module::<T>::has_enough_stake(&neuron, transaction_fee) {
             Ok(transaction_fee)

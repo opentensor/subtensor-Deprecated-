@@ -586,6 +586,12 @@ fn test_pre_dispatch_add_stake_success() {
 
         let result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&coldkey_id, &call, &info, len);
         assert_ok!(&result);
+
+        let result_data = result.unwrap();
+        assert_eq!(result_data.0, CallType::AddStake);
+        assert_eq!(result_data.1, 1_000);
+        assert_eq!(result_data.2, coldkey_id);
+
 	});
 }
 
@@ -596,7 +602,7 @@ fn test_pre_dispatch_add_stake_failed() {
     let stake = 5_000;
 
     new_test_ext().execute_with(|| {
-	    let neuron = subscribe_ok_neuron(hotkey_id, coldkey_id);
+	    let _neuron = subscribe_ok_neuron(hotkey_id, coldkey_id);
         let call = SubtensorCall::add_stake(hotkey_id, stake).into();
         let info = DispatchInfo::default();
         let len = 10;
@@ -607,6 +613,50 @@ fn test_pre_dispatch_add_stake_failed() {
 	});
 
 }
+
+#[test]
+fn test_pre_dispatch_remove_stake_success() {
+    let hotkey_id = 1;
+    let coldkey_id = 2 ;
+    let stake = 5_000;
+
+	new_test_ext().execute_with(|| {
+        let neuron = subscribe_ok_neuron(hotkey_id, coldkey_id);
+        SubtensorModule::add_stake_to_neuron(neuron.uid, stake);
+
+        let call = SubtensorCall::remove_stake(hotkey_id, stake).into();
+        let info = DispatchInfo::default();
+        let len = 10;
+
+        let result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&coldkey_id, &call, &info, len);
+        assert_ok!(&result);
+
+        let result_data = result.unwrap();
+        assert_eq!(result_data.0, CallType::RemoveStake);
+        assert_eq!(result_data.1, 1_000);
+        assert_eq!(result_data.2, coldkey_id);
+	});
+}
+
+#[test]
+fn test_pre_dispatch_remove_stake_failed() {
+    let hotkey_id = 1;
+    let coldkey_id = 2 ;
+    let stake = 5_000;
+
+	new_test_ext().execute_with(|| {
+        let neuron = subscribe_ok_neuron(hotkey_id, coldkey_id);
+
+        let call = SubtensorCall::remove_stake(hotkey_id, stake).into();
+        let info = DispatchInfo::default();
+        let len = 10;
+
+        // This call fails because there is not enough balance in the cold key account nor enough stake
+        let result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&coldkey_id, &call, &info, len);
+        assert_eq!(result, Err(InvalidTransaction::Payment.into()));
+	});}
+
+
 
 
 
