@@ -665,28 +665,30 @@ impl<T: Trait + Send + Sync> ChargeTransactionPayment<T> where
     /// Does some prelimiary checking if stake can be added to a hotkey account
     /// who: coldkey
     /// len: The length of the request
-    pub fn can_process_add_stake(who: &T::AccountId, len: u64) -> Result<TransactionFee, TransactionValidityError> {
+    pub fn can_process_add_stake(who: &T::AccountId, len: u64, amount: u64) -> Result<TransactionFee, TransactionValidityError> {
         let transaction_fee = Module::<T>::calculate_transaction_fee(len as u64);
-        let transaction_fee_as_balance = Module::<T>::u64_to_balance(transaction_fee);
 
-        // @todo include the stake amount
+        let total = transaction_fee + amount;
 
-        if Module::<T>::can_remove_balance_from_coldkey_account(&who, transaction_fee_as_balance.unwrap()) {
+        let total_fee_as_balance = Module::<T>::u64_to_balance(total);
+
+        if Module::<T>::can_remove_balance_from_coldkey_account(&who, total_fee_as_balance.unwrap()) {
             Ok(transaction_fee)
         } else {
             Err(InvalidTransaction::Payment.into())
         }
     }
 
-    pub fn can_process_remove_stake(who: &T::AccountId, hotkey_id: &T::AccountId, len: u64) -> Result<TransactionFee, TransactionValidityError> {
+    pub fn can_process_remove_stake(who: &T::AccountId, hotkey_id: &T::AccountId, len: u64, amount : u64) -> Result<TransactionFee, TransactionValidityError> {
         let neuron = Module::<T>::get_neuron_for_hotkey(&hotkey_id);
         let transaction_fee = Module::<T>::calculate_transaction_fee(len as u64);
-        let transaction_fee_as_balance = Module::<T>::u64_to_balance(transaction_fee).unwrap();
 
-        // @todo include stake amount
+        let total = transaction_fee + amount;
 
-        if Module::<T>::can_remove_balance_from_coldkey_account(&who, transaction_fee_as_balance) ||
-            Module::<T>::has_enough_stake(&neuron, transaction_fee) {
+        let total_fee_as_balance = Module::<T>::u64_to_balance(total).unwrap();
+
+        if Module::<T>::can_remove_balance_from_coldkey_account(&who, total_fee_as_balance) ||
+            Module::<T>::has_enough_stake(&neuron, total) {
             Ok(transaction_fee)
         } else {
             Err(InvalidTransaction::Payment.into())
@@ -774,15 +776,15 @@ impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T>
                 })
             },
 
-            Some(Call::add_stake(..)) => {
-                let _transaction_fee = Self::can_process_add_stake(who, len as u64)?;
+            Some(Call::add_stake(_hotkey, amount)) => {
+                let _transaction_fee = Self::can_process_add_stake(who, len as u64, *amount)?;
                 Ok(ValidTransaction {
                     priority: Self::get_priority_vanilla(),
                     ..Default::default()
                 })
             }
-            Some(Call::remove_stake(hotkey_id, ..)) => {
-                let _transaction_fee = Self::can_process_remove_stake(who, hotkey_id, len as u64)?;
+            Some(Call::remove_stake(hotkey_id, amount)) => {
+                let _transaction_fee = Self::can_process_remove_stake(who, hotkey_id, len as u64, *amount)?;
                 Ok(ValidTransaction {
                     priority: Self::get_priority_vanilla(),
                     ..Default::default()
@@ -825,18 +827,18 @@ impl<T: Trait + Send + Sync> SignedExtension for ChargeTransactionPayment<T>
                 let transaction_fee = Self::can_process_set_weights(who, *fee)?;
                 Ok((CallType::SetWeights, transaction_fee, who.clone()))
             },
-            Some(Call::add_stake(..)) => {
+            Some(Call::add_stake(_hotkey, amount)) => {
                 // The transaction fee for the add_stake function is paid from the coldkey balance
-                let transaction_fee = Self::can_process_add_stake(who, len as u64)?;
+                let transaction_fee = Self::can_process_add_stake(who, len as u64, *amount)?;
                 Ok((CallType::AddStake, transaction_fee, who.clone()))
             }
-            Some(Call::remove_stake(hotkey_id, ..)) => {
+            Some(Call::remove_stake(hotkey_id, amount)) => {
                 // The tranaction fee for the remove_stake call is paid from the coldkey balance
                 // after the transaction completes. For this, a check is done on both the stake
                 // as well as the coldkey balance to see if one of both is sufficient to pay
                 // for the transaction
 
-                let transaction_fee = Self::can_process_remove_stake(who, hotkey_id, len as u64)?;
+                let transaction_fee = Self::can_process_remove_stake(who, hotkey_id, len as u64, *amount)?;
                 Ok((CallType::RemoveStake, transaction_fee, who.clone()))
             }
             Some(Call::subscribe(..)) => {
