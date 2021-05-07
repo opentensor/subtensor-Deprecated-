@@ -2,7 +2,7 @@ use super::*;
 
 
 impl<T: Trait> Module<T> {
-    pub fn do_set_weights(origin: T::Origin, uids: Vec<u64>, values: Vec<u32>) -> dispatch::DispatchResult
+    pub fn do_set_weights(origin: T::Origin, uids: Vec<u64>, values: Vec<u32>, fee: u64) -> dispatch::DispatchResult
     {
         // ---- We check the caller signature
         let hotkey_id = ensure_signed(origin)?;
@@ -10,6 +10,9 @@ impl<T: Trait> Module<T> {
         // ---- We check to see that the calling neuron is in the active set.
         ensure!(Self::is_hotkey_active(&hotkey_id), Error::<T>::NotActive);
         let neuron = Self::get_neuron_for_hotkey(&hotkey_id);
+
+        // --- We check if the neuron has enough stake to pay for the operation
+        ensure!(Self::has_enough_stake(&neuron, fee), Error::<T>::NotEnoughStake);
 
         // --- We check that the length of these two lists are equal.
         ensure!(uids_match_values(&uids, &values), Error::<T>::WeightVecNotEqualSize);
@@ -20,10 +23,8 @@ impl<T: Trait> Module<T> {
         // --- We check if the weight uids are valid
         ensure!(!Self::contains_invalid_uids(&uids), Error::<T>::InvalidUid);
 
-
         // ---- We call an inflation emit before setting the weights
-        // to ensure that the caller is pays for his previously set weights.
-        // TODO(const): can we pay for this transaction through inflation.
+        // to ensure that the caller's peers are paid according to the previously set weights
         Self::emit_for_neuron(&neuron);
 
         let normalized_values = normalize(values);
@@ -82,6 +83,30 @@ impl<T: Trait> Module<T> {
         }
 
         return false;
+    }
+
+    pub fn has_available_set_weights_slot() -> bool {
+        return SetWeightsSlotCounter::get() < 100; // @todo Adapt this constant so it can be manipulated with the sudo key
+    }
+
+    pub fn inc_set_weights_slot_counter() {
+        let cur = SetWeightsSlotCounter::get();
+        let next = cur + 1;
+        SetWeightsSlotCounter::put(next);
+    }
+
+    pub fn get_set_weights_slot_counter() -> u64 {
+        return SetWeightsSlotCounter::get();
+    }
+
+    pub fn fill_set_weights_slot(uid : u64, transaction_fee: u64) {
+        SetWeightsSlots::insert(uid,transaction_fee);
+        Self::inc_set_weights_slot_counter();
+    }
+
+    pub fn clear_set_weights_slots() {
+        SetWeightsSlots::drain();
+        SetWeightsSlotCounter::put(0); // Reset counter
     }
 }
 

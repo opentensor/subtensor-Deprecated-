@@ -101,7 +101,7 @@ impl<T: Trait> Module<T> {
             // to deposit new funds. The self weight is purely used to pay for transactions fees.
             // The payment of the self weight is done in the post dispatch of the signed extension.
             // if *dest_uid != neuron.uid {
-            Self::add_stake_to_neuron_hotkey_account(*dest_uid, stake_increment);
+            Self::add_stake_to_neuron(*dest_uid, stake_increment);
             // } else {
             //     // The self weight is used to pay the transaction fee with. 99% goes back into the neuron
             //     // 1% is used for the transaction fee

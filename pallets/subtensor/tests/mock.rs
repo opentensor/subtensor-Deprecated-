@@ -324,6 +324,7 @@ pub fn test_ext_with_transaction_fee_pool(transaction_fee_pool : u64) -> sp_io::
 
 }
 
+
 #[allow(dead_code)]
 pub fn subscribe_neuron(hotkey_account_id : u64, ip: u128, port: u16, ip_type : u8, modality: u8, coldkey_acount_id : u64) -> NeuronMetadata<u64> {
 	let result = SubtensorModule::subscribe(<<Test as system::Trait>::Origin>::signed(hotkey_account_id), ip, port, ip_type, modality, coldkey_acount_id);
@@ -335,6 +336,13 @@ pub fn subscribe_neuron(hotkey_account_id : u64, ip: u128, port: u16, ip_type : 
 #[allow(dead_code)]
 pub fn subscribe_ok_neuron(hotkey_account_id : u64,  coldkey_account_id : u64) -> NeuronMetadata<u64> {
 	return subscribe_neuron(hotkey_account_id, ipv4(8,8,8,8), 66, 4, 0, coldkey_account_id );
+}
+
+#[allow(dead_code)]
+pub fn fill_set_weights_slots(amount : u64) {
+	for i in 0..amount {
+		SubtensorModule::fill_set_weights_slot(i, 5_000);
+	}
 }
 
 #[allow(dead_code)]

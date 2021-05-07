@@ -12,8 +12,8 @@ fn random_neuron_with_stake(hotkey:u64, stake_to_init: u64, ip:u128, port:u16, i
     let neuron = SubtensorModule::get_neuron_for_hotkey(&hotkey);
 
     // Let's give this neuron an initial stake.
-    SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, stake_to_init); // Add the stake.
-    assert_eq!(stake_to_init, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that the stake is there.
+    SubtensorModule::add_stake_to_neuron(neuron.uid, stake_to_init); // Add the stake.
+    assert_eq!(stake_to_init, SubtensorModule::get_neuron_stake(neuron.uid)); // Check that the stake is there.
     neuron
 }
 
@@ -56,14 +56,14 @@ fn test_multiemit_per_block() {
         // Let's call an emit.
         let total_emission:u64 = SubtensorModule::emit_for_neuron(&neuron);
         assert_eq!(total_emission, 0);
-        assert_eq!(1000000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that the stake is there.
+        assert_eq!(1000000000, SubtensorModule::get_neuron_stake(neuron.uid)); // Check that the stake is there.
 
         // NOTE: not rolling block forward!!
 
         // Let's call emit again.
         let total_emission:u64 = SubtensorModule::emit_for_neuron(&neuron);
         assert_eq!(total_emission, 0);
-        assert_eq!(1000000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that the stake is there.
+        assert_eq!(1000000000, SubtensorModule::get_neuron_stake(neuron.uid)); // Check that the stake is there.
 
 	});
 }
@@ -89,7 +89,7 @@ fn test_emission_to_other() {
         // Let's call an emit at block 1
         let total_emission:u64 = SubtensorModule::emit_for_neuron(&neuron_one);
         assert_eq!(total_emission, 0);
-        assert_eq!(0, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron_two.uid)); // Check that the stake is there.
+        assert_eq!(0, SubtensorModule::get_neuron_stake(neuron_two.uid)); // Check that the stake is there.
 
         // Increase the block number by 1.
         run_to_block(1);
@@ -97,7 +97,7 @@ fn test_emission_to_other() {
         // Let's call an emit. Causes the new node to mint 500000000 to the other guy.
         let total_emission:u64 = SubtensorModule::emit_for_neuron(&neuron_one);
         assert_eq!(total_emission, 500000000);
-        assert_eq!(500000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron_two.uid)); // Check that the stake is there.
+        assert_eq!(500000000, SubtensorModule::get_neuron_stake(neuron_two.uid)); // Check that the stake is there.
 
         // Increase the block number by 2.
         run_to_block(3);
@@ -105,7 +105,7 @@ fn test_emission_to_other() {
          // Let's call an emit. Causes the new node to mint 500000000 to the otehr guy.
          let total_emission:u64 = SubtensorModule::emit_for_neuron(&neuron_one);
          assert_eq!(total_emission, 666666666); // because neuron 1 only has 2/3 of the stake.
-         assert_eq!(1166666666, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron_two.uid)); // Check that the stake is there.
+         assert_eq!(1166666666, SubtensorModule::get_neuron_stake(neuron_two.uid)); // Check that the stake is there.
 	});
 }
 
@@ -127,7 +127,7 @@ fn test_self_weight() {
         // Let's call an emit.
         let total_emission:u64 = SubtensorModule::emit_for_neuron(&neuron);
         assert_eq!(total_emission, 0);
-        assert_eq!(1000000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that the stake is there.
+        assert_eq!(1000000000, SubtensorModule::get_neuron_stake(neuron.uid)); // Check that the stake is there.
 
         // Increase the block number by 1
         run_to_block(1);
@@ -137,7 +137,7 @@ fn test_self_weight() {
         assert_eq!(total_emission, 500_000_000);
 
         // Verify that 100% of the self emissison goes to the neuron
-        assert_eq!(1_500_000_000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that the stake is there.
+        assert_eq!(1_500_000_000, SubtensorModule::get_neuron_stake(neuron.uid)); // Check that the stake is there.
 
         // Increase the block number by 1
         run_to_block(2);
@@ -148,7 +148,7 @@ fn test_self_weight() {
 
         // Verify that 99% of the self emissison goes to the neuron
         // 1_490_000_000 + 500_000_000 * 0.99 = 1_990_000_000
-        assert_eq!(2_000_000_000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that the stake is there.
+        assert_eq!(2_000_000_000, SubtensorModule::get_neuron_stake(neuron.uid)); // Check that the stake is there.
 
 	});
 }
@@ -192,7 +192,7 @@ fn test_many_with_weights() {
             weight_vals.push(vals);
 	}
 	for (i, neuron) in neurons.iter().enumerate() {
-	        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, stakes[i]);
+	        SubtensorModule::add_stake_to_neuron(neuron.uid, stakes[i]);
         }
         for (i, neuron) in neurons.iter().enumerate() {
 		assert_ok!(SubtensorModule::set_weights(<<Test as Trait>::Origin>::signed(neuron.uid), weight_uids[i].clone(), weight_vals[i].clone()));
@@ -205,7 +205,7 @@ fn test_many_with_weights() {
             assert_eq!(emission_per_neuron[i], 0);
         }
         for (i, neuron) in neurons.iter().enumerate(){
-	        assert_eq!(stakes[i], SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid));
+	        assert_eq!(stakes[i], SubtensorModule::get_neuron_stake(neuron.uid));
         }
         run_to_block(2 * n);
         let mut emission_per_neuron = vec![];
@@ -216,7 +216,7 @@ fn test_many_with_weights() {
             assert!( close( emission_per_neuron[i], 1000000000, 100 ));
         }
         for (i, neuron) in neurons.iter().enumerate(){
-			assert!( close( stakes[i] + 1000000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid), 100 ));
+			assert!( close(stakes[i] + 1000000000, SubtensorModule::get_neuron_stake(neuron.uid), 100 ));
         }
         
 	});
@@ -231,8 +231,8 @@ fn test_emission_after_many_blocks_one_edge() {
         let neuron_a = subscribe_ok_neuron(1,1);
         let neuron_b = subscribe_ok_neuron(2,2);
 
-        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron_a.uid, 1_000_000_000);
-        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron_b.uid, 1_000_000_000);
+        SubtensorModule::add_stake_to_neuron(neuron_a.uid, 1_000_000_000);
+        SubtensorModule::add_stake_to_neuron(neuron_b.uid, 1_000_000_000);
 
         assert_eq!(SubtensorModule::get_total_stake(), 2_000_000_000);
 
@@ -251,8 +251,8 @@ fn test_emission_after_many_blocks_one_edge() {
         SubtensorModule::emit_for_neuron(&neuron_b); // This should transfer the pending emission to neuron_a
 
         // neurons a&b should have 250 + 1 (initial) * 10 ^ 9 stake
-        assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron_a.uid), 251_000_000_000 as u64);
-        assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron_b.uid), 251_000_000_000 as u64);
+        assert_eq!(SubtensorModule::get_neuron_stake(neuron_a.uid), 251_000_000_000 as u64);
+        assert_eq!(SubtensorModule::get_neuron_stake(neuron_b.uid), 251_000_000_000 as u64);
 	});
 }
 
@@ -298,7 +298,7 @@ fn test_emission_after_many_blocks() {
                 }
         // Assign stake to each neuron
         for (i, neuron) in neurons.iter().enumerate() {
-                SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, stakes[i]);
+                SubtensorModule::add_stake_to_neuron(neuron.uid, stakes[i]);
         }
 
         // Set the weights
@@ -321,7 +321,7 @@ fn test_emission_after_many_blocks() {
 
         let mut sum_of_stake = 0;
         for neuron in neurons.iter() {
-                sum_of_stake += SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid);
+                sum_of_stake += SubtensorModule::get_neuron_stake(neuron.uid);
         }
         println!("sum of stakes {:?}", sum_of_stake);
         assert!( close(sum_of_stake, 75000000000, 10000) );

@@ -36,7 +36,7 @@ impl<T: Trait> Module<T> {
 
         ensure!(Self::can_remove_balance_from_coldkey_account(&coldkey, stake_as_balance.unwrap()), Error::<T>::NotEnoughBalanceToStake);
         ensure!(Self::remove_balance_from_coldkey_account(&coldkey, stake_as_balance.unwrap()) == true, Error::<T>::BalanceWithdrawalError);
-        Self::add_stake_to_neuron_hotkey_account(neuron.uid, stake_to_be_added);
+        Self::add_stake_to_neuron(neuron.uid, stake_to_be_added);
 
         // ---- Emit the staking event.
         Self::deposit_event(RawEvent::StakeAdded(hotkey, stake_to_be_added));
@@ -59,7 +59,7 @@ impl<T: Trait> Module<T> {
     /// It throws the following errors if there is something wrong
     /// - NotActive : The suplied hotkey is not in use. This ususally means a node that uses this key has not subscribed yet, or has unsubscribed
     /// - NonAssociatedColdKey : The supplied hotkey account id is not subscribed using the supplied cold key
-    /// - NotEnoughStaketoWithdraw : The ammount of stake available in the hotkey account is lower than the requested amount
+    /// - NotEnoughStake : The ammount of stake available in the hotkey account is lower than the requested amount
     /// - CouldNotConvertToBalance : A conversion error occured while converting stake from u64 to Balance
     ///
     pub fn do_remove_stake(origin: T::Origin, hotkey: T::AccountId, stake_to_be_removed: u64) -> dispatch::DispatchResult {
@@ -88,7 +88,7 @@ impl<T: Trait> Module<T> {
 
         // ---- We check that the hotkey has enough stake to withdraw
         // and then withdraw from the account.
-        ensure!(Self::has_enough_stake(&neuron, stake_to_be_removed), Error::<T>::NotEnoughStaketoWithdraw);
+        ensure!(Self::has_enough_stake(&neuron, stake_to_be_removed), Error::<T>::NotEnoughStake);
         let stake_to_be_added_as_currency = Self::u64_to_balance(stake_to_be_removed);
         ensure!(stake_to_be_added_as_currency.is_some(), Error::<T>::CouldNotConvertToBalance);
 
@@ -110,7 +110,7 @@ impl<T: Trait> Module<T> {
     --==[[  Helper functions   ]]==--
     *********************************/
 
-    pub fn get_stake_of_neuron_hotkey_account_by_uid(uid: u64) -> u64 {
+    pub fn get_neuron_stake(uid: u64) -> u64 {
         return Stake::get(uid);
     }
 
@@ -152,7 +152,7 @@ impl<T: Trait> Module<T> {
     /// is calculated and this should always <= 1. Having this function be atomic, fills this
     /// requirement.
     ///
-    pub fn add_stake_to_neuron_hotkey_account(uid: u64, amount: u64) {
+    pub fn add_stake_to_neuron(uid: u64, amount: u64) {
         assert!(Self::is_uid_active(uid));
 
         let prev_stake: u64 = Stake::get(uid);

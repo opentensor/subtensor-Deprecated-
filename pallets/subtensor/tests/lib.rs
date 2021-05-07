@@ -72,7 +72,7 @@ fn fee_from_emission_priority_with_neuron_and_weights_and_stake() {
         let weight_uids = vec![neuron.uid];
         let weight_values = vec![u32::MAX];
         assert_ok!(SubtensorModule::set_weights(Origin::signed(hotkey_account_id), weight_uids.clone(), weight_values.clone()));
-        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, 100000000); // Add the stake.
+        SubtensorModule::add_stake_to_neuron(neuron.uid, 100000000); // Add the stake.
 
         let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
         let info = DispatchInfo::default();
@@ -82,26 +82,6 @@ fn fee_from_emission_priority_with_neuron_and_weights_and_stake() {
 }
 
 
-#[test]
-fn fee_from_emission_priority_with_neuron_and_weights_and_stake_and_run_to_block() {
-    new_test_ext().execute_with(|| {
-        let hotkey_account_id = 1;
-        let neuron = subscribe_neuron(hotkey_account_id, 10, 666, 4, 0, 66);
-        let weight_uids = vec![neuron.uid];
-        let weight_values = vec![u32::MAX];
-        assert_ok!(SubtensorModule::set_weights(Origin::signed(hotkey_account_id), weight_uids.clone(), weight_values.clone()));
-        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, 1_000_000_000); // Add the stake.
-
-        let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
-        let info = DispatchInfo::default();
-        let len = 10;
-        assert_eq!(ChargeTransactionPayment::<Test>(PhantomData).validate(&hotkey_account_id, &call, &info, len).unwrap().priority, 0);
-        run_to_block(1);
-        assert_eq!(ChargeTransactionPayment::<Test>(PhantomData).validate(&hotkey_account_id, &call, &info, len).unwrap().priority, 500_000);
-        assert_eq!(1_000_000_000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that his stake has increased with 99% of the BR
-        let _total_emission: u64 = SubtensorModule::emit_for_neuron(&neuron); // actually do the emission.
-    });
-}
 
 #[test]
 fn test_emission_low_priority_but_emission_goes_to_user() {
@@ -118,7 +98,7 @@ fn test_emission_low_priority_but_emission_goes_to_user() {
         let weight_uids = vec![neuron_3.uid];
         let weight_values = vec![u32::MAX];
         assert_ok!(SubtensorModule::set_weights(Origin::signed(hotkey_account_id_2), weight_uids.clone(), weight_values.clone()));
-        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron_2.uid, 100000000); // Add the stake.
+        SubtensorModule::add_stake_to_neuron(neuron_2.uid, 100000000); // Add the stake.
 
         let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
         let info = DispatchInfo::default();
@@ -127,7 +107,7 @@ fn test_emission_low_priority_but_emission_goes_to_user() {
         run_to_block(1);
         assert_eq!(ChargeTransactionPayment::<Test>(PhantomData).validate(&hotkey_account_id_2, &call, &info, len).unwrap().priority, 0);
         let _total_emission: u64 = SubtensorModule::emit_for_neuron(&neuron_2); // actually do the emission.
-        assert_eq!(500000000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron_3.uid));
+        assert_eq!(500000000, SubtensorModule::get_neuron_stake(neuron_3.uid));
     });
 }
 
@@ -141,95 +121,138 @@ fn fee_from_emission_priority_with_neuron_and_adam() {
         let weight_uids = vec![neuron.uid];
         let weight_values = vec![u32::MAX];
         assert_ok!(SubtensorModule::set_weights(Origin::signed(hotkey_account_id), weight_uids.clone(), weight_values.clone()));
-        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, 1_000_000_000); // Add the stake.
+        SubtensorModule::add_stake_to_neuron(neuron.uid, 1_000_000_000); // Add the stake.
 
         let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
         let info = DispatchInfo::default();
         let len = 10;
         assert_eq!(ChargeTransactionPayment::<Test>(PhantomData).validate(&hotkey_account_id, &call, &info, len).unwrap().priority, 0);
         run_to_block(1);
-        assert_eq!(ChargeTransactionPayment::<Test>(PhantomData).validate(&hotkey_account_id, &call, &info, len).unwrap().priority, 500_000);
-        assert_eq!(1_000_000_000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that his stake has not increased.
+
+        // Priority should not change over time
+        assert_eq!(ChargeTransactionPayment::<Test>(PhantomData).validate(&hotkey_account_id, &call, &info, len).unwrap().priority, 0);
+        assert_eq!(1_000_000_000, SubtensorModule::get_neuron_stake(neuron.uid)); // Check that his stake has not increased.
 
         let _total_emission: u64 = SubtensorModule::emit_for_neuron(&neuron); // actually do the emission.
-        assert_eq!(1_500_000_000, SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid)); // Check that his stake has increased (he is *not* adam)
+        assert_eq!(1_500_000_000, SubtensorModule::get_neuron_stake(neuron.uid)); // Check that his stake has increased (he is *not* adam)
     });
 }
 
 /************************************************************	
-	ChargeTransactionPayment::can_pay_set_weights() tests
+	ChargeTransactionPayment::can_process_set_weights() tests
 ************************************************************/
 #[test]
-fn test_charge_transaction_payment_can_pay_set_weights_ok() {
-    let uid = 0;
+fn test_charge_transaction_payment_can_processes_set_weights_ok() {
     let hotkey_id = 0;
-    let pending_emission = 1000;
+    let stake = 1_000_000_000;
+    let coldkey_id = 2;
+    let transaction_payment:u64 = 10;
 
-    test_ext_with_pending_emissions(vec![(uid, pending_emission)]).execute_with(|| {
-        let _adam = subscribe_ok_neuron(0, 787687); // Now has self-weight
+    // @todo Figure out whu test_ext_with_stake does no work
+    test_ext_with_stake(vec![(0, stake)]).execute_with(|| {
+        let neuron = subscribe_ok_neuron(hotkey_id, coldkey_id); // Now has self-weight
+        SubtensorModule::add_stake_to_neuron(neuron.uid, stake);
 
-        let result = ChargeTransactionPayment::<Test>::can_pay_set_weights(&hotkey_id);
+        let result = ChargeTransactionPayment::<Test>::can_process_set_weights(&hotkey_id, transaction_payment);
         assert_eq!(result, Ok(10));
     });
 }
 
+#[test]
+fn test_charge_transaction_payment_can_process_set_weights_failed_no_stake() {
+    let hotkey_id = 0;
+    let coldkey_id = 2;
+    let transaction_payment:u64 = 10;
+
+	new_test_ext().execute_with(|| {
+        let _neuron = subscribe_ok_neuron(hotkey_id, coldkey_id); // Now has self-weight
+        // Neuron has no stake by default
+        let result = ChargeTransactionPayment::<Test>::can_process_set_weights(&hotkey_id, transaction_payment);
+        assert_eq!(result, Err(InvalidTransaction::Payment.into()));
+	});
+}
+
+
+#[test]
+fn test_charge_transaction_payment_can_process_set_weights_failed_no_slots() {
+    let hotkey_id = 0;
+    let coldkey_id = 2;
+    let transaction_payment:u64 = 10;
+    let stake = 1_000_000_000;
+
+	new_test_ext().execute_with(|| {
+        // Fill 100 slots
+        for i in 0..100 {
+            SubtensorModule::fill_set_weights_slot(i, 5_000);
+        }
+
+        let neuron = subscribe_ok_neuron(hotkey_id, coldkey_id); // Now has self-weight
+
+        // Make sure we have enough stake, so that this won't be a problem.
+        SubtensorModule::add_stake_to_neuron(neuron.uid, stake);
+
+        let result = ChargeTransactionPayment::<Test>::can_process_set_weights(&hotkey_id, transaction_payment);
+        assert_eq!(result, Err(InvalidTransaction::Payment.into()));
+	});
+}
+
 
 /************************************************************
-	ChargeTransactionPayment::can_pay_add_stake() tests
+	ChargeTransactionPayment::can_process_add_stake() tests
 ************************************************************/
 #[test]
-fn test_charge_transaction_payment_can_pay_add_stake_ok() {
+fn test_charge_transaction_payment_can_process_add_stake_ok() {
     let coldkey_id = 0;
     let len = 200;
 
     test_ext_with_balances(vec![(coldkey_id, 1_000_000_000)]).execute_with(|| {
-        let result = ChargeTransactionPayment::<Test>::can_pay_add_stake(&coldkey_id, len);
+        let result = ChargeTransactionPayment::<Test>::can_process_add_stake(&coldkey_id, len);
         assert_eq!(result, Ok(20000));
     });
 }
 
 #[test]
-fn test_charge_transaction_payment_can_pay_add_stake_err() {
+fn test_charge_transaction_payment_can_process_add_stake_err() {
     let coldkey_id = 0;
     let len = 200;
 
     test_ext_with_balances(vec![(coldkey_id, 0)]).execute_with(|| {
-        let result = ChargeTransactionPayment::<Test>::can_pay_add_stake(&coldkey_id, len);
+        let result = ChargeTransactionPayment::<Test>::can_process_add_stake(&coldkey_id, len);
         assert_eq!(result, Err(InvalidTransaction::Payment.into()));
     });
 }
 
 /************************************************************
-	ChargeTransactionPayment::can_pay_remove_stake() tests
+	ChargeTransactionPayment::can_process_remove_stake() tests
 ************************************************************/
 #[test]
-fn test_charge_transaction_payment_can_pay_remove_stake_ok_enough_balance() {
+fn test_charge_transaction_payment_can_process_remove_stake_ok_enough_balance() {
     let coldkey_id = 0;
     let hotkey_id = 1;
     let len = 200;
     test_ext_with_balances(vec![(coldkey_id, 100_000)]).execute_with(|| {
-        let result = ChargeTransactionPayment::<Test>::can_pay_remove_stake(&coldkey_id, &hotkey_id, len);
+        let result = ChargeTransactionPayment::<Test>::can_process_remove_stake(&coldkey_id, &hotkey_id, len);
         assert_eq!(result, Ok(20000));
     });
 }
 
 #[test]
-fn test_charge_transaction_payment_can_pay_remove_stake_ok_enough_stake() {
+fn test_charge_transaction_payment_can_process_remove_stake_ok_enough_stake() {
     let coldkey_id = 0;
     let hotkey_id = 1;
     let len = 200;
 
     new_test_ext().execute_with(|| {
         let adam = subscribe_ok_neuron(hotkey_id, coldkey_id);
-        let _ = SubtensorModule::add_stake_to_neuron_hotkey_account(adam.uid, 100_000);
-        let result = ChargeTransactionPayment::<Test>::can_pay_remove_stake(&coldkey_id, &hotkey_id, len);
+        let _ = SubtensorModule::add_stake_to_neuron(adam.uid, 100_000);
+        let result = ChargeTransactionPayment::<Test>::can_process_remove_stake(&coldkey_id, &hotkey_id, len);
         assert_eq!(result, Ok(20000));
     });
 }
 
 
 #[test]
-fn test_charge_transaction_payment_can_pay_remove_stake_err_insufficient_funds() {
+fn test_charge_transaction_payment_can_process_remove_stake_err_insufficient_funds() {
     let hotkey_id = 0;
     let coldkey_id = 1;
     let len = 200;
@@ -238,29 +261,29 @@ fn test_charge_transaction_payment_can_pay_remove_stake_err_insufficient_funds()
         let adam = subscribe_ok_neuron(hotkey_id, coldkey_id);
 
         assert_eq!(SubtensorModule::get_coldkey_balance(&coldkey_id), 0);
-        assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(adam.uid), 0);
+        assert_eq!(SubtensorModule::get_neuron_stake(adam.uid), 0);
 
-        let result = ChargeTransactionPayment::<Test>::can_pay_remove_stake(&coldkey_id, &hotkey_id, len);
+        let result = ChargeTransactionPayment::<Test>::can_process_remove_stake(&coldkey_id, &hotkey_id, len);
         assert_eq!(result, Err(InvalidTransaction::Payment.into()));
     });
 }
 
 /************************************************************
-	ChargeTransactionPayment::can_pay_subscribe() tests
+	ChargeTransactionPayment::can_process_subscribe() tests
 ************************************************************/
 #[test]
 fn test_charge_transaction_payment_subscribe_ok() {
     new_test_ext().execute_with(|| {
-        let result = ChargeTransactionPayment::<Test>::can_pay_subscribe();
+        let result = ChargeTransactionPayment::<Test>::can_process_subscribe();
         assert_eq!(result, Ok(0));
     });
 }
 
 /************************************************************
-	ChargeTransactionPayment::can_pay_other() tests
+	ChargeTransactionPayment::can_process_other() tests
 ************************************************************/
 #[test]
-fn test_charge_transaction_payment_can_pay_other_ok() {
+fn test_charge_transaction_payment_can_process_other_ok() {
     let coldkey_id = 0;
     let len = 200;
 
@@ -271,13 +294,13 @@ fn test_charge_transaction_payment_can_pay_other_ok() {
             pays_fee: Pays::Yes,
         };
 
-        let result = ChargeTransactionPayment::<Test>::can_pay_other(&info, &coldkey_id, len);
+        let result = ChargeTransactionPayment::<Test>::can_process_other(&info, &coldkey_id, len);
         assert_eq!(result, Ok(20000));
     });
 }
 
 #[test]
-fn test_test_charge_transaction_payment_can_pay_other_ok_does_not_pay() {
+fn test_test_charge_transaction_payment_can_process_other_ok_does_not_pay() {
     let coldkey_id = 0;
     let len = 200;
 
@@ -288,13 +311,13 @@ fn test_test_charge_transaction_payment_can_pay_other_ok_does_not_pay() {
             pays_fee: Pays::No,
         };
 
-        let result = ChargeTransactionPayment::<Test>::can_pay_other(&info, &coldkey_id, len);
+        let result = ChargeTransactionPayment::<Test>::can_process_other(&info, &coldkey_id, len);
         assert_eq!(result, Ok(20000));
     });
 }
 
 #[test]
-fn test_charge_transaction_payment_can_pay_other_err_no_balance() {
+fn test_charge_transaction_payment_can_process_other_err_no_balance() {
     let coldkey_id = 0;
     let len = 200;
 
@@ -305,23 +328,12 @@ fn test_charge_transaction_payment_can_pay_other_err_no_balance() {
             pays_fee: Pays::Yes,
         };
 
-        let result = ChargeTransactionPayment::<Test>::can_pay_other(&info, &coldkey_id, len);
+        let result = ChargeTransactionPayment::<Test>::can_process_other(&info, &coldkey_id, len);
         assert_eq!(result, Err(InvalidTransaction::Payment.into()));
     });
 }
 
 
-/************************************************************
-	ChargeTransactionPayment::get_priority_set_weights() tests
-************************************************************/
-#[test]
-fn test_charge_transaction_payment_get_priority_set_weights_ok() {
-    let transaction_fee = 200_000;
-    let len = 200;
-    new_test_ext().execute_with(|| {
-        assert_eq!(ChargeTransactionPayment::<Test>::get_priority_set_weights(transaction_fee, len), 1000);
-    });
-}
 
 /************************************************************
 	ChargeTransactionPayment::get_priority_vanilla() tests
@@ -353,11 +365,37 @@ fn test_charge_transaction_payment_validate_set_weights_ok() {
 
         let result = ChargeTransactionPayment::<Test>(PhantomData).validate(&coldkey_id, &call, &info, len);
         assert_eq!(result, Ok(ValidTransaction {
-            priority: 5,
+            priority: 0, // Priority for set_weights function is always 0
             longevity: 1,
             ..Default::default()
         }))
     });
+}
+
+#[test]
+fn test_charge_transaction_payment_validate_set_weights_v1_1_0_ok() {
+	new_test_ext().execute_with(|| {
+        let uid = 0;
+        let coldkey_id = 0;
+        let len = 200;
+        let transaction_fee = 500;
+        let initial_stake = 1_000_000_000;
+
+        test_ext_with_pending_emissions(vec![(uid, 100_000)]).execute_with(|| {
+            let adam = subscribe_ok_neuron(0, coldkey_id);
+            SubtensorModule::add_stake_to_neuron(adam.uid, initial_stake);
+
+            let call: mock::Call = SubtensorCall::set_weights_v1_1_0(vec![0], vec![0], transaction_fee).into();
+            let info = call.get_dispatch_info();
+
+            let result = ChargeTransactionPayment::<Test>(PhantomData).validate(&coldkey_id, &call, &info, len);
+            assert_eq!(result, Ok(ValidTransaction {
+                priority: transaction_fee, // Priority == transaction fee
+                longevity: 1,
+                ..Default::default()
+            }))
+        });
+	});
 }
 
 #[test]
@@ -440,31 +478,211 @@ fn test_charge_transaction_payment_validate_other_ok() {
     });
 }
 
+
+// @todo extend the pre_dispatch tests
 #[test]
-fn pre_dispatch_works() {
+fn test_pre_dispatch_set_weights_success() {
+    let hotkey_account_id = 1;
+    let coldkey_account_id = 42;
+
     new_test_ext().execute_with(|| {
-        let hotkey_account_id = 1;
-        let neuron = subscribe_neuron(hotkey_account_id, 10, 666, 4, 0, 66);
-        assert_ok!(SubtensorModule::set_weights(Origin::signed(hotkey_account_id), vec![neuron.uid], vec![u32::MAX]));
-        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, 1000000000); // Add the stake.
+        let _neuron = subscribe_ok_neuron(hotkey_account_id, coldkey_account_id);
         let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
         let info = DispatchInfo::default();
         let len = 10;
 
+        let result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len);
+        assert_ok!(&result);
 
-        let mut result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len).unwrap();
-        assert_eq!(result.0, CallType::SetWeights);
-        assert_eq!(result.1, 0);
-        assert_eq!(result.2, hotkey_account_id);
+        let result_data = result.unwrap();
 
-        run_to_block(1);
-
-        result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len).unwrap();
-        assert_eq!(result.0, CallType::SetWeights);
-        assert_eq!(result.1, 5_000_000);
-        assert_eq!(result.2, hotkey_account_id);
+        assert_eq!(result_data.0, CallType::SetWeights);
+        assert_eq!(result_data.1, 0);
+        assert_eq!(result_data.2, hotkey_account_id);
     });
 }
+
+#[test]
+fn test_pre_dispatch_set_weights_failed() {
+    let hotkey_account_id = 1;
+    let coldkey_account_id = 42;
+
+    new_test_ext().execute_with(|| {
+        // Fill available set_weights_slots, to prevent call from succeeding
+        fill_set_weights_slots(100);
+
+        let _neuron = subscribe_ok_neuron(hotkey_account_id, coldkey_account_id);
+        let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
+        let info = DispatchInfo::default();
+        let len = 10;
+
+        let result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len);
+        assert_eq!(result, Err(InvalidTransaction::Payment.into()));
+    });
+}
+
+
+#[test]
+fn test_pre_dispatch_set_weights_v1_1_0_ok() {
+    let hotkey_account_id = 1;
+    let coldkey_account_id = 42;
+    let transaction_fee = 5_000;
+    let initial_stake = 1_000_000;
+
+    new_test_ext().execute_with(|| {
+        let neuron = subscribe_ok_neuron(hotkey_account_id, coldkey_account_id);
+        SubtensorModule::add_stake_to_neuron(neuron.uid, initial_stake);
+
+        let call = SubtensorCall::set_weights_v1_1_0(vec![0], vec![0], transaction_fee).into();
+        let info = DispatchInfo::default();
+        let len = 10;
+
+        let result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len);
+        assert_ok!(&result);
+
+        let result_data = result.unwrap();
+
+        assert_eq!(result_data.0, CallType::SetWeights);
+        assert_eq!(result_data.1, transaction_fee);
+        assert_eq!(result_data.2, hotkey_account_id);
+    });
+}
+
+#[test]
+fn test_pre_dispatch_set_weights_v1_1_0_failed() {
+    let hotkey_account_id = 1;
+    let coldkey_account_id = 42;
+    let transaction_fee = 50;
+    let initial_stake = 1_000_000;
+
+    new_test_ext().execute_with(|| {
+        // Fill available set_weights_slots, to prevent call from succeeding
+        fill_set_weights_slots(100);
+
+        let neuron = subscribe_ok_neuron(hotkey_account_id, coldkey_account_id);
+        SubtensorModule::add_stake_to_neuron(neuron.uid, initial_stake);
+        let call = SubtensorCall::set_weights_v1_1_0(vec![0], vec![0], transaction_fee).into();
+        let info = DispatchInfo::default();
+        let len = 10;
+
+        let result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len);
+        assert_eq!(result, Err(InvalidTransaction::Payment.into()));
+    });
+}
+
+#[test]
+fn test_pre_dispatch_add_stake_success() {
+    let hotkey_id = 1;
+    let coldkey_id = 2 ;
+    let coldkey_balance = 1_000_000_000;
+    let stake = 5_000;
+
+	test_ext_with_balances(vec![(coldkey_id, coldkey_balance)]).execute_with(|| {
+	    let _neuron = subscribe_ok_neuron(hotkey_id, coldkey_id);
+        let call = SubtensorCall::add_stake(hotkey_id, stake).into();
+        let info = DispatchInfo::default();
+        let len = 10;
+
+        let result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&coldkey_id, &call, &info, len);
+        assert_ok!(&result);
+
+        let result_data = result.unwrap();
+        assert_eq!(result_data.0, CallType::AddStake);
+        assert_eq!(result_data.1, 1_000);
+        assert_eq!(result_data.2, coldkey_id);
+
+	});
+}
+
+#[test]
+fn test_pre_dispatch_add_stake_failed() {
+    let hotkey_id = 1;
+    let coldkey_id = 2 ;
+    let stake = 5_000;
+
+    new_test_ext().execute_with(|| {
+	    let _neuron = subscribe_ok_neuron(hotkey_id, coldkey_id);
+        let call = SubtensorCall::add_stake(hotkey_id, stake).into();
+        let info = DispatchInfo::default();
+        let len = 10;
+
+        // This test should fail because the coldkey does not have any balance
+        let result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&coldkey_id, &call, &info, len);
+        assert_eq!(result, Err(InvalidTransaction::Payment.into()));
+	});
+
+}
+
+#[test]
+fn test_pre_dispatch_remove_stake_success() {
+    let hotkey_id = 1;
+    let coldkey_id = 2 ;
+    let stake = 5_000;
+
+	new_test_ext().execute_with(|| {
+        let neuron = subscribe_ok_neuron(hotkey_id, coldkey_id);
+        SubtensorModule::add_stake_to_neuron(neuron.uid, stake);
+
+        let call = SubtensorCall::remove_stake(hotkey_id, stake).into();
+        let info = DispatchInfo::default();
+        let len = 10;
+
+        let result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&coldkey_id, &call, &info, len);
+        assert_ok!(&result);
+
+        let result_data = result.unwrap();
+        assert_eq!(result_data.0, CallType::RemoveStake);
+        assert_eq!(result_data.1, 1_000);
+        assert_eq!(result_data.2, coldkey_id);
+	});
+}
+
+#[test]
+fn test_pre_dispatch_remove_stake_failed() {
+    let hotkey_id = 1;
+    let coldkey_id = 2 ;
+    let stake = 5_000;
+
+	new_test_ext().execute_with(|| {
+        let _neuron = subscribe_ok_neuron(hotkey_id, coldkey_id);
+
+        let call = SubtensorCall::remove_stake(hotkey_id, stake).into();
+        let info = DispatchInfo::default();
+        let len = 10;
+
+        // This call fails because there is not enough balance in the cold key account nor enough stake
+        let result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&coldkey_id, &call, &info, len);
+        assert_eq!(result, Err(InvalidTransaction::Payment.into()));
+	});}
+
+
+#[test]
+fn test_pre_dispatch_subscribe_success() {
+    let hotkey_id = 1;
+    let coldkey_id = 2 ;
+    let ip = ipv4(8,8,8,8);
+
+	new_test_ext().execute_with(|| {
+        let _neuron = subscribe_ok_neuron(hotkey_id, coldkey_id);
+
+        let call = SubtensorCall::subscribe(ip,666,4,0,coldkey_id).into();
+        let info = DispatchInfo::default();
+        let len = 10;
+
+        // This call fails because there is not enough balance in the cold key account nor enough stake
+        let result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_id, &call, &info, len);
+        assert_ok!(&result);
+
+        let result_data = result.unwrap();
+        assert_eq!(result_data.0, CallType::Subscribe);
+        assert_eq!(result_data.1, 0);
+        assert_eq!(result_data.2, hotkey_id);
+	});
+}
+
+
+
+
 
 #[test]
 fn post_dispatch_works() {
@@ -475,14 +693,14 @@ fn post_dispatch_works() {
         let _adam = subscribe_ok_neuron(adam_id, 667);
         let neuron = subscribe_neuron(hotkey_account_id, 10, 666, 4, 0, 66);
         assert_ok!(SubtensorModule::set_weights(Origin::signed(hotkey_account_id), vec![neuron.uid], vec![u32::MAX]));
-        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, 1000000000); // Add the stake.
+        SubtensorModule::add_stake_to_neuron(neuron.uid, 1000000000); // Add the stake.
         let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
         let info = DispatchInfo::default();
         let len = 10;
         run_to_block(1);
 
         let result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len);
-        assert_ok!(result);
+        assert_ok!(&result);
 
         let pre = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len).unwrap();
         // assert!(ChargeTransactionPayment::<Test>::post_dispatch(pre, &info, &PostDispatchInfo {actual_weight: Some(0), pays_fee: Default::default()}, len, &Ok(())).is_ok());
@@ -497,7 +715,7 @@ fn test_post_dispatch_does_not_deposit_to_adam_on_error() {
         let _adam = subscribe_ok_neuron(adam_id, 667);
 
         // Adam should have no stake before operation
-        let result = SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(adam_id);
+        let result = SubtensorModule::get_neuron_stake(adam_id);
         assert_eq!(result, 0);
 
         let pre_dispatch_result = Err(Error::<Test>::DuplicateUids.into());
@@ -510,28 +728,31 @@ fn test_post_dispatch_does_not_deposit_to_adam_on_error() {
 
         let post_dispatch_result = ChargeTransactionPayment::<Test>::post_dispatch(pre_dispatch_data, &info, &post_dispatch_info, len, &pre_dispatch_result);
         assert_ok!(post_dispatch_result);
-        assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(adam_id), 0);
+        assert_eq!(SubtensorModule::get_neuron_stake(adam_id), 0);
     });
 }
 
 #[test]
-fn post_dispatch_deposit_to_transaction_fee_pool_works() {
-    new_test_ext().execute_with(|| {
-        // let adam_account_id = 0;
-        // let adam = subscribe_neuron(adam_account_id, 10, 666, 4, 0, 66);
-        let hotkey_account_id = 1;
-        let neuron = subscribe_neuron(hotkey_account_id, 10, 666, 4, 0, 66);
-        assert_ok!(SubtensorModule::set_weights(Origin::signed(hotkey_account_id), vec![neuron.uid], vec![u32::MAX]));
-        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, 1000000000); // Add the stake.
-        let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
-        let info = DispatchInfo::default();
-        let len = 10;
-        run_to_block(1);
-        let pre = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len).unwrap();
-        assert!(ChargeTransactionPayment::<Test>::post_dispatch(pre, &info, &PostDispatchInfo { actual_weight: Some(0), pays_fee: Default::default() }, len, &Ok(())).is_ok());
-        assert_eq!(SubtensorModule::get_transaction_fee_pool(), 5_000_000); // 1%
-    });
-}
+
+// @todo reimplement these
+// fn post_dispatch_deposit_to_transaction_fee_pool_works() {
+//     let hotkey_account_id = 1;
+//     let coldkey_account_id = 2;
+//     let stake = 1_000_000_000;
+//
+//     test_ext_with_stake(vec![(hotkey_account_id, stake)]).execute_with(|| {
+//         let neuron = subscribe_ok_neuron(hotkey_account_id, coldkey_account_id);
+//         let call = SubtensorCall::set_weights(vec![0], vec![0]).into();
+//         let info = DispatchInfo::default();
+//         let len = 10;
+//
+//         let pre = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&hotkey_account_id, &call, &info, len).unwrap();
+//         let result = ChargeTransactionPayment::<Test>::post_dispatch(pre, &info, &PostDispatchInfo { actual_weight: Some(0), pays_fee: Default::default() }, len, &Ok(()));
+//         assert_ok!(return);
+//
+//         assert_eq!(SubtensorModule::get_transaction_fee_pool(), 5_000_000); // 1%
+//     });
+// }
 
 /************************************************************
     These tests test if the sudo call and other calls
@@ -582,6 +803,6 @@ fn test_sudo_call_does_not_pay_transaction_fee() {
         assert_ok!(result);
 
         // Verify adam has not received any monies
-        assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(adam.uid), 0);
+        assert_eq!(SubtensorModule::get_neuron_stake(adam.uid), 0);
     });
 }

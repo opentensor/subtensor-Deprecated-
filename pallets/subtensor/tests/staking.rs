@@ -46,7 +46,7 @@ fn test_add_stake_transaction_fee_ends_up_in_transaction_fee_pool() {
 
 		// Verify start situation
         let start_balance = SubtensorModule::get_coldkey_balance(&test_neuron_cold_key);
-		let start_stake = SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(test_neuron.uid);
+		let start_stake = SubtensorModule::get_neuron_stake(test_neuron.uid);
 		assert_eq!(start_balance, 1_000_000_000);
 		assert_eq!(start_stake, 0);
 
@@ -58,9 +58,11 @@ fn test_add_stake_transaction_fee_ends_up_in_transaction_fee_pool() {
 
 		let end_balance = SubtensorModule::get_coldkey_balance(&test_neuron_cold_key);
 		let transaction_fee_pool = SubtensorModule::get_transaction_fee_pool();
+		let end_stake = SubtensorModule::get_neuron_stake(test_neuron.uid);
 
 		assert_eq!(end_balance, 499_997_100);
 		assert_eq!(transaction_fee_pool, 2900);
+		assert_eq!(end_stake, 500_000_000);
 	});
 }
 
@@ -82,7 +84,7 @@ fn test_add_stake_ok_no_emission() {
 		SubtensorModule::add_balance_to_coldkey_account(&coldkey_account_id, 10000);
 
 		// Check we have zero staked before transfer
-		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid), 0);
+		assert_eq!(SubtensorModule::get_neuron_stake(neuron.uid), 0);
 
 		// Also total stake should be zero
 		assert_eq!(SubtensorModule::get_total_stake(), 0);
@@ -91,7 +93,7 @@ fn test_add_stake_ok_no_emission() {
 		assert_ok!(SubtensorModule::add_stake(<<Test as Trait>::Origin>::signed(coldkey_account_id), hotkey_account_id, 10000));
 
 		// Check if stake has increased
-		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid), 10000);
+		assert_eq!(SubtensorModule::get_neuron_stake(neuron.uid), 10000);
 
 		// Check if balance has  decreased
 		assert_eq!(SubtensorModule::get_coldkey_balance(&coldkey_account_id), 0);
@@ -126,10 +128,10 @@ fn test_add_stake_ok_with_emission() {
 		SubtensorModule::add_balance_to_coldkey_account(&coldkey_account_id, transfer_amount.into());
 
 		// Add some stake to the hotkey account, so we can test for emission before the transfer takes place
-		SubtensorModule::add_stake_to_neuron_hotkey_account(neuron_src.uid, initial_stake);
+		SubtensorModule::add_stake_to_neuron(neuron_src.uid, initial_stake);
 
 		// Check if the initial stake has arrived
-		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron_src.uid), initial_stake);
+		assert_eq!(SubtensorModule::get_neuron_stake(neuron_src.uid), initial_stake);
 
 		// Run a couple of blocks to check if emission works
 		run_to_block(5);
@@ -138,7 +140,7 @@ fn test_add_stake_ok_with_emission() {
 		assert_ok!(SubtensorModule::do_add_stake(Origin::signed(coldkey_account_id), neuron_src_hotkey_id, transfer_amount));
 
 		// Check if the stake is equal to the inital stake + transfer
-		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron_src.uid), initial_stake + transfer_amount);
+		assert_eq!(SubtensorModule::get_neuron_stake(neuron_src.uid), initial_stake + transfer_amount);
 
 		// Check if the balance has been reduced by the transfer amount
 		assert_eq!(SubtensorModule::get_coldkey_balance(&coldkey_account_id), 0);
@@ -147,7 +149,7 @@ fn test_add_stake_ok_with_emission() {
 		assert!(SubtensorModule::get_total_stake() > initial_stake + transfer_amount);
 
 		// Check if the destination neuron has received emission
-		assert!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron_dest.uid) > 0);
+		assert!(SubtensorModule::get_neuron_stake(neuron_dest.uid) > 0);
 	});
 }
 
@@ -239,7 +241,7 @@ fn test_remove_stake_ok_transaction_fee_ends_up_in_transaction_fee_pool() {
 		assert_ok!(SubtensorModule::add_stake(Origin::signed(coldkey_id), hotkey_id, initial_stake));
 
 
-		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(hotkey_id), 1_000_000_000);
+		assert_eq!(SubtensorModule::get_neuron_stake(hotkey_id), 1_000_000_000);
 
 		let call = Call::SubtensorModule(SubtensorCall::remove_stake(hotkey_id, 500_000_000));
 		let xt = TestXt::new(call, mock::sign_extra(coldkey_id, 0));
@@ -263,17 +265,17 @@ fn test_remove_stake_ok_no_emission() {
 
 		// Some basic assertions
 		assert_eq!(SubtensorModule::get_total_stake(), 0);
-		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid), 0);
+		assert_eq!(SubtensorModule::get_neuron_stake(neuron.uid), 0);
 		assert_eq!(SubtensorModule::get_coldkey_balance(&coldkey_account_id), 0);
 
 		// Give the neuron some stake to remove
-		SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, amount);
+		SubtensorModule::add_stake_to_neuron(neuron.uid, amount);
 
 		// Do the magic
 		assert_ok!(SubtensorModule::remove_stake(<<Test as Trait>::Origin>::signed(coldkey_account_id), hotkey_account_id, amount));
 
 		assert_eq!(SubtensorModule::get_coldkey_balance(&coldkey_account_id), amount as u128);
-		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid), 0);
+		assert_eq!(SubtensorModule::get_neuron_stake(neuron.uid), 0);
 	});
 }
 
@@ -295,11 +297,11 @@ fn test_remove_stake_ok_with_emission() {
 		let _ = SubtensorModule::set_weights(Origin::signed(hotkey_neuron_src), vec![neuron_dest.uid], vec![100]);
 
 		// Add the stake to the hotkey account
-		SubtensorModule::add_stake_to_neuron_hotkey_account(neuron_src.uid, initial_amount);
+		SubtensorModule::add_stake_to_neuron(neuron_src.uid, initial_amount);
 
 		// Some basic assertions
 		assert_eq!(SubtensorModule::get_total_stake(), initial_amount);
-		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron_src.uid), initial_amount);
+		assert_eq!(SubtensorModule::get_neuron_stake(neuron_src.uid), initial_amount);
 		assert_eq!(SubtensorModule::get_coldkey_balance(&coldkey_account_id), 0);
 
 		// Run a couple of blocks
@@ -309,7 +311,7 @@ fn test_remove_stake_ok_with_emission() {
 		assert_ok!(SubtensorModule::remove_stake(Origin::signed(coldkey_account_id), hotkey_neuron_src, amount));
 
 		// The amount of stake left should be the same as the inital amount and the removed amount
-		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron_src.uid), initial_amount - amount);
+		assert_eq!(SubtensorModule::get_neuron_stake(neuron_src.uid), initial_amount - amount);
 
 		// The total stake should be bigger than the initial amount - amount
 		assert!(SubtensorModule::get_total_stake() > initial_amount - amount);
@@ -318,7 +320,7 @@ fn test_remove_stake_ok_with_emission() {
 		assert_eq!(SubtensorModule::get_coldkey_balance(&coldkey_account_id), amount as u128);
 
 		// The stake of neuron_dest should be > 0, due to emission to this neuron
-		assert!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron_dest.uid) > 0);
+		assert!(SubtensorModule::get_neuron_stake(neuron_dest.uid) > 0);
 	});
 }
 
@@ -370,10 +372,10 @@ fn test_remove_stake_no_enough_stake() {
 
 		let neuron = subscribe_ok_neuron(hotkey_id, coldkey_id);
 
-		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid), 0);
+		assert_eq!(SubtensorModule::get_neuron_stake(neuron.uid), 0);
 
 		let result = SubtensorModule::remove_stake(<<Test as Trait>::Origin>::signed(coldkey_id), hotkey_id, amount);
-		assert_eq!(result, Err(Error::<Test>::NotEnoughStaketoWithdraw.into()));
+		assert_eq!(result, Err(Error::<Test>::NotEnoughStake.into()));
 	});
 }
 
@@ -428,10 +430,10 @@ fn test_add_stake_to_neuron_hotkey_account_ok() {
 		assert_eq!(SubtensorModule::get_total_stake(), 0);
 
 		// Gogogo
-		SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, amount);
+		SubtensorModule::add_stake_to_neuron(neuron.uid, amount);
 
 		// The stake that is now in the account, should equal the amount
-		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid), amount);
+		assert_eq!(SubtensorModule::get_neuron_stake(neuron.uid), amount);
 
 		// The total stake should have been increased by the amount -> 0 + amount = amount
 		assert_eq!(SubtensorModule::get_total_stake(), amount);
@@ -451,17 +453,17 @@ fn test_remove_stake_from_hotkey_account() {
 		let neuron = subscribe_ok_neuron(hotkey_id, coldkey_id);
 
 		// Add some stake that can be removed
-		SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, amount);
+		SubtensorModule::add_stake_to_neuron(neuron.uid, amount);
 
 		// Prelimiary checks
 		assert_eq!(SubtensorModule::get_total_stake(), amount);
-		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid), amount);
+		assert_eq!(SubtensorModule::get_neuron_stake(neuron.uid), amount);
 
 		// Remove stake
 		SubtensorModule::remove_stake_from_neuron_hotkey_account(neuron.uid, amount);
 
 		// The stake on the hotkey account should be 0
-		assert_eq!(SubtensorModule::get_stake_of_neuron_hotkey_account_by_uid(neuron.uid), 0);
+		assert_eq!(SubtensorModule::get_neuron_stake(neuron.uid), 0);
 
 		// The total amount of stake should be 0
 		assert_eq!(SubtensorModule::get_total_stake(), 0);
@@ -640,7 +642,7 @@ fn test_has_enough_stake_yes() {
 
 		let neuron = subscribe_ok_neuron(hotkey_id, coldkey_id);
 
-		SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, intial_amount);
+		SubtensorModule::add_stake_to_neuron(neuron.uid, intial_amount);
 		assert_eq!(SubtensorModule::has_enough_stake(&neuron, 5000), true);
 	});
 }
@@ -654,7 +656,7 @@ fn test_has_enough_stake_no() {
 
 		let neuron = subscribe_ok_neuron(hotkey_id, coldkey_id);
 
-		SubtensorModule::add_stake_to_neuron_hotkey_account(neuron.uid, intial_amount);
+		SubtensorModule::add_stake_to_neuron(neuron.uid, intial_amount);
 		assert_eq!(SubtensorModule::has_enough_stake(&neuron, 5000), false);
 
 	});
@@ -698,8 +700,8 @@ fn test_calculate_stake_fraction_for_neuron_ok() {
 		];
 
 		// Add stake to neurons
-		SubtensorModule::add_stake_to_neuron_hotkey_account(neurons[0].uid, intial_stakes[0]);
-		SubtensorModule::add_stake_to_neuron_hotkey_account(neurons[1].uid, intial_stakes[1]);
+		SubtensorModule::add_stake_to_neuron(neurons[0].uid, intial_stakes[0]);
+		SubtensorModule::add_stake_to_neuron(neurons[1].uid, intial_stakes[1]);
 
 		// Total stake should now be 200000
 		assert_eq!(SubtensorModule::get_total_stake(), 20000);
@@ -744,8 +746,8 @@ fn test_calculate_stake_fraction_for_neuron_no_neuron_stake() {
 		];
 
 		// Add stake to neurons
-		SubtensorModule::add_stake_to_neuron_hotkey_account(neurons[0].uid, intial_stakes[0]);
-		SubtensorModule::add_stake_to_neuron_hotkey_account(neurons[1].uid, intial_stakes[1]);
+		SubtensorModule::add_stake_to_neuron(neurons[0].uid, intial_stakes[0]);
+		SubtensorModule::add_stake_to_neuron(neurons[1].uid, intial_stakes[1]);
 
 		// Total stake should now be 100000
 		assert_eq!(SubtensorModule::get_total_stake(), 10000);
