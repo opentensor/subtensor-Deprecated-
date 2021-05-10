@@ -298,7 +298,7 @@ impl<T: Trait> Module<T> {
     /// Calculates the proportion of the stake a neuron has to the total stake.
     /// As such, the result of this function should ALWAYS be a number between
     /// 0 and 1 (inclusive).
-    pub fn calulate_stake_fraction(stake: u64, total_stake: u64) -> U64F64 {
+    pub fn calculate_stake_fraction(stake: u64, total_stake: u64) -> U64F64 {
         return U64F64::from_num(stake) / U64F64::from_num(total_stake);
     }
 }

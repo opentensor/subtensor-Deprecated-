@@ -178,6 +178,12 @@ impl<T: Trait> Module<T> {
         return result.round().to_num::<u64>();
     }
 
+    // Returns the total stake of active neurons that have emitted 
+    // within the last 10,000 blocks. This function is used by the
+    // update_pending_emission function to calculate the stake
+    // fraction. 
+    // This function is important as it makes sure that 
+    // dead miners do not get rewarded any stake.
     pub fn get_total_active_stake() -> u64 {
         let total_active = 0;
         for (uid,  neuron_stake) in <Stake as IterableStorageMap<u64, u64>>::iter() {
@@ -211,7 +217,7 @@ impl<T: Trait> Module<T> {
 
         for (uid, neuron_stake) in <Stake as IterableStorageMap<u64, u64>>::iter() {
             if neuron_stake == 0 { continue; }
-            let stake_fraction = Self::calulate_stake_fraction(neuron_stake, total_stake);
+            let stake_fraction = Self::calculate_stake_fraction(neuron_stake, total_stake);
             let new_emission = Self::calculate_new_emission(block_reward, stake_fraction);
             Self::update_pending_emission_for_neuron(uid, new_emission);
 
