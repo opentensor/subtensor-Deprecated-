@@ -204,20 +204,34 @@ fn test_charge_transaction_payment_can_process_set_weights_failed_no_slots() {
 fn test_charge_transaction_payment_can_process_add_stake_ok() {
     let coldkey_id = 0;
     let len = 200;
+    let stake_added = 5000;
 
     test_ext_with_balances(vec![(coldkey_id, 1_000_000_000)]).execute_with(|| {
-        let result = ChargeTransactionPayment::<Test>::can_process_add_stake(&coldkey_id, len);
+        let result = ChargeTransactionPayment::<Test>::can_process_add_stake(&coldkey_id, len, stake_added);
         assert_eq!(result, Ok(20000));
     });
 }
 
 #[test]
-fn test_charge_transaction_payment_can_process_add_stake_err() {
+fn test_charge_transaction_payment_can_process_add_stake_insufficient_funds() {
     let coldkey_id = 0;
     let len = 200;
+    let stake_added = 5000;
 
     test_ext_with_balances(vec![(coldkey_id, 0)]).execute_with(|| {
-        let result = ChargeTransactionPayment::<Test>::can_process_add_stake(&coldkey_id, len);
+        let result = ChargeTransactionPayment::<Test>::can_process_add_stake(&coldkey_id, len, stake_added);
+        assert_eq!(result, Err(InvalidTransaction::Payment.into()));
+    });
+}
+
+#[test]
+fn test_test_charge_transaction_payment_can_process_add_stake_insufficient_funds_for_transaction() {
+	let coldkey_id = 0;
+    let len = 20;
+    let stake_added = 5_000;
+
+    test_ext_with_balances(vec![(coldkey_id, 5_000)]).execute_with(|| {
+        let result = ChargeTransactionPayment::<Test>::can_process_add_stake(&coldkey_id, len, stake_added);
         assert_eq!(result, Err(InvalidTransaction::Payment.into()));
     });
 }
@@ -230,8 +244,10 @@ fn test_charge_transaction_payment_can_process_remove_stake_ok_enough_balance() 
     let coldkey_id = 0;
     let hotkey_id = 1;
     let len = 200;
+    let stake_removed = 5_000;
+
     test_ext_with_balances(vec![(coldkey_id, 100_000)]).execute_with(|| {
-        let result = ChargeTransactionPayment::<Test>::can_process_remove_stake(&coldkey_id, &hotkey_id, len);
+        let result = ChargeTransactionPayment::<Test>::can_process_remove_stake(&coldkey_id, &hotkey_id, len, stake_removed);
         assert_eq!(result, Ok(20000));
     });
 }
@@ -241,11 +257,12 @@ fn test_charge_transaction_payment_can_process_remove_stake_ok_enough_stake() {
     let coldkey_id = 0;
     let hotkey_id = 1;
     let len = 200;
+    let stake_removed = 5_000;
 
     new_test_ext().execute_with(|| {
         let adam = subscribe_ok_neuron(hotkey_id, coldkey_id);
         let _ = SubtensorModule::add_stake_to_neuron(adam.uid, 100_000);
-        let result = ChargeTransactionPayment::<Test>::can_process_remove_stake(&coldkey_id, &hotkey_id, len);
+        let result = ChargeTransactionPayment::<Test>::can_process_remove_stake(&coldkey_id, &hotkey_id, len, stake_removed);
         assert_eq!(result, Ok(20000));
     });
 }
@@ -256,6 +273,7 @@ fn test_charge_transaction_payment_can_process_remove_stake_err_insufficient_fun
     let hotkey_id = 0;
     let coldkey_id = 1;
     let len = 200;
+    let stake_removed = 1_000;
 
     new_test_ext().execute_with(|| {
         let adam = subscribe_ok_neuron(hotkey_id, coldkey_id);
@@ -263,7 +281,26 @@ fn test_charge_transaction_payment_can_process_remove_stake_err_insufficient_fun
         assert_eq!(SubtensorModule::get_coldkey_balance(&coldkey_id), 0);
         assert_eq!(SubtensorModule::get_neuron_stake(adam.uid), 0);
 
-        let result = ChargeTransactionPayment::<Test>::can_process_remove_stake(&coldkey_id, &hotkey_id, len);
+        let result = ChargeTransactionPayment::<Test>::can_process_remove_stake(&coldkey_id, &hotkey_id, len, stake_removed);
+        assert_eq!(result, Err(InvalidTransaction::Payment.into()));
+    });
+}
+
+#[test]
+fn test_charge_transaction_payment_can_process_remove_stake_err_insufficient_funds_for_transaction_fee() {
+    let hotkey_id = 0;
+    let coldkey_id = 1;
+    let len = 200;
+    let stake_removed = 5_000;
+
+    new_test_ext().execute_with(|| {
+        let adam = subscribe_ok_neuron(hotkey_id, coldkey_id);
+        let _ = SubtensorModule::add_stake_to_neuron(adam.uid, 5_000);
+
+        assert_eq!(SubtensorModule::get_coldkey_balance(&coldkey_id), 0);
+        assert_eq!(SubtensorModule::get_neuron_stake(adam.uid), 5_000);
+
+        let result = ChargeTransactionPayment::<Test>::can_process_remove_stake(&coldkey_id, &hotkey_id, len, stake_removed);
         assert_eq!(result, Err(InvalidTransaction::Payment.into()));
     });
 }
@@ -617,15 +654,15 @@ fn test_pre_dispatch_add_stake_failed() {
 fn test_pre_dispatch_remove_stake_success() {
     let hotkey_id = 1;
     let coldkey_id = 2 ;
-    let stake = 5_000;
+    let len = 10;
+    let stake_and_fee = 5_000 + 1_000;
 
 	new_test_ext().execute_with(|| {
         let neuron = subscribe_ok_neuron(hotkey_id, coldkey_id);
-        SubtensorModule::add_stake_to_neuron(neuron.uid, stake);
+        SubtensorModule::add_stake_to_neuron(neuron.uid, stake_and_fee);
 
-        let call = SubtensorCall::remove_stake(hotkey_id, stake).into();
+        let call = SubtensorCall::remove_stake(hotkey_id, 5_000).into();
         let info = DispatchInfo::default();
-        let len = 10;
 
         let result = ChargeTransactionPayment::<Test>(PhantomData).pre_dispatch(&coldkey_id, &call, &info, len);
         assert_ok!(&result);

@@ -26,7 +26,6 @@ impl<T: Trait> Module<T> {
         // --- We call the emit function for the associated hotkey. Neurons must call an emit before they change 
         // their stake or else can cheat the system by adding stake just before
         // and emission to maximize their inflation.
-        // TODO(const): can we pay for this transaction through inflation.
         Self::emit_for_neuron(&neuron);
 
         // ---- We check that the calling coldkey contains enough funds to
