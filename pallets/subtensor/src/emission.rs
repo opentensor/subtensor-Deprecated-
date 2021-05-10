@@ -178,6 +178,16 @@ impl<T: Trait> Module<T> {
         return result.round().to_num::<u64>();
     }
 
+    pub fn get_total_active_stake() -> u64 {
+        let total_active = 0;
+        for (uid,  neuron_stake) in <Stake as IterableStorageMap<u64, u64>>::iter() {
+            if Self::get_last_emit_for_neuron(uid) < 10000 {
+                total_active += neuron_stake
+            }
+        }
+        return total_active
+    }
+
     /// Sets the pending emission for all active peers based on a single block transition.
     ///
     /// This function is called every time a new block is started. ie, before the processing of
@@ -193,7 +203,7 @@ impl<T: Trait> Module<T> {
     pub fn update_pending_emissions() -> u64 {
         let mut weight = 0;
         let block_reward = Self::get_reward_for_current_block();
-        let total_stake = Self::get_total_stake();
+        let total_stake = Self::get_total_active_stake();
 
         if total_stake == 0 {
             return weight;
