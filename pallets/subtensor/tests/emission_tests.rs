@@ -547,19 +547,21 @@ fn test_update_pending_emission_for_neuron_not_ok() {
 
         let hotkey_account_id_3 = 3;
         let neuron_3 = subscribe_neuron(hotkey_account_id_3, 10, 666, 4, 0, 66);
+        
+        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron_1.uid, 100000000); // Add the stake.
+        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron_2.uid, 100000000); // Add the stake.
+        SubtensorModule::add_stake_to_neuron_hotkey_account(neuron_3.uid, 100000000); // Add the stake.
 
         assert_eq!(SubtensorModule::get_total_active_stake(block_lookback), 300000000);
-        assert_eq!(SubtensorModule::update_pending_emissions();, 3);
+        assert_eq!(SubtensorModule::update_pending_emissions(), 3);
 
         run_to_block(20000);
-
         SubtensorModule::update_last_emit_for_neuron(neuron_1.uid);
         SubtensorModule::update_last_emit_for_neuron(neuron_2.uid);
         SubtensorModule::update_last_emit_for_neuron(neuron_3.uid);
 
+        assert_eq!(SubtensorModule::update_pending_emissions(), 0);
 
-        assert_eq!(SubtensorModule::update_pending_emissions();, 0);
-        
 	});
 }
 
