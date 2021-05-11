@@ -219,11 +219,11 @@ impl<T: Trait> Module<T> {
         for (uid, neuron_stake) in <Stake as IterableStorageMap<u64, u64>>::iter() {
             if neuron_stake == 0 { continue; }
             if Self::get_last_emit_for_neuron(uid) < block_lookback {
-            let stake_fraction = Self::calculate_stake_fraction(neuron_stake, total_stake);
-            let new_emission = Self::calculate_new_emission(block_reward, stake_fraction);
-            Self::update_pending_emission_for_neuron(uid, new_emission);
+                let stake_fraction = Self::calculate_stake_fraction(neuron_stake, total_stake);
+                let new_emission = Self::calculate_new_emission(block_reward, stake_fraction);
+                Self::update_pending_emission_for_neuron(uid, new_emission);
 
-            weight += 1;
+                weight += 1;
             }
         }
         weight

@@ -535,6 +535,34 @@ fn test_update_pending_emission_for_neuron_ok() {
 	});
 }
 
+#[test]
+fn test_update_pending_emission_for_neuron_not_ok() {
+	new_test_ext().execute_with(|| {
+        let block_lookback = BlockNumber::from(10000 as u64);
+        let hotkey_account_id_1 = 1;
+        let neuron_1 = subscribe_neuron(hotkey_account_id_1, 10, 666, 4, 0, 66);
+        
+        let hotkey_account_id_2 = 2;
+        let neuron_2 = subscribe_neuron(hotkey_account_id_2, 10, 666, 4, 0, 66);
+
+        let hotkey_account_id_3 = 3;
+        let neuron_3 = subscribe_neuron(hotkey_account_id_3, 10, 666, 4, 0, 66);
+
+        assert_eq!(SubtensorModule::get_total_active_stake(block_lookback), 300000000);
+        assert_eq!(SubtensorModule::update_pending_emissions();, 3);
+
+        run_to_block(20000);
+
+        SubtensorModule::update_last_emit_for_neuron(neuron_1.uid);
+        SubtensorModule::update_last_emit_for_neuron(neuron_2.uid);
+        SubtensorModule::update_last_emit_for_neuron(neuron_3.uid);
+
+
+        assert_eq!(SubtensorModule::update_pending_emissions();, 0);
+        
+	});
+}
+
 
 pub fn close(x:u64, y:u64, d:u64) -> bool {
     if x > y {
