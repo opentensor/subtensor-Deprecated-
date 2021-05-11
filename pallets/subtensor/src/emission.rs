@@ -184,10 +184,10 @@ impl<T: Trait> Module<T> {
     // fraction. 
     // This function is important as it removes the influence of dead stake,
     // so that miners can get a larger proportion.
-    pub fn get_total_active_stake() -> u64 {
-        let total_active = 0;
+    pub fn get_total_active_stake(block_lookback: T::BlockNumber) -> u64 {
+        let mut total_active = 0;
         for (uid,  neuron_stake) in <Stake as IterableStorageMap<u64, u64>>::iter() {
-            if Self::get_last_emit_for_neuron(uid) < 10000 {
+            if Self::get_last_emit_for_neuron(uid) < block_lookback {
                 total_active += neuron_stake
             }
         }
@@ -208,8 +208,9 @@ impl<T: Trait> Module<T> {
     /// At this point, the PendingEmission is reset, and this cycle starts again.
     pub fn update_pending_emissions() -> u64 {
         let mut weight = 0;
+        let block_lookback = T::BlockNumber::from(10000);
         let block_reward = Self::get_reward_for_current_block();
-        let total_stake = Self::get_total_active_stake();
+        let total_stake = Self::get_total_active_stake(block_lookback);
 
         if total_stake == 0 {
             return weight;
@@ -217,12 +218,12 @@ impl<T: Trait> Module<T> {
 
         for (uid, neuron_stake) in <Stake as IterableStorageMap<u64, u64>>::iter() {
             if neuron_stake == 0 { continue; }
-            if Self::get_last_emit_for_neuron(uid) < 10000 {
-                let stake_fraction = Self::calculate_stake_fraction(neuron_stake, total_stake);
-                let new_emission = Self::calculate_new_emission(block_reward, stake_fraction);
-                Self::update_pending_emission_for_neuron(uid, new_emission);
-    
-                weight += 1;
+            if Self::get_last_emit_for_neuron(uid) < block_lookback {
+            let stake_fraction = Self::calculate_stake_fraction(neuron_stake, total_stake);
+            let new_emission = Self::calculate_new_emission(block_reward, stake_fraction);
+            Self::update_pending_emission_for_neuron(uid, new_emission);
+
+            weight += 1;
             }
         }
         weight
