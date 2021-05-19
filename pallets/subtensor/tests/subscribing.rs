@@ -190,9 +190,9 @@ fn test_subsribe_resubrice_emit_does_not_change() {
 		// Let's move the block counter again to simulate a jump
 		run_to_block(100);
 
-		// A subsequent call to subscribe should not change the last emit
+		// A subsequent call to subscribe *should* change your last emit (reflecting the resubscribe)
 		neuron = subscribe_ok_neuron(hotkey_id, coldkey_id);
-		assert_eq!(SubtensorModule::get_last_emit_for_neuron(neuron.uid), 10);
+		assert_eq!(SubtensorModule::get_last_emit_for_neuron(neuron.uid), 100);
 	});
 }
 
