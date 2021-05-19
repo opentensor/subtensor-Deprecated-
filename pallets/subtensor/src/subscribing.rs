@@ -41,6 +41,7 @@ impl<T: Trait> Module<T> {
             // --- If the neuron is already subscribed, we allow an update to their
             // modality and ip.
             let neuron = Self::update_neuron_in_metagraph(uid, ip, port, ip_type);
+            Self::update_last_emit_for_neuron(neuron.uid);
 
             // --- We call the emit for the resubscribe.
             Self::emit_for_neuron( &neuron );
