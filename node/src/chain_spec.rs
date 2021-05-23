@@ -152,6 +152,40 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 }
 
 /// *************************************
+/// EXODUS MAIN NET CONFIG
+/// *************************************
+pub fn kusanagi_mainnet_config() -> Result<ChainSpec, String> {
+	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
+
+	Ok(ChainSpec::from_genesis(
+		"Exodus bittensor main net",
+		"exodus_mainnet",
+		ChainType::Live,
+		move || network_genesis(
+			wasm_binary,
+			vec![
+				authority_keys_from_ss58("5CJEfuCe7QEztdnHJEBiXsfGynEAmnTfa5DDdiXxP7zPSqQG", "5F7ia4UqyimKaJuvTQnFsRNJhSX2UiM5sFXcWmGjAPtDnwpc"), // jarvis
+				authority_keys_from_ss58("5HgnTqtdTaAjjVPg2VRaHiytDJzG3Tr9bmEi46sk3pCxuKPo", "5FLdFNe3SnHCZxgRGJKQoBroeXWKPC48AkgHwH7rNoTEX5L4"), // genisys
+				authority_keys_from_ss58("5Fsrw5m78ckJ2v5KqPo7QE6Axrmt5TatB2E16eD2ruAh3CCn", "5DQVooh4NVUpQdFkrv58myP5F7TTjMkMAF1YKxKJFJQE7FQc"), // hal
+				authority_keys_from_ss58("5DRU4az6QWpBmNkAtsYMjaV5qRx1X9jLcZYKq7EKgM4noWn8", "5Do8YhJpniwzzDZchtNNynn5gzp32Syv7DHjVekpDdwtcUik"), // wopr
+				authority_keys_from_ss58("5HdtW1gDZorC89Un8PzPpMXtYPTp4Fybst6mzLg1TDpL8hBm", "5H3jUpgQ5nJXszJxStR9LgRMf1qCyfn417pxh5pYzwwRukAo"), // gibson
+				authority_keys_from_ss58("5Cz9opG7WReFPxu6EdvWaxDTQy5Lk8A4idLMYidijjhUq4sh", "5GgZ8yNBc5vWFJPUgEuDW3Q7vVEoBBwo2RFA8A2gJ6TKoeMs"), // glados
+			],
+			AccountId::from_ss58check("5GbSmaoza9rzDViaLTmFS2vhjobEQdv93cekXYAJ6XPstMej").unwrap(),
+			vec![
+				AccountId::from_ss58check("5FCJNwo2MSnHBEgoydnXt1aLGdFL6pCmpte476nFQ4X5vmxe").unwrap(), // Adam
+			],
+			true,
+		),
+		vec![],
+		None,
+		None,
+		None,
+		None,
+	))
+}
+
+/// *************************************
 /// KUSANAGI MAIN NET CONFIGURATION
 /// *************************************
 pub fn kusanagi_mainnet_config() -> Result<ChainSpec, String> {
@@ -164,7 +198,7 @@ pub fn kusanagi_mainnet_config() -> Result<ChainSpec, String> {
 		move || network_genesis(
 			wasm_binary,
 			vec![
-				authority_keys_from_ss58("5CJEfuCe7QEztdnHJEBiXsfGynEAmnTfa5DDdiXxP7zPSqQG","5F7ia4UqyimKaJuvTQnFsRNJhSX2UiM5sFXcWmGjAPtDnwpc"), // jarvis
+				authority_keys_from_ss58("5CJEfuCe7QEztdnHJEBiXsfGynEAmnTfa5DDdiXxP7zPSqQG", "5F7ia4UqyimKaJuvTQnFsRNJhSX2UiM5sFXcWmGjAPtDnwpc"), // jarvis
 				authority_keys_from_ss58("5HgnTqtdTaAjjVPg2VRaHiytDJzG3Tr9bmEi46sk3pCxuKPo", "5FLdFNe3SnHCZxgRGJKQoBroeXWKPC48AkgHwH7rNoTEX5L4"), // genisys
 				authority_keys_from_ss58("5Fsrw5m78ckJ2v5KqPo7QE6Axrmt5TatB2E16eD2ruAh3CCn", "5DQVooh4NVUpQdFkrv58myP5F7TTjMkMAF1YKxKJFJQE7FQc"), // hal
 				authority_keys_from_ss58("5DRU4az6QWpBmNkAtsYMjaV5qRx1X9jLcZYKq7EKgM4noWn8", "5Do8YhJpniwzzDZchtNNynn5gzp32Syv7DHjVekpDdwtcUik"), // wopr

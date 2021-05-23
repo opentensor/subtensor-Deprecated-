@@ -199,6 +199,7 @@ fn test_subsribe_resubrice_emit_does_not_change() {
 #[test]
 fn test_subscribe_update_ok() {
 	new_test_ext().execute_with(|| {
+		
 		let hotkey_account_id = 1;
 		let ip = ipv4(8,8,8,8);
 		let ip_type = 4;
