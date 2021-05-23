@@ -154,7 +154,7 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 /// *************************************
 /// EXODUS MAIN NET CONFIG
 /// *************************************
-pub fn kusanagi_mainnet_config() -> Result<ChainSpec, String> {
+pub fn exodus_mainnet_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
 
 	Ok(ChainSpec::from_genesis(
