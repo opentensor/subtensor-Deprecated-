@@ -164,12 +164,12 @@ pub fn akatsuki_config() -> Result<ChainSpec, String> {
 		move || network_genesis(
 			wasm_binary,
 			vec![
-				authority_keys_from_ss58("5EjXbAUonuChmgHY3iAVYsmBi4csm2v1oS2g6eBdDUYDv6iq", "5Cvwdk1H7RdGLTpjp1TdQnM95BwekrNwZLr2RHueXjNLKm3e"), // Paul
-				authority_keys_from_ss58("5CA2AtuwmExwB68n1PK6GN98u4JnYLeTHWoJjCyL3Tg2LiZa", "5DRRQEz2vHtdUb8Xja9PB8MkX7crB86JTHR69FDmw31UMPyB"), // Philip
-				authority_keys_from_ss58("5HEDGbGSv8Nyi1DS2Z6Y4Po9Nj9HsAVu3PDq1skShWid4pfd", "5DUDRrNPDqyJyCLJEGgzPHB2amifhZrcjT9qQQp9WPNJG7jV"), // Andrew
-				authority_keys_from_ss58("5DMHRmr6i4eKC9MBntUfxJ3QCPagGRnzrDynbtgAXFRnWkrc", "5Giov43aiFD86VgTGGWawG7mBpmZE88ohEAXHvc5nRkUxW9e"), // James
-				authority_keys_from_ss58("5CAkLYRMs35ZNkmm69t1UmuJquk8FoBoSvfSe4rjwf1nSjpF", "5D7tPPA6MkyRU6hEUtFGnzgMyKAh785rQzLERLMQxgBfYnMf"), // John
-				authority_keys_from_ss58("5FusgPH6QmtNaVdujngx8E65ohUdUK8tZQn7NZEGxCnMm4Vo", "5GQXUfx92K4sZKFK7bwVvcEgdMKTmuSQpVQrDbx8v16ohcnS"), // Judas
+				authority_keys_from_ss58("5CCfqZuwygPhjQN2SYobCjyKDJtN2HhNsUESFkqfF1FPFK2q", "5HaTasFAThLhHQjYbxaSLbCcFpMr5U48j57cdrKBnPKDzo7y"), // Paul
+				authority_keys_from_ss58("5ELRcx6SiGr3c3T6qAAUQz2EeUDJUq2QdgCBG1k8A2mYDm39", "5DkDqEhXGmPwYktt5E3PKfXujAZw1T4xF6T9t1YRaBonJ9e4"), // Philip
+				authority_keys_from_ss58("5GzwfhtLyKQ1KoiAdmFw5kFytxESU2K3uo27ZAkBswxHPWuC", "5GLzcfVersKv1TotgXvd5AiNfU6XdEXhPdhjL7dMcsovnQmk"), // Andrew
+				authority_keys_from_ss58("5DPuSeJQpEbmS4uz27upUAmUTuwVfJob6pJVn6ahcjf8suqe", "5CcCpjr33kq5NUDeYxWr4df8v4X6MkSAqUSUonzzLAYm4VxE"), // James
+				authority_keys_from_ss58("5HmPj6eAFR9VXYst9X9KE9FZYJVhULTgcbJXaWNp611sVKDS", "5CrG4gHMxDyFVW2Sn1W2VSAJBUvsB1wuLGdupexYTTD6N4SW"), // John
+				authority_keys_from_ss58("5HMXmC3tTJVsqz1LftwZAfRTch1sdsimHbmsw4kGUfzVvJXA", "5EZM4K9pLRCFXCfj1Mr9SiQ4xiM15hnECEofQUqSRwjLiseb"), // Judas
 			],
 			AccountId::from_ss58check("5FsVmCKVDvkUvXR42ckdi9GxmgU8C2zQvKm7Mi62199qfCDt").unwrap(), // Sudo
 			vec![
