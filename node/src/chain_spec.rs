@@ -152,14 +152,14 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 }
 
 /// *************************************
-/// Exodus NETWORK CONFIG
+/// Akatsuki NETWORK CONFIG
 /// *************************************
-pub fn exodus_config() -> Result<ChainSpec, String> {
+pub fn akatsuki_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
 
 	Ok(ChainSpec::from_genesis(
-		"Exodus bittensor main net",
-		"exodus",
+		"Akatsuki bittensor main net",
+		"akatsuki",
 		ChainType::Live,
 		move || network_genesis(
 			wasm_binary,
