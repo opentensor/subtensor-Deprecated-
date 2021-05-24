@@ -152,28 +152,28 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 }
 
 /// *************************************
-/// EXODUS MAIN NET CONFIG
+/// Exodus NETWORK CONFIG
 /// *************************************
-pub fn exodus_mainnet_config() -> Result<ChainSpec, String> {
+pub fn exodus_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
 
 	Ok(ChainSpec::from_genesis(
 		"Exodus bittensor main net",
-		"exodus_mainnet",
+		"exodus",
 		ChainType::Live,
 		move || network_genesis(
 			wasm_binary,
 			vec![
-				authority_keys_from_ss58("5CJEfuCe7QEztdnHJEBiXsfGynEAmnTfa5DDdiXxP7zPSqQG", "5F7ia4UqyimKaJuvTQnFsRNJhSX2UiM5sFXcWmGjAPtDnwpc"), // jarvis
-				authority_keys_from_ss58("5HgnTqtdTaAjjVPg2VRaHiytDJzG3Tr9bmEi46sk3pCxuKPo", "5FLdFNe3SnHCZxgRGJKQoBroeXWKPC48AkgHwH7rNoTEX5L4"), // genisys
-				authority_keys_from_ss58("5Fsrw5m78ckJ2v5KqPo7QE6Axrmt5TatB2E16eD2ruAh3CCn", "5DQVooh4NVUpQdFkrv58myP5F7TTjMkMAF1YKxKJFJQE7FQc"), // hal
-				authority_keys_from_ss58("5DRU4az6QWpBmNkAtsYMjaV5qRx1X9jLcZYKq7EKgM4noWn8", "5Do8YhJpniwzzDZchtNNynn5gzp32Syv7DHjVekpDdwtcUik"), // wopr
-				authority_keys_from_ss58("5HdtW1gDZorC89Un8PzPpMXtYPTp4Fybst6mzLg1TDpL8hBm", "5H3jUpgQ5nJXszJxStR9LgRMf1qCyfn417pxh5pYzwwRukAo"), // gibson
-				authority_keys_from_ss58("5Cz9opG7WReFPxu6EdvWaxDTQy5Lk8A4idLMYidijjhUq4sh", "5GgZ8yNBc5vWFJPUgEuDW3Q7vVEoBBwo2RFA8A2gJ6TKoeMs"), // glados
+				authority_keys_from_ss58("5EjXbAUonuChmgHY3iAVYsmBi4csm2v1oS2g6eBdDUYDv6iq", "5Cvwdk1H7RdGLTpjp1TdQnM95BwekrNwZLr2RHueXjNLKm3e"), // Paul
+				authority_keys_from_ss58("5CA2AtuwmExwB68n1PK6GN98u4JnYLeTHWoJjCyL3Tg2LiZa", "5DRRQEz2vHtdUb8Xja9PB8MkX7crB86JTHR69FDmw31UMPyB"), // Philip
+				authority_keys_from_ss58("5HEDGbGSv8Nyi1DS2Z6Y4Po9Nj9HsAVu3PDq1skShWid4pfd", "5DUDRrNPDqyJyCLJEGgzPHB2amifhZrcjT9qQQp9WPNJG7jV"), // Andrew
+				authority_keys_from_ss58("5DMHRmr6i4eKC9MBntUfxJ3QCPagGRnzrDynbtgAXFRnWkrc", "5Giov43aiFD86VgTGGWawG7mBpmZE88ohEAXHvc5nRkUxW9e"), // James
+				authority_keys_from_ss58("5CAkLYRMs35ZNkmm69t1UmuJquk8FoBoSvfSe4rjwf1nSjpF", "5D7tPPA6MkyRU6hEUtFGnzgMyKAh785rQzLERLMQxgBfYnMf"), // John
+				authority_keys_from_ss58("5FusgPH6QmtNaVdujngx8E65ohUdUK8tZQn7NZEGxCnMm4Vo", "5GQXUfx92K4sZKFK7bwVvcEgdMKTmuSQpVQrDbx8v16ohcnS"), // Judas
 			],
-			AccountId::from_ss58check("5GbSmaoza9rzDViaLTmFS2vhjobEQdv93cekXYAJ6XPstMej").unwrap(),
+			AccountId::from_ss58check("5FsVmCKVDvkUvXR42ckdi9GxmgU8C2zQvKm7Mi62199qfCDt").unwrap(), // Sudo
 			vec![
-				AccountId::from_ss58check("5FCJNwo2MSnHBEgoydnXt1aLGdFL6pCmpte476nFQ4X5vmxe").unwrap(), // Adam
+				AccountId::from_ss58check("5FsVmCKVDvkUvXR42ckdi9GxmgU8C2zQvKm7Mi62199qfCDt").unwrap(), // Sudo
 			],
 			true,
 		),
@@ -313,8 +313,8 @@ fn network_genesis(
 			changes_trie_config: Default::default(),
 		}),
 		pallet_balances: Some(BalancesConfig {
-			// Configure endowed accounts with initial balance of 1 << 60.
-			balances: endowed_accounts.iter().cloned().map(|k|(k, u128::pow(10,9))).collect(),
+			// Configure endowed accounts with initial balance of 1000 tokens for sudo.
+			balances: endowed_accounts.iter().cloned().map(|k|(k, u128::pow(10,12))).collect(),
 		}),
 		pallet_aura: Some(AuraConfig {
 			authorities: initial_authorities.iter().map(|x| (x.0.clone())).collect(),

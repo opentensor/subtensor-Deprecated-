@@ -50,7 +50,7 @@ impl SubstrateCli for Cli {
 		Ok(match id {
 			"dev" => Box::new(chain_spec::development_config()?),
 			"" => Box::new(chain_spec::kusanagi_mainnet_config()?),
-			"exodus" => Box::new(chain_spec::exodus_mainnet_config()?),
+			"exodus" => Box::new(chain_spec::exodus_config()?),
 			"local" => Box::new(chain_spec::local_testnet_config()?),
 			"akira" => Box::new(chain_spec::akira_testnet_config()?),
 			"boltzmann" => Box::new(chain_spec::boltzmann_testnet_config()?),
