@@ -177,7 +177,10 @@ pub fn akatsuki_config() -> Result<ChainSpec, String> {
 			],
 			true,
 		),
-		vec![],
+		vec![
+			MultiaddrWithPeerId::from_str("/dns4/Peter.akatsuki.bittensor.com/tcp/30333/p2p/12D3KooWRxmVnU2EMar4Bsg3sYfVJVEhpLqy9Us82AgzRHpnjBES").unwrap(),
+			MultiaddrWithPeerId::from_str("/dns4/Thaddeus.akatsuki.bittensor.com/tcp/30333/p2p/12D3KooWG5XbAU9gdGCHJyAy2BwK95gqjYz48AUzwY5ruDK6FCB6").unwrap()
+	    ],
 		None,
 		None,
 		None,
